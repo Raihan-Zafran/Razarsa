@@ -105,6 +105,14 @@ jobs:
         run: |
           TAG="${{ github.event.inputs.rilis }}"
           if [ -z "$TAG" ] && [[ "$GITHUB_REF" == refs/tags/v* ]]; then TAG="${GITHUB_REF#refs/tags/}"; fi
+          # Rilis otomatis: push ke branch utama dengan versi baru di pubspec.yaml.
+          if [ -z "$TAG" ] && [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_name }}" = "${{ github.event.repository.default_branch }}" ]; then
+            VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //; s/+.*//')
+            if ! git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null 2>&1; then
+              TAG="v$VERSION"
+              echo "Versi baru $VERSION, rilis otomatis dibuat."
+            fi
+          fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           if [ -n "$TAG" ] && [ ! -f android/key.properties ]; then
             echo "::error::Rilis butuh kunci rilis. Isi 4 secret RELEASE_* dulu, lalu jalankan ulang."

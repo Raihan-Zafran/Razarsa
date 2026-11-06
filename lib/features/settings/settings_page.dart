@@ -112,14 +112,14 @@ class SettingsPage extends StatelessWidget {
         _Row(icon: Icons.chat_bubble_outline_rounded, tone: 'blue', label: tr('Kirim masukan'), onTap: soon),
         _Row(icon: Icons.shield_outlined, tone: 'green', label: tr('Kebijakan privasi'), onTap: soon),
         _Row(icon: Icons.description_outlined, tone: 'gray', label: tr('Syarat & ketentuan'), onTap: soon),
-        _Row(icon: Icons.info_outline_rounded, tone: 'gray', label: tr('Versi aplikasi'), value: '1.0.0-beta', onTap: () {}),
+        _Row(icon: Icons.info_outline_rounded, tone: 'gray', label: tr('Versi aplikasi'), value: '1.0.1', onTap: () {}),
       ]),
       _Group(tr('Akun'), [
         _Row(icon: Icons.logout_rounded, tone: 'warn', label: tr('Keluar'), sub: tr('Kembali ke halaman masuk'), danger: true,
             onTap: store.logout),
       ]),
       const SizedBox(height: 14),
-      Text(tr('Razarsa versi 1.0.0-beta'), textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: z.muted2)),
+      Text(tr('Razarsa versi 1.0.1'), textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: z.muted2)),
     ]);
   }
 
