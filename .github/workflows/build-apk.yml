@@ -8,6 +8,11 @@ on:
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      rilis:
+        description: "Buat GitHub Release dengan tag ini (contoh v1.0.0-beta). Kosongkan kalau cuma build."
+        required: false
+        default: ""
 
 concurrency:
   group: build-${{ github.ref }}
@@ -95,10 +100,28 @@ jobs:
           path: dist/*.apk
           retention-days: 30
 
-      - name: Buat GitHub Release (khusus tag v*)
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Tentukan rilis
+        id: rel
+        run: |
+          TAG="${{ github.event.inputs.rilis }}"
+          if [ -z "$TAG" ] && [[ "$GITHUB_REF" == refs/tags/v* ]]; then TAG="${GITHUB_REF#refs/tags/}"; fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          if [ -n "$TAG" ] && [ ! -f android/key.properties ]; then
+            echo "::error::Rilis butuh kunci rilis. Isi 4 secret RELEASE_* dulu, lalu jalankan ulang."
+            exit 1
+          fi
+          NOTES="docs/rilis/$TAG.md"
+          [ -f "$NOTES" ] || NOTES=""
+          echo "notes=$NOTES" >> "$GITHUB_OUTPUT"
+
+      - name: Buat GitHub Release
+        if: steps.rel.outputs.tag != ''
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.rel.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: Razarsa ${{ steps.rel.outputs.tag }}
+          body_path: ${{ steps.rel.outputs.notes }}
+          generate_release_notes: ${{ steps.rel.outputs.notes == '' }}
+          prerelease: ${{ contains(steps.rel.outputs.tag, '-') }}
           files: dist/*.apk
-          generate_release_notes: true
-          prerelease: ${{ contains(github.ref, '-') }}
