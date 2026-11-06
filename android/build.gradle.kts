@@ -23,12 +23,12 @@ tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
 
-// Kunci androidx.core ke versi yang cocok dengan compileSdk 36.
+// Kunci androidx.core 1.16 (butuh compileSdk 35) supaya cocok dengan semua plugin.
 subprojects {
     configurations.all {
         resolutionStrategy {
-            force("androidx.core:core:1.17.0")
-            force("androidx.core:core-ktx:1.17.0")
+            force("androidx.core:core:1.16.0")
+            force("androidx.core:core-ktx:1.16.0")
         }
     }
 }
