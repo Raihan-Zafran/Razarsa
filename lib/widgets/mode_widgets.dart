@@ -81,8 +81,6 @@ class AppMode {
 List<AppMode> get kModes => [
       AppMode('finance', tr('Keuangan'), tr('Catat uang, laporan, target tabungan'), Icons.account_balance_wallet_outlined, 'green'),
       AppMode('productive', tr('Produktif'), tr('To-do, kalender, pengingat, catatan'), Icons.task_alt_rounded, 'blue'),
-      AppMode('gym', 'Gym', tr('Home workout dan riwayat latihan'), Icons.fitness_center_rounded, 'orange', ready: false),
-      AppMode('health', 'Health', tr('Air minum, tidur, berat badan'), Icons.favorite_border_rounded, 'pink', ready: false),
     ];
 
 /// Tombol di kiri atas: logo + nama mode. Diketuk untuk ganti mode.

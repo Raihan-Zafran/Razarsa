@@ -4,7 +4,7 @@
 
 <h1 align="center">Razarsa</h1>
 <p align="center"><i>Dari nama pembuatnya: <b>Ra</b>ihan <b>Za</b>fran Sy<b>a</b>ddat (dulu bernama Zevra)</i></p>
-<p align="center"><b>Satu aplikasi untuk mengatur hidup.</b><br>Keuangan, produktivitas, dan kesehatan dalam satu tempat.</p>
+<p align="center"><b>Satu aplikasi untuk mengatur hidup.</b><br>Keuangan dan produktivitas dalam satu tempat.</p>
 
 ---
 
@@ -12,13 +12,13 @@
 
 Razarsa adalah aplikasi Android berbasis **Flutter** yang dirancang sebagai **"multi app"**: satu aplikasi dengan beberapa *mode*, dan setiap mode mengurus satu bagian hidup.
 
-Banyak orang memasang 4–5 aplikasi berbeda untuk mencatat uang, daftar tugas, catatan, latihan, dan kesehatan. Datanya tersebar, tampilannya beda-beda, dan semuanya harus dibuka satu per satu. Razarsa menyatukan semuanya dengan tampilan yang konsisten, satu pengaturan, dan satu teman maskot: **naga hijau kecil** yang ikut senang kalau kamu konsisten.
+Banyak orang memasang 4–5 aplikasi berbeda untuk mencatat uang, daftar tugas, kalender, dan catatan. Datanya tersebar, tampilannya beda-beda, dan semuanya harus dibuka satu per satu. Razarsa menyatukan semuanya dengan tampilan yang konsisten, satu pengaturan, dan satu teman maskot: **naga hijau kecil** yang ikut senang kalau kamu konsisten.
 
 ## Tujuan
 
 1. **Mudah dan cepat.** Mencatat sesuatu harus selesai dalam hitungan detik, contohnya lewat tombol *Catat Cepat*.
 2. **Semua di satu tempat.** Pindah mode cukup lewat satu tombol, dan pengaturannya tetap satu untuk semua mode.
-3. **Saling terhubung.** Contoh ke depannya: tagihan otomatis jadi pengingat, dan latihan tercatat di kesehatan.
+3. **Saling terhubung.** Contoh ke depannya: tagihan otomatis jadi pengingat di kalender.
 4. **Nyaman dilihat.** Ada mode terang dan gelap, animasi halus, dan latar yang ikut berganti siang dan malam.
 5. **Data milik pengguna.** Versi awal menyimpan semua data **di HP**, tanpa server.
 
@@ -28,8 +28,6 @@ Banyak orang memasang 4–5 aplikasi berbeda untuk mencatat uang, daftar tugas, 
 |---|---|---|
 | 💰 **Keuangan** | Catat pemasukan dan pengeluaran, laporan, anggaran, target tabungan | ✅ Versi 1 |
 | ✅ **Produktif** | To-do, kalender + pengingat, catatan | ✅ Versi 1.1 |
-| 💪 **Gym** | Home workout: program latihan, timer, riwayat | 🔜 Berikutnya |
-| ❤️ **Health** | Air minum, tidur, berat badan, langkah | 🔜 Direncanakan |
 | 🏠 **Dashboard Utama** | Ringkasan semua mode setelah login, plus tombol ganti mode | 🔜 Direncanakan |
 
 ## Fitur versi 1 (mode Keuangan)
