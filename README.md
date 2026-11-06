@@ -27,8 +27,8 @@ Banyak orang memasang 4–5 aplikasi berbeda untuk mencatat uang, daftar tugas, 
 | Mode | Isi | Status |
 |---|---|---|
 | 💰 **Keuangan** | Catat pemasukan dan pengeluaran, laporan, anggaran, target tabungan | ✅ Versi 1 |
-| ✅ **Produktif** | To-do, pengingat, catatan | 🔜 Berikutnya |
-| 💪 **Gym** | Home workout: program latihan, timer, riwayat | 🔜 Direncanakan |
+| ✅ **Produktif** | To-do, kalender + pengingat, catatan | ✅ Versi 1.1 |
+| 💪 **Gym** | Home workout: program latihan, timer, riwayat | 🔜 Berikutnya |
 | ❤️ **Health** | Air minum, tidur, berat badan, langkah | 🔜 Direncanakan |
 | 🏠 **Dashboard Utama** | Ringkasan semua mode setelah login, plus tombol ganti mode | 🔜 Direncanakan |
 
@@ -45,6 +45,16 @@ Banyak orang memasang 4–5 aplikasi berbeda untuk mencatat uang, daftar tugas, 
 - **Latar animasi**: siang ada awan, burung, dan pesawat kertas; malam ada bintang dan **kunang-kunang**. Semua animasi otomatis berhenti kalau HP memakai pengaturan *kurangi gerakan*.
 
 > **⚠️ Login versi beta belum aman:** masih **lokal**, kata sandi **tidak dicek**, akun hanya tersimpan di HP. Cocok untuk uji coba, bukan untuk data sungguhan. Nanti akan memakai Firebase. Tombol "Masuk dengan Google", kategori, Catat Cepat, transaksi berulang, dan menu Tentang masih bertanda *segera hadir*.
+
+## Fitur mode Produktif (v1.1)
+
+- **Ganti mode** lewat tombol di kiri atas (logo + nama mode).
+- **Hari ini**: fokus harian, Tambah Cepat, jadwal hari ini, tugas berikutnya, catatan disematkan.
+- **To-do**: kategori, tanggal & jam, filter, tekan lama untuk menghapus.
+- **Kalender + Pengingat**: tampilan Bulan/Minggu/Hari; acara dan pengingat (sekali / setiap hari) dengan notifikasi.
+- **Catatan**: warna, cari, sematkan, tersimpan otomatis.
+- **Latar kelas** beranimasi yang bertambah isinya setiap pindah halaman, dengan versi malam.
+- **Profil untuk semua mode**: level & XP, hari aktif, hari beruntun, pencapaian, ringkasan tiap mode.
 
 ## Cara mendapatkan APK
 
@@ -77,10 +87,12 @@ lib/
 ├── shell/
 │   ├── app_shell.dart        # Kerangka: latar, perpindahan halaman, dock
 │   ├── dock.dart             # Dock dengan lekukan & bola yang melompat
-│   └── sky_background.dart   # Latar siang/malam beranimasi
+│   ├── sky_background.dart   # Latar langit (Keuangan)
+│   └── classroom_background.dart # Latar kelas (Produktif)
 ├── features/
 │   ├── auth/                 # Masuk/Daftar + karakter kawaii
 │   ├── finance/              # Beranda, Transaksi, Tambah, Laporan, Target
+│   ├── productive/           # Hari ini, To-do, Kalender + pengingat, Catatan
 │   └── settings/             # Pengaturan & Profil
 └── widgets/common.dart       # Komponen yang dipakai bersama
 ```

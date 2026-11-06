@@ -8,6 +8,7 @@ import '../../shell/app_shell.dart';
 import '../../widgets/common.dart';
 import '../settings/profile_page.dart';
 import 'add_transaction_page.dart';
+import '../../widgets/mode_widgets.dart';
 import '../../core/i18n.dart';
 
 class HomePage extends StatelessWidget {
@@ -19,22 +20,14 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
     final z = ZColors.of(context);
-    final dark = Theme.of(context).brightness == Brightness.dark;
     final recent = store.txns.take(4).toList();
 
     return PageScroll(children: [
       // Header: logo, tombol mode, profil
       Row(children: [
-        const AppLogo(size: 30),
-        const SizedBox(width: 8),
-        const Expanded(
-          child: Text('razarsa', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
-        ),
-        RoundIconButton(
-          icon: dark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-          tooltip: dark ? tr('Ganti ke mode terang') : tr('Ganti ke mode gelap'),
-          onTap: () => store.setThemeMode(dark ? ThemeMode.light : ThemeMode.dark),
-        ),
+        const ModeButton(),
+        const Spacer(),
+        const ThemeToggle(),
         const SizedBox(width: 8),
         RoundIconButton(
           icon: Icons.person_outline_rounded,

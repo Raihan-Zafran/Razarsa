@@ -11,6 +11,15 @@ class Assets {
   static const mascotWallet = 'assets/images/mascot_wallet.webp';
   static const mountainDay = 'assets/images/mountain_day.webp';
   static const mountainNight = 'assets/images/mountain_night.webp';
+  static const sceneDay = 'assets/images/scene_day.webp';
+  static const sceneNight = 'assets/images/scene_night.webp';
+  static const dragonHappy = 'assets/images/dragon_happy.webp';
+  static const dragonWin = 'assets/images/dragon_win.webp';
+  static const dragonCurious = 'assets/images/dragon_curious.webp';
+  static const toggleDay = 'assets/images/toggle_day.webp';
+  static const toggleNight = 'assets/images/toggle_night.webp';
+  static const knobSun = 'assets/images/knob_sun.webp';
+  static const knobMoon = 'assets/images/knob_moon.webp';
 }
 
 /// Kartu dasar: putih di mode terang, hijau gelap bergaris di mode gelap.

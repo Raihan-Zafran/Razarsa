@@ -5,30 +5,62 @@ import '../features/finance/goals_page.dart';
 import '../features/finance/home_page.dart';
 import '../features/finance/report_page.dart';
 import '../features/finance/transactions_page.dart';
+import '../features/productive/calendar_page.dart';
+import '../features/productive/notes_page.dart';
+import '../features/productive/prod_home_page.dart';
+import '../features/productive/todo_page.dart';
 import '../features/settings/settings_page.dart';
+import '../data/store.dart';
+import 'classroom_background.dart';
 import 'dock.dart';
 import 'sky_background.dart';
 import '../core/i18n.dart';
 
-/// Kerangka utama setelah masuk: latar animasi, halaman, dan dock.
-class AppShell extends StatefulWidget {
+/// Kerangka utama setelah masuk: mengikuti mode aktif (Keuangan / Produktif).
+class AppShell extends StatelessWidget {
   const AppShell({super.key});
 
   @override
-  State<AppShell> createState() => _AppShellState();
+  Widget build(BuildContext context) {
+    final mode = StoreScope.of(context).mode;
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 420),
+      child: ModeShell(key: ValueKey(mode), mode: mode),
+    );
+  }
 }
 
-class _AppShellState extends State<AppShell> {
+/// Kerangka satu mode: latar animasi, halaman, dan dock.
+class ModeShell extends StatefulWidget {
+  const ModeShell({super.key, required this.mode});
+
+  final String mode;
+
+  @override
+  State<ModeShell> createState() => _ModeShellState();
+}
+
+class _ModeShellState extends State<ModeShell> {
   int _tab = 0;
   int _dir = 1;
 
-  List<DockItem> get _items => [
-    DockItem(Icons.home_rounded, tr('Beranda')),
-    DockItem(Icons.receipt_long_rounded, tr('Transaksi')),
-    DockItem(Icons.bar_chart_rounded, tr('Laporan')),
-    DockItem(Icons.flag_rounded, tr('Target')),
-    DockItem(Icons.settings_rounded, tr('Pengaturan')),
-  ];
+  bool get _prod => widget.mode == 'productive';
+
+  List<DockItem> get _items => _prod
+      ? [
+          DockItem(Icons.home_rounded, tr('Hari ini')),
+          DockItem(Icons.task_alt_rounded, tr('To-do')),
+          DockItem(Icons.calendar_month_rounded, tr('Kalender')),
+          DockItem(Icons.sticky_note_2_outlined, tr('Catatan')),
+          DockItem(Icons.settings_rounded, tr('Pengaturan')),
+        ]
+      : [
+          DockItem(Icons.home_rounded, tr('Beranda')),
+          DockItem(Icons.receipt_long_rounded, tr('Transaksi')),
+          DockItem(Icons.bar_chart_rounded, tr('Laporan')),
+          DockItem(Icons.flag_rounded, tr('Target')),
+          DockItem(Icons.settings_rounded, tr('Pengaturan')),
+        ];
 
   void goTo(int i) {
     if (i == _tab) return;
@@ -40,6 +72,20 @@ class _AppShellState extends State<AppShell> {
   }
 
   Widget _page() {
+    if (_prod) {
+      switch (_tab) {
+        case 1:
+          return const TodoPage();
+        case 2:
+          return const CalendarPage();
+        case 3:
+          return const NotesPage();
+        case 4:
+          return const SettingsPage();
+        default:
+          return ProdHomePage(goTo: goTo);
+      }
+    }
     switch (_tab) {
       case 1:
         return const TransactionsPage();
@@ -63,7 +109,14 @@ class _AppShellState extends State<AppShell> {
       backgroundColor: z.bg,
       body: Stack(
         children: [
-          Positioned(top: 0, left: 0, right: 0, child: SkyBackground(dark: dark)),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: _prod
+                ? ClassroomBackground(dark: dark, tab: _tab, name: StoreScope.of(context).userName)
+                : SkyBackground(dark: dark),
+          ),
           Positioned.fill(
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 380),

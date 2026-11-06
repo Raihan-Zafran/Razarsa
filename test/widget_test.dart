@@ -5,6 +5,13 @@ import 'package:razarsa/core/format.dart';
 import 'package:razarsa/core/i18n.dart';
 import 'package:razarsa/data/store.dart';
 import 'package:razarsa/main.dart';
+import 'package:razarsa/data/productive_models.dart';
+import 'package:flutter/material.dart';
+import 'package:razarsa/core/theme.dart';
+import 'package:razarsa/features/productive/calendar_page.dart';
+import 'package:razarsa/features/productive/notes_page.dart';
+import 'package:razarsa/features/productive/todo_page.dart';
+import 'package:razarsa/features/settings/profile_page.dart';
 
 void main() {
   setUpAll(() async => initializeDateFormatting());
@@ -103,5 +110,66 @@ void main() {
     await tester.pump(const Duration(milliseconds: 800));
     expect(find.text('Transaksi Terbaru'), findsOneWidget);
     expect(find.text('Belum ada transaksi'), findsOneWidget);
+  });
+
+  group('Mode Produktif', () {
+    test('tugas, agenda, catatan tersimpan', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final a = AppStore(prefs);
+      final t = a.addTodo('Kirim laporan', cat: 'Kerja', tone: 'orange', due: DateTime.now());
+      a.toggleTodo(t.id);
+      a.addAgenda('Minum obat', DateTime(2026, 11, 6, 7), reminder: true, daily: true);
+      a.addNote(title: 'Ide', body: 'Isi');
+      a.setMode('productive');
+      await Future<void>.delayed(Duration.zero);
+      final b = AppStore(prefs);
+      expect(b.mode, 'productive');
+      expect(b.todos.single.done, isTrue);
+      expect(b.agenda.single.occursOn(DateTime(2026, 12, 1)), isTrue);
+      expect(b.agenda.single.occursOn(DateTime(2026, 11, 5)), isFalse);
+      expect(b.notes.single.title, 'Ide');
+      expect(b.streak, 1);
+      expect(b.totalActivity, 3);
+    });
+
+    test('agenda sekali hanya muncul di harinya', () {
+      final a = Agenda(id: '1', title: 'Rapat', at: DateTime(2026, 11, 6, 9, 30));
+      expect(a.occursOn(DateTime(2026, 11, 6)), isTrue);
+      expect(a.occursOn(DateTime(2026, 11, 7)), isFalse);
+    });
+  });
+
+  testWidgets('pindah ke mode Produktif', (tester) async {
+    SharedPreferences.setMockInitialValues({'loggedIn': true, 'mode': 'productive'});
+    final store = AppStore(await SharedPreferences.getInstance());
+    await tester.pumpWidget(RazarsaApp(store: store));
+    await tester.pump(const Duration(milliseconds: 800));
+    expect(find.text('Fokus Hari Ini'), findsOneWidget);
+    expect(find.text('Tambah Cepat'), findsOneWidget);
+    store.setMode('finance');
+    await tester.pump(const Duration(milliseconds: 800));
+    expect(find.text('Transaksi Terbaru'), findsOneWidget);
+  });
+
+  testWidgets('halaman Produktif & Profil tampil tanpa error', (tester) async {
+    tester.view.physicalSize = const Size(390 * 3, 844 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    SharedPreferences.setMockInitialValues({});
+    final store = AppStore(await SharedPreferences.getInstance());
+    store.addTodo('Belajar', cat: 'Kuliah', tone: 'purple', due: DateTime.now());
+    store.addAgenda('Rapat', DateTime.now(), reminder: true);
+    store.addNote(title: 'Ide', body: 'Isi catatan');
+    for (final dark in [false, true]) {
+      for (final page in const [TodoPage(), CalendarPage(), NotesPage(), ProfilePage()]) {
+        await tester.pumpWidget(StoreScope(
+          store: store,
+          child: MaterialApp(theme: buildTheme(dark ? Brightness.dark : Brightness.light), home: Scaffold(body: page)),
+        ));
+        await tester.pump(const Duration(milliseconds: 600));
+        expect(tester.takeException(), isNull);
+      }
+    }
   });
 }

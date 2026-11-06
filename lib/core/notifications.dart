@@ -4,6 +4,7 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
+import '../data/productive_models.dart';
 import '../data/store.dart';
 import 'i18n.dart';
 
@@ -83,6 +84,31 @@ class Notif {
       title: tr('Anggaran hampir habis'),
       body: trf('Pengeluaran bulan ini sudah {0}% dari anggaran.', [(pct * 100).round()]),
       notificationDetails: _details,
+    );
+  }
+
+  /// Jadwalkan / batalkan notifikasi untuk satu pengingat di kalender.
+  static Future<void> syncAgenda(Agenda a, {bool removed = false, bool enabled = true}) async {
+    await init();
+    if (!_ready) return;
+    await _p.cancel(id: a.notifId);
+    if (removed || !enabled || !a.reminder || !a.on) return;
+    final now = tz.TZDateTime.now(tz.local);
+    var at = tz.TZDateTime(tz.local, a.at.year, a.at.month, a.at.day, a.at.hour, a.at.minute);
+    if (a.daily) {
+      at = tz.TZDateTime(tz.local, now.year, now.month, now.day, a.at.hour, a.at.minute);
+      if (!at.isAfter(now)) at = at.add(const Duration(days: 1));
+    } else if (!at.isAfter(now)) {
+      return;
+    }
+    await _p.zonedSchedule(
+      id: a.notifId,
+      title: a.title,
+      body: tr('Pengingat dari Razarsa'),
+      scheduledDate: at,
+      notificationDetails: _details,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      matchDateTimeComponents: a.daily ? DateTimeComponents.time : null,
     );
   }
 }

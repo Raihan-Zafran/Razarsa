@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/format.dart';
 import '../core/i18n.dart';
 import 'models.dart';
+import 'productive_models.dart';
 
 /// Semua data aplikasi. Disimpan di HP (shared_preferences), belum ada server.
 class AppStore extends ChangeNotifier {
@@ -27,6 +28,23 @@ class AppStore extends ChangeNotifier {
   List<CustomCategory> customCats = [];
   int monthlyBudget = 5000000;
 
+  // ---------- Data produktif ----------
+  List<Todo> todos = [];
+  List<Agenda> agenda = [];
+  List<Note> notes = [];
+
+  // ---------- Mode & profil ----------
+  /// Mode aktif: 'finance' atau 'productive'.
+  String mode = 'finance';
+  String bio = '';
+  String joinedAt = '';
+
+  /// Tanggal-tanggal (yyyy-mm-dd) saat aplikasi dipakai.
+  List<String> activeDays = [];
+
+  /// Dipanggil setiap agenda berubah (untuk menjadwalkan notifikasi).
+  void Function(Agenda a, {bool removed})? onAgendaChanged;
+
   // ---------- Pengaturan ----------
   ThemeMode themeMode = ThemeMode.system;
   String lang = 'id';
@@ -46,6 +64,7 @@ class AppStore extends ChangeNotifier {
     'pin': false,
     'bio': false,
     'hide': false,
+    'agenda': true,
   };
 
   bool get hideBalance => switches['hide'] == true;
@@ -68,6 +87,14 @@ class AppStore extends ChangeNotifier {
     txns = _readList('txns', Txn.fromJson);
     goals = _readList('goals', Goal.fromJson);
     customCats = _readList('customCats', CustomCategory.fromJson);
+    todos = _readList('todos', Todo.fromJson);
+    agenda = _readList('agenda', Agenda.fromJson);
+    notes = _readList('notes', Note.fromJson);
+    mode = _prefs.getString('mode') ?? 'finance';
+    bio = _prefs.getString('bio') ?? '';
+    joinedAt = _prefs.getString('joinedAt') ?? '';
+    activeDays = _prefs.getStringList('activeDays') ?? [];
+    _markActive();
     final sw = _prefs.getString('switches');
     if (sw != null) {
       final m = jsonDecode(sw) as Map<String, dynamic>;
@@ -103,6 +130,13 @@ class AppStore extends ChangeNotifier {
     await _prefs.setString('goals', jsonEncode(goals.map((e) => e.toJson()).toList()));
     await _prefs.setString('customCats', jsonEncode(customCats.map((e) => e.toJson()).toList()));
     await _prefs.setString('switches', jsonEncode(switches));
+    await _prefs.setString('todos', jsonEncode(todos.map((e) => e.toJson()).toList()));
+    await _prefs.setString('agenda', jsonEncode(agenda.map((e) => e.toJson()).toList()));
+    await _prefs.setString('notes', jsonEncode(notes.map((e) => e.toJson()).toList()));
+    await _prefs.setString('mode', mode);
+    await _prefs.setString('bio', bio);
+    await _prefs.setString('joinedAt', joinedAt);
+    await _prefs.setStringList('activeDays', activeDays);
   }
 
   void _changed() {
@@ -192,6 +226,9 @@ class AppStore extends ChangeNotifier {
         'txns': txns.map((e) => e.toJson()).toList(),
         'goals': goals.map((e) => e.toJson()).toList(),
         'customCats': customCats.map((e) => e.toJson()).toList(),
+        'todos': todos.map((e) => e.toJson()).toList(),
+        'agenda': agenda.map((e) => e.toJson()).toList(),
+        'notes': notes.map((e) => e.toJson()).toList(),
       });
 
   /// Mengganti data dengan isi backup. Mengembalikan false kalau file tidak valid.
@@ -203,6 +240,14 @@ class AppStore extends ChangeNotifier {
       goals = (m['goals'] as List).map((e) => Goal.fromJson(e as Map<String, dynamic>)).toList();
       customCats = (m['customCats'] as List).map((e) => CustomCategory.fromJson(e as Map<String, dynamic>)).toList();
       monthlyBudget = (m['monthlyBudget'] as num?)?.toInt() ?? monthlyBudget;
+      List<T> opt<T>(String k, T Function(Map<String, dynamic>) f) =>
+          ((m[k] as List?) ?? const []).map((e) => f(e as Map<String, dynamic>)).toList();
+      todos = opt('todos', Todo.fromJson);
+      agenda = opt('agenda', Agenda.fromJson);
+      notes = opt('notes', Note.fromJson);
+      for (final a in agenda) {
+        onAgendaChanged?.call(a);
+      }
       _sortTxns();
       _changed();
       return true;
@@ -236,6 +281,12 @@ class AppStore extends ChangeNotifier {
     goals = [];
     customCats = [];
     monthlyBudget = 5000000;
+    for (final a in agenda) {
+      onAgendaChanged?.call(a, removed: true);
+    }
+    todos = [];
+    agenda = [];
+    notes = [];
     _changed();
   }
 
@@ -361,6 +412,148 @@ class AppStore extends ChangeNotifier {
     goals.removeWhere((g) => g.id == id);
     _changed();
   }
+
+  // ---------- Mode & profil ----------
+  void setMode(String m) {
+    if (mode == m) return;
+    mode = m;
+    _changed();
+  }
+
+  void setBio(String v) {
+    bio = v.trim();
+    _changed();
+  }
+
+  static String _dayKey(DateTime d) => d.toIso8601String().substring(0, 10);
+
+  void _markActive() {
+    final today = _dayKey(DateTime.now());
+    if (joinedAt.isEmpty) joinedAt = today;
+    if (!activeDays.contains(today)) {
+      activeDays.add(today);
+      if (activeDays.length > 400) activeDays.removeAt(0);
+      _save();
+    }
+  }
+
+  /// Jumlah hari berturut-turut (sampai hari ini atau kemarin) aplikasi dipakai.
+  int get streak {
+    final set = activeDays.toSet();
+    var d = dayOnly(DateTime.now());
+    if (!set.contains(_dayKey(d))) d = d.subtract(const Duration(days: 1));
+    var n = 0;
+    while (set.contains(_dayKey(d))) {
+      n++;
+      d = d.subtract(const Duration(days: 1));
+    }
+    return n;
+  }
+
+  /// Semua catatan dari semua mode.
+  int get totalActivity => txns.length + goals.length + todos.length + agenda.length + notes.length;
+
+  int get xp => totalActivity * 10 + activeDays.length * 20 + todos.where((t) => t.done).length * 10;
+
+  static const xpPerLevel = 500;
+
+  int get level => xp ~/ xpPerLevel + 1;
+
+  int get xpInLevel => xp % xpPerLevel;
+
+  // ---------- Tugas ----------
+  Todo addTodo(String title, {required String cat, required String tone, DateTime? due}) {
+    final t = Todo(id: newId(), title: title.trim(), cat: cat, tone: tone, due: due);
+    todos.add(t);
+    _changed();
+    return t;
+  }
+
+  void toggleTodo(String id) {
+    final t = todos.firstWhere((t) => t.id == id);
+    t.done = !t.done;
+    t.doneAt = t.done ? DateTime.now() : null;
+    _changed();
+  }
+
+  void removeTodo(String id) {
+    todos.removeWhere((t) => t.id == id);
+    _changed();
+  }
+
+  /// Tugas diurutkan: belum selesai dulu, lalu menurut waktu.
+  List<Todo> get sortedTodos {
+    final l = [...todos];
+    l.sort((a, b) {
+      if (a.done != b.done) return a.done ? 1 : -1;
+      final ad = a.due, bd = b.due;
+      if (ad == null && bd == null) return 0;
+      if (ad == null) return 1;
+      if (bd == null) return -1;
+      return ad.compareTo(bd);
+    });
+    return l;
+  }
+
+  /// Tugas untuk hari ini: bertanggal hari ini, terlambat, atau tanpa tanggal.
+  List<Todo> get todayTodos {
+    final end = dayOnly(DateTime.now()).add(const Duration(days: 1));
+    return sortedTodos.where((t) => t.due == null || t.due!.isBefore(end)).toList();
+  }
+
+  // ---------- Agenda ----------
+  Agenda addAgenda(String title, DateTime at, {bool reminder = false, bool daily = false}) {
+    final a = Agenda(id: newId(), title: title.trim(), at: at, reminder: reminder, daily: daily, tone: reminder ? 'amber' : 'blue');
+    agenda.add(a);
+    _changed();
+    onAgendaChanged?.call(a);
+    return a;
+  }
+
+  void toggleAgenda(String id) {
+    final a = agenda.firstWhere((a) => a.id == id);
+    a.on = !a.on;
+    _changed();
+    onAgendaChanged?.call(a);
+  }
+
+  void removeAgenda(String id) {
+    final a = agenda.firstWhere((a) => a.id == id);
+    agenda.remove(a);
+    _changed();
+    onAgendaChanged?.call(a, removed: true);
+  }
+
+  List<Agenda> agendaOn(DateTime day) => agenda.where((a) => a.occursOn(day)).toList()
+    ..sort((a, b) => a.minuteOfDay.compareTo(b.minuteOfDay));
+
+  // ---------- Catatan ----------
+  Note addNote({String title = '', String body = '', String tone = 'amber'}) {
+    final n = Note(id: newId(), title: title, body: body, tone: tone, updatedAt: DateTime.now());
+    notes.insert(0, n);
+    _changed();
+    return n;
+  }
+
+  void updateNote(Note n, {String? title, String? body, String? tone, bool? pinned}) {
+    if (title != null) n.title = title;
+    if (body != null) n.body = body;
+    if (tone != null) n.tone = tone;
+    if (pinned != null) n.pinned = pinned;
+    n.updatedAt = DateTime.now();
+    _changed();
+  }
+
+  void removeNote(String id) {
+    notes.removeWhere((n) => n.id == id);
+    _changed();
+  }
+
+  /// Catatan disematkan dulu, lalu yang terbaru.
+  List<Note> get sortedNotes => [...notes]..sort((a, b) {
+      if (a.pinned != b.pinned) return a.pinned ? -1 : 1;
+      return b.updatedAt.compareTo(a.updatedAt);
+    });
 
   /// Label hari untuk pengelompokan daftar transaksi.
   static String groupLabel(Txn t) => dayLabel(t.at);
