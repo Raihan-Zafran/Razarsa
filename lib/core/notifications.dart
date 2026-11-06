@@ -1,0 +1,88 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:timezone/data/latest_all.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
+
+import '../data/store.dart';
+import 'i18n.dart';
+
+/// Notifikasi lokal: pengingat harian & peringatan anggaran.
+class Notif {
+  static final _p = FlutterLocalNotificationsPlugin();
+  static bool _ready = false;
+
+  static const _dailyId = 1;
+  static const _budgetId = 2;
+
+  static NotificationDetails get _details => const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'razarsa_main',
+          'Razarsa',
+          channelDescription: 'Pengingat & peringatan anggaran',
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority,
+        ),
+      );
+
+  static Future<void> init() async {
+    if (kIsWeb || _ready) return;
+    try {
+      tzdata.initializeTimeZones();
+      final info = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(info.identifier));
+    } catch (_) {
+      // Zona waktu tidak dikenal: pakai bawaan.
+    }
+    try {
+      await _p.initialize(
+        settings: const InitializationSettings(android: AndroidInitializationSettings('@mipmap/ic_launcher')),
+      );
+      _ready = true;
+    } catch (_) {}
+  }
+
+  /// Minta izin notifikasi (Android 13+). Mengembalikan true kalau diizinkan.
+  static Future<bool> requestPermission() async {
+    await init();
+    final android = _p.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    return await android?.requestNotificationsPermission() ?? true;
+  }
+
+  /// Pasang / matikan pengingat harian pukul 20.00.
+  static Future<void> syncDaily(bool on) async {
+    await init();
+    if (!_ready) return;
+    await _p.cancel(id: _dailyId);
+    if (!on) return;
+    final now = tz.TZDateTime.now(tz.local);
+    var at = tz.TZDateTime(tz.local, now.year, now.month, now.day, 20);
+    if (!at.isAfter(now)) at = at.add(const Duration(days: 1));
+    await _p.zonedSchedule(
+      id: _dailyId,
+      title: tr('Sudah catat keuanganmu hari ini?'),
+      body: tr('Luangkan 1 menit untuk mencatat pengeluaran hari ini.'),
+      scheduledDate: at,
+      notificationDetails: _details,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      matchDateTimeComponents: DateTimeComponents.time,
+    );
+  }
+
+  /// Dipanggil setelah pengeluaran dicatat: beri tahu sekali per periode kalau anggaran ≥ 90%.
+  static Future<void> checkBudget(AppStore store) async {
+    if (store.switches['budgetAlert'] != true || store.monthlyBudget <= 0) return;
+    final pct = store.monthExpense() / store.monthlyBudget;
+    final period = store.periodStart().toIso8601String().substring(0, 10);
+    if (pct < 0.9 || store.budgetAlertSent == period) return;
+    store.budgetAlertSent = period;
+    await init();
+    if (!_ready) return;
+    await _p.show(
+      id: _budgetId,
+      title: tr('Anggaran hampir habis'),
+      body: trf('Pengeluaran bulan ini sudah {0}% dari anggaran.', [(pct * 100).round()]),
+      notificationDetails: _details,
+    );
+  }
+}

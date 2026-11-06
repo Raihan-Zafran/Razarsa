@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../core/i18n.dart';
+
 /// Kategori transaksi. [tone] adalah nama nada warna di ZColors.
 class Category {
-  const Category(this.id, this.label, this.tone, this.icon, {this.income = false});
+  const Category(this.id, this._label, this.tone, this.icon, {this.income = false});
 
   final String id;
-  final String label;
+  final String _label;
+
+  /// Label sesuai bahasa aktif (kategori buatan sendiri tidak diterjemahkan).
+  String get label => tr(_label);
   final String tone;
   final IconData icon;
   final bool income;
@@ -112,17 +117,20 @@ class Goal {
 }
 
 class QuickItem {
-  const QuickItem(this.name, this.cat, this.amount);
+  const QuickItem(this.name, this.cat, this.idr, this.usd);
 
   final String name;
   final String cat;
-  final int amount;
+  final int idr;
+  final int usd;
+
+  int get amount => L.currency == 'USD' ? usd : idr;
 }
 
 const kQuickItems = <QuickItem>[
-  QuickItem('Kopi', 'food', 25000),
-  QuickItem('Ojol', 'transport', 20000),
-  QuickItem('Makan siang', 'food', 35000),
-  QuickItem('Parkir', 'transport', 5000),
-  QuickItem('Pulsa', 'bills', 50000),
+  QuickItem('Kopi', 'food', 25000, 5),
+  QuickItem('Ojol', 'transport', 20000, 10),
+  QuickItem('Makan siang', 'food', 35000, 12),
+  QuickItem('Parkir', 'transport', 5000, 3),
+  QuickItem('Pulsa', 'bills', 50000, 20),
 ];

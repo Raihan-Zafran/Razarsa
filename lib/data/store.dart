@@ -1,9 +1,11 @@
 import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/format.dart';
+import '../core/i18n.dart';
 import 'models.dart';
 
 /// Semua data aplikasi. Disimpan di HP (shared_preferences), belum ada server.
@@ -27,6 +29,16 @@ class AppStore extends ChangeNotifier {
 
   // ---------- Pengaturan ----------
   ThemeMode themeMode = ThemeMode.system;
+  String lang = 'id';
+  String currency = 'IDR';
+  int monthStartDay = 1;
+  bool weekStartMonday = true;
+  String pinHash = '';
+  String lastBackup = '';
+  String budgetAlertSent = '';
+
+  /// Dipanggil setelah transaksi pengeluaran dicatat (untuk peringatan anggaran).
+  void Function()? onExpenseAdded;
   Map<String, bool> switches = {
     'daily': true,
     'budgetAlert': true,
@@ -44,6 +56,15 @@ class AppStore extends ChangeNotifier {
     email = _prefs.getString('email') ?? '';
     monthlyBudget = _prefs.getInt('monthlyBudget') ?? 5000000;
     themeMode = ThemeMode.values[_prefs.getInt('themeMode') ?? ThemeMode.system.index];
+    lang = _prefs.getString('lang') ?? 'id';
+    currency = _prefs.getString('currency') ?? 'IDR';
+    monthStartDay = _prefs.getInt('monthStartDay') ?? 1;
+    weekStartMonday = _prefs.getBool('weekStartMonday') ?? true;
+    pinHash = _prefs.getString('pinHash') ?? '';
+    lastBackup = _prefs.getString('lastBackup') ?? '';
+    budgetAlertSent = _prefs.getString('budgetAlertSent') ?? '';
+    L.lang = lang;
+    L.currency = currency;
     txns = _readList('txns', Txn.fromJson);
     goals = _readList('goals', Goal.fromJson);
     customCats = _readList('customCats', CustomCategory.fromJson);
@@ -71,6 +92,13 @@ class AppStore extends ChangeNotifier {
     await _prefs.setString('email', email);
     await _prefs.setInt('monthlyBudget', monthlyBudget);
     await _prefs.setInt('themeMode', themeMode.index);
+    await _prefs.setString('lang', lang);
+    await _prefs.setString('currency', currency);
+    await _prefs.setInt('monthStartDay', monthStartDay);
+    await _prefs.setBool('weekStartMonday', weekStartMonday);
+    await _prefs.setString('pinHash', pinHash);
+    await _prefs.setString('lastBackup', lastBackup);
+    await _prefs.setString('budgetAlertSent', budgetAlertSent);
     await _prefs.setString('txns', jsonEncode(txns.map((e) => e.toJson()).toList()));
     await _prefs.setString('goals', jsonEncode(goals.map((e) => e.toJson()).toList()));
     await _prefs.setString('customCats', jsonEncode(customCats.map((e) => e.toJson()).toList()));
@@ -109,6 +137,42 @@ class AppStore extends ChangeNotifier {
     _changed();
   }
 
+  void setLang(String v) {
+    lang = v;
+    L.lang = v;
+    _changed();
+  }
+
+  void setCurrency(String v) {
+    currency = v;
+    L.currency = v;
+    _changed();
+  }
+
+  void setMonthStart(int day) {
+    monthStartDay = day.clamp(1, 28);
+    _changed();
+  }
+
+  void setWeekStartMonday(bool v) {
+    weekStartMonday = v;
+    _changed();
+  }
+
+  // ---------- PIN ----------
+  bool get pinEnabled => pinHash.isNotEmpty;
+
+  String _hash(String pin) => sha256.convert(utf8.encode('razarsa:$pin')).toString();
+
+  bool checkPin(String pin) => pinEnabled && _hash(pin) == pinHash;
+
+  void setPin(String? pin) {
+    pinHash = pin == null ? '' : _hash(pin);
+    switches['pin'] = pin != null;
+    if (pin == null) switches['bio'] = false;
+    _changed();
+  }
+
   void setSwitch(String key, bool value) {
     switches[key] = value;
     _changed();
@@ -116,6 +180,54 @@ class AppStore extends ChangeNotifier {
 
   void setBudget(int value) {
     monthlyBudget = value;
+    _changed();
+  }
+
+  // ---------- Backup ----------
+  String exportJson() => const JsonEncoder.withIndent('  ').convert({
+        'app': 'razarsa',
+        'version': 1,
+        'exportedAt': DateTime.now().toIso8601String(),
+        'monthlyBudget': monthlyBudget,
+        'txns': txns.map((e) => e.toJson()).toList(),
+        'goals': goals.map((e) => e.toJson()).toList(),
+        'customCats': customCats.map((e) => e.toJson()).toList(),
+      });
+
+  /// Mengganti data dengan isi backup. Mengembalikan false kalau file tidak valid.
+  bool importJson(String raw) {
+    try {
+      final m = jsonDecode(raw) as Map<String, dynamic>;
+      if (m['app'] != 'razarsa' && m['app'] != 'zevra') return false;
+      txns = (m['txns'] as List).map((e) => Txn.fromJson(e as Map<String, dynamic>)).toList();
+      goals = (m['goals'] as List).map((e) => Goal.fromJson(e as Map<String, dynamic>)).toList();
+      customCats = (m['customCats'] as List).map((e) => CustomCategory.fromJson(e as Map<String, dynamic>)).toList();
+      monthlyBudget = (m['monthlyBudget'] as num?)?.toInt() ?? monthlyBudget;
+      _sortTxns();
+      _changed();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  String exportCsv() {
+    String q(String s) => '"${s.replaceAll('"', '""')}"';
+    final b = StringBuffer('tanggal,jenis,kategori,catatan,jumlah\n');
+    for (final t in txns) {
+      b.writeln([
+        t.at.toIso8601String().substring(0, 16).replaceAll('T', ' '),
+        t.isExpense ? 'pengeluaran' : 'pemasukan',
+        q(category(t.cat).label),
+        q(t.name),
+        t.amount,
+      ].join(','));
+    }
+    return b.toString();
+  }
+
+  void markBackup() {
+    lastBackup = DateTime.now().toIso8601String();
     _changed();
   }
 
@@ -173,6 +285,7 @@ class AppStore extends ChangeNotifier {
     txns.add(t);
     _sortTxns();
     _changed();
+    if (amount < 0) onExpenseAdded?.call();
     return t;
   }
 
@@ -183,17 +296,37 @@ class AppStore extends ChangeNotifier {
 
   int get balance => txns.fold(0, (s, t) => s + t.amount);
 
-  bool _sameMonth(DateTime a, DateTime b) => a.year == b.year && a.month == b.month;
-
-  int monthIncome([DateTime? m]) {
-    final now = m ?? DateTime.now();
-    return txns.where((t) => !t.isExpense && _sameMonth(t.at, now)).fold(0, (s, t) => s + t.amount);
+  /// Awal periode bulan anggaran yang memuat [ref] (mengikuti tanggal gajian).
+  DateTime periodStart([DateTime? ref]) {
+    final r = ref ?? DateTime.now();
+    final d = monthStartDay;
+    return r.day >= d ? DateTime(r.year, r.month, d) : DateTime(r.year, r.month - 1, d);
   }
 
-  int monthExpense([DateTime? m]) {
-    final now = m ?? DateTime.now();
-    return txns.where((t) => t.isExpense && _sameMonth(t.at, now)).fold(0, (s, t) => s - t.amount);
+  /// Rentang periode; back = 0 periode ini, 1 periode sebelumnya, dst.
+  (DateTime, DateTime) periodRange([int back = 0]) {
+    final p = periodStart();
+    final start = DateTime(p.year, p.month - back, monthStartDay);
+    return (start, DateTime(start.year, start.month + 1, monthStartDay));
   }
+
+  /// Awal minggu ini (Senin atau Minggu).
+  DateTime weekStart([DateTime? ref]) {
+    final d = dayOnly(ref ?? DateTime.now());
+    final back = weekStartMonday ? d.weekday - 1 : d.weekday % 7;
+    return d.subtract(Duration(days: back));
+  }
+
+  int _sum(int back, bool expense) {
+    final (from, to) = periodRange(back);
+    return txns
+        .where((t) => t.isExpense == expense && !t.at.isBefore(from) && t.at.isBefore(to))
+        .fold(0, (s, t) => s + t.amount.abs());
+  }
+
+  int monthIncome([int back = 0]) => _sum(back, false);
+
+  int monthExpense([int back = 0]) => _sum(back, true);
 
   /// Pengeluaran per kategori dalam rentang waktu.
   Map<String, int> spentByCategory(DateTime from, DateTime to) {
@@ -206,13 +339,10 @@ class AppStore extends ChangeNotifier {
   }
 
   /// Total pengeluaran 6 bulan terakhir (paling lama dulu).
-  List<MapEntry<DateTime, int>> lastMonths(int count) {
-    final now = DateTime.now();
-    return List.generate(count, (i) {
-      final d = DateTime(now.year, now.month - (count - 1 - i));
-      return MapEntry(d, monthExpense(d));
-    });
-  }
+  List<MapEntry<DateTime, int>> lastMonths(int count) => List.generate(count, (i) {
+        final back = count - 1 - i;
+        return MapEntry(periodRange(back).$1, monthExpense(back));
+      });
 
   // ---------- Target ----------
   void addGoal(String name, int target) {

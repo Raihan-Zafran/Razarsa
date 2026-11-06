@@ -7,6 +7,7 @@ import '../../data/store.dart';
 import '../../shell/app_shell.dart';
 import '../../widgets/common.dart';
 import 'add_transaction_page.dart';
+import '../../core/i18n.dart';
 
 enum TxnFilter { all, income, expense }
 
@@ -42,24 +43,24 @@ class _TransactionsPageState extends State<TransactionsPage> {
     }
 
     return PageScroll(children: [
-      PageTitle('Transaksi', actions: [
+      PageTitle(tr('Transaksi'), actions: [
         RoundIconButton(
           icon: Icons.add_rounded,
-          tooltip: 'Tambah transaksi',
+          tooltip: tr('Tambah transaksi'),
           onTap: () => pushPage(context, const AddTransactionPage(income: false)),
         ),
       ]),
       const SizedBox(height: 12),
       Wrap(spacing: 8, children: [
-        ZChip(label: 'Semua', selected: _filter == TxnFilter.all, onTap: () => setState(() => _filter = TxnFilter.all)),
-        ZChip(label: 'Pemasukan', selected: _filter == TxnFilter.income, onTap: () => setState(() => _filter = TxnFilter.income)),
-        ZChip(label: 'Pengeluaran', selected: _filter == TxnFilter.expense, onTap: () => setState(() => _filter = TxnFilter.expense)),
+        ZChip(label: tr('Semua'), selected: _filter == TxnFilter.all, onTap: () => setState(() => _filter = TxnFilter.all)),
+        ZChip(label: tr('Pemasukan'), selected: _filter == TxnFilter.income, onTap: () => setState(() => _filter = TxnFilter.income)),
+        ZChip(label: tr('Pengeluaran'), selected: _filter == TxnFilter.expense, onTap: () => setState(() => _filter = TxnFilter.expense)),
       ]),
       const SizedBox(height: 8),
       if (groups.isEmpty)
-        const Padding(
+        Padding(
           padding: EdgeInsets.only(top: 24),
-          child: EmptyState(title: 'Belum ada transaksi', message: 'Transaksi yang kamu catat akan muncul di sini.'),
+          child: EmptyState(title: tr('Belum ada transaksi'), message: tr('Transaksi yang kamu catat akan muncul di sini.')),
         ),
       for (final e in groups.entries) ...[
         const SizedBox(height: 12),
@@ -86,7 +87,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
       if (groups.isNotEmpty)
         Padding(
           padding: const EdgeInsets.only(top: 14),
-          child: Text('Tekan lama transaksi untuk menghapus.',
+          child: Text(tr('Tekan lama transaksi untuk menghapus.'),
               textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: z.muted2)),
         ),
     ]);
@@ -96,11 +97,11 @@ class _TransactionsPageState extends State<TransactionsPage> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Hapus transaksi?'),
-        content: Text('${t.name} (${rpSigned(t.amount)}) akan dihapus.'),
+        title: Text(tr('Hapus transaksi?')),
+        content: Text(trf('{0} ({1}) akan dihapus.', [t.name, rpSigned(t.amount)])),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Batal')),
-          TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Hapus')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Batal'))),
+          TextButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Hapus'))),
         ],
       ),
     );

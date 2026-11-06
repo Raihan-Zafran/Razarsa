@@ -8,6 +8,7 @@ import '../features/finance/transactions_page.dart';
 import '../features/settings/settings_page.dart';
 import 'dock.dart';
 import 'sky_background.dart';
+import '../core/i18n.dart';
 
 /// Kerangka utama setelah masuk: latar animasi, halaman, dan dock.
 class AppShell extends StatefulWidget {
@@ -21,12 +22,12 @@ class _AppShellState extends State<AppShell> {
   int _tab = 0;
   int _dir = 1;
 
-  static const _items = [
-    DockItem(Icons.home_rounded, 'Beranda'),
-    DockItem(Icons.receipt_long_rounded, 'Transaksi'),
-    DockItem(Icons.bar_chart_rounded, 'Laporan'),
-    DockItem(Icons.flag_rounded, 'Target'),
-    DockItem(Icons.settings_rounded, 'Pengaturan'),
+  List<DockItem> get _items => [
+    DockItem(Icons.home_rounded, tr('Beranda')),
+    DockItem(Icons.receipt_long_rounded, tr('Transaksi')),
+    DockItem(Icons.bar_chart_rounded, tr('Laporan')),
+    DockItem(Icons.flag_rounded, tr('Target')),
+    DockItem(Icons.settings_rounded, tr('Pengaturan')),
   ];
 
   void goTo(int i) {

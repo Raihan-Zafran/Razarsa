@@ -40,11 +40,11 @@ Banyak orang memasang 4–5 aplikasi berbeda untuk mencatat uang, daftar tugas, 
 - **Transaksi**: riwayat per hari, filter Pemasukan/Pengeluaran, tekan lama untuk menghapus.
 - **Laporan**: anggaran bulanan (bisa diubah), grafik tren 6 bulan, **donut** pembagian belanja per kategori, dan maskot yang ikut cemas kalau anggaran hampir habis.
 - **Target**: target tabungan dengan progres. Gambar gunung berganti siang dan malam.
-- **Pengaturan**: satu untuk semua mode. Isinya tema (Terang/Gelap/Ikuti HP), anggaran, notifikasi, keamanan, **sembunyikan saldo**, hapus data, dan keluar.
+- **Pengaturan**: satu untuk semua mode. Isinya tema, **bahasa (Indonesia/English)**, **mata uang (Rupiah/Dolar)**, **awal bulan anggaran (tanggal gajian)**, awal minggu, **notifikasi** (pengingat harian & peringatan anggaran), **kunci PIN + sidik jari**, sembunyikan saldo, **backup & pulihkan**, **ekspor CSV**, hapus data, dan keluar.
 - **Dock** dengan bola hijau yang **melompat** ke menu yang dipilih.
 - **Latar animasi**: siang ada awan, burung, dan pesawat kertas; malam ada bintang dan **kunang-kunang**. Semua animasi otomatis berhenti kalau HP memakai pengaturan *kurangi gerakan*.
 
-> **⚠️ Login versi beta belum aman:** masih **lokal**, kata sandi **tidak dicek**, akun hanya tersimpan di HP. Cocok untuk uji coba, bukan untuk data sungguhan. Nanti akan memakai Firebase. Tombol "Masuk dengan Google", backup, ekspor, dan beberapa menu Pengaturan masih bertanda *segera hadir*.
+> **⚠️ Login versi beta belum aman:** masih **lokal**, kata sandi **tidak dicek**, akun hanya tersimpan di HP. Cocok untuk uji coba, bukan untuk data sungguhan. Nanti akan memakai Firebase. Tombol "Masuk dengan Google", kategori, Catat Cepat, transaksi berulang, dan menu Tentang masih bertanda *segera hadir*.
 
 ## Cara mendapatkan APK
 

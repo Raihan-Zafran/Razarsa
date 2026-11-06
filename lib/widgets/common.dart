@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/theme.dart';
 import '../data/models.dart';
+import '../core/i18n.dart';
 
 class Assets {
   static const mascotCelebrate = 'assets/images/mascot_celebrate.webp';
@@ -105,7 +106,7 @@ class PageTitle extends StatelessWidget {
               child: IconButton(
                 onPressed: onBack,
                 icon: Icon(backIcon, color: z.text),
-                tooltip: 'Kembali',
+                tooltip: tr('Kembali'),
                 style: IconButton.styleFrom(padding: EdgeInsets.zero),
               ),
             ),
@@ -304,6 +305,17 @@ class TxnRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Logo Razarsa (huruf R hijau).
+class AppLogo extends StatelessWidget {
+  const AppLogo({super.key, this.size = 28});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) =>
+      Image.asset('assets/images/logo.png', width: size, height: size, filterQuality: FilterQuality.medium);
 }
 
 /// Bintang logo Razarsa.

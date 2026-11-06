@@ -7,6 +7,7 @@ import '../../data/models.dart';
 import '../../data/store.dart';
 import '../../shell/app_shell.dart';
 import '../../widgets/common.dart';
+import '../../core/i18n.dart';
 
 class GoalsPage extends StatelessWidget {
   const GoalsPage({super.key});
@@ -32,8 +33,8 @@ class GoalsPage extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
 
     return PageScroll(children: [
-      PageTitle('Target Keuangan', actions: [
-        RoundIconButton(icon: Icons.add_rounded, tooltip: 'Tambah target', onTap: () => _addGoal(context, store)),
+      PageTitle(tr('Target Keuangan'), actions: [
+        RoundIconButton(icon: Icons.add_rounded, tooltip: tr('Tambah target'), onTap: () => _addGoal(context, store)),
       ]),
       const SizedBox(height: 12),
       ClipRRect(
@@ -56,12 +57,12 @@ class GoalsPage extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(20),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Bangun Masa Depanmu',
+                Text(tr('Bangun Masa Depanmu'),
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.4)),
                 const SizedBox(height: 6),
                 SizedBox(
                   width: 190,
-                  child: Text('Buat target, pantau progres, dan wujudkan.',
+                  child: Text(tr('Buat target, pantau progres, dan wujudkan.'),
                       style: TextStyle(fontSize: 13, color: z.heroMuted, height: 1.45)),
                 ),
               ]),
@@ -73,12 +74,12 @@ class GoalsPage extends StatelessWidget {
       if (store.goals.isEmpty)
         ZCard(
           child: EmptyState(
-            title: 'Belum ada target',
-            message: 'Contoh: dana darurat, liburan, laptop baru, atau DP rumah.',
+            title: tr('Belum ada target'),
+            message: tr('Contoh: dana darurat, liburan, laptop baru, atau DP rumah.'),
             action: FilledButton.icon(
               onPressed: () => _addGoal(context, store),
               icon: const Icon(Icons.add_rounded),
-              label: const Text('Buat target', style: TextStyle(fontWeight: FontWeight.w800)),
+              label: Text(tr('Buat target'), style: TextStyle(fontWeight: FontWeight.w800)),
             ),
           ),
         ),
@@ -87,7 +88,7 @@ class GoalsPage extends StatelessWidget {
         const SizedBox(height: 10),
       ],
       if (store.goals.isNotEmpty)
-        Text('Tap target untuk menambah tabungan, tekan lama untuk menghapus.',
+        Text(tr('Tap target untuk menambah tabungan, tekan lama untuk menghapus.'),
             textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: z.muted2)),
     ]);
   }
@@ -98,20 +99,20 @@ class GoalsPage extends StatelessWidget {
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Target baru'),
+        title: Text(tr('Target baru')),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(controller: name, autofocus: true, decoration: const InputDecoration(labelText: 'Nama target')),
+          TextField(controller: name, autofocus: true, decoration: InputDecoration(labelText: tr('Nama target'))),
           const SizedBox(height: 8),
           TextField(
             controller: amount,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: const InputDecoration(labelText: 'Jumlah yang dibutuhkan', prefixText: 'Rp '),
+            decoration: InputDecoration(labelText: tr('Jumlah yang dibutuhkan'), prefixText: '$currencySymbol '),
           ),
         ]),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Batal')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Simpan')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Batal'))),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Simpan'))),
         ],
       ),
     );
@@ -151,7 +152,7 @@ class _GoalCard extends StatelessWidget {
                 Text(goal.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 2),
                 Text('${rp(goal.saved)} / ${rp(goal.target)}', style: TextStyle(fontSize: 12, color: z.muted2)),
-                Text(goal.saved >= goal.target ? 'Target tercapai!' : 'Kurang ${rp(goal.target - goal.saved)}',
+                Text(goal.saved >= goal.target ? tr('Target tercapai!') : trf('Kurang {0}', [rp(goal.target - goal.saved)]),
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: z.accentText)),
               ]),
             ),
@@ -178,23 +179,23 @@ class _GoalCard extends StatelessWidget {
     final v = await showDialog<int>(
       context: context,
       builder: (c) => AlertDialog(
-        title: Text('Tabung untuk ${goal.name}'),
+        title: Text(trf('Tabung untuk {0}', [goal.name])),
         content: TextField(
           controller: ctrl,
           autofocus: true,
           keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          decoration: const InputDecoration(prefixText: 'Rp ', hintText: '100000'),
+          decoration: InputDecoration(prefixText: '$currencySymbol ', hintText: '100000'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Batal')),
-          FilledButton(onPressed: () => Navigator.pop(c, int.tryParse(ctrl.text)), child: const Text('Tambah')),
+          TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Batal'))),
+          FilledButton(onPressed: () => Navigator.pop(c, int.tryParse(ctrl.text)), child: Text(tr('Tambah'))),
         ],
       ),
     );
     if (v != null && v > 0) {
       store.addToGoal(goal.id, v);
-      if (context.mounted) showZToast(context, '${rp(v)} ditabung untuk ${goal.name}');
+      if (context.mounted) showZToast(context, trf('{0} ditabung untuk {1}', [rp(v), goal.name]));
     }
   }
 
@@ -202,11 +203,11 @@ class _GoalCard extends StatelessWidget {
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Hapus target?'),
-        content: Text('Target "${goal.name}" akan dihapus.'),
+        title: Text(tr('Hapus target?')),
+        content: Text(trf('Target "{0}" akan dihapus.', [goal.name])),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Batal')),
-          TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Hapus')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Batal'))),
+          TextButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Hapus'))),
         ],
       ),
     );

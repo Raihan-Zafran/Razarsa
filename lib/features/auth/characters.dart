@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import '../../core/i18n.dart';
 
 /// Status dan fisika empat karakter di halaman masuk.
 /// Bagian bawah badan diam; hanya badan atas yang melengkung (seperti boneka).
@@ -107,8 +108,8 @@ class CharacterPainter extends CustomPainter {
       _character(canvas, i);
     }
     if (rig.bubble > 0.01) {
-      _bubble(canvas, 'Hai!', const Offset(0, 70));
-      _bubble(canvas, 'Halo!', const Offset(150, 22));
+      _bubble(canvas, tr('Hai!'), const Offset(0, 70));
+      _bubble(canvas, tr('Halo!'), const Offset(150, 22));
     }
     canvas.restore();
   }

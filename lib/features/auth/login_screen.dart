@@ -7,6 +7,7 @@ import 'package:flutter/scheduler.dart';
 import '../../data/store.dart';
 import '../../widgets/common.dart';
 import 'characters.dart';
+import '../../core/i18n.dart';
 
 enum _View { welcome, login, register }
 
@@ -142,8 +143,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       _rig.focus = 'none';
       _msgOk = ok;
       _msg = ok
-          ? (reg ? 'Akun berhasil dibuat!' : 'Berhasil masuk!')
-          : (reg ? 'Lengkapi nama, email yang benar, dan sandi minimal 8 karakter.' : 'Email atau kata sandi belum benar.');
+          ? (reg ? tr('Akun berhasil dibuat!') : tr('Berhasil masuk!'))
+          : (reg ? tr('Lengkapi nama, email yang benar, dan sandi minimal 8 karakter.') : tr('Email atau kata sandi belum benar.'));
       _busy = ok;
     });
     _moodT?.cancel();
@@ -182,7 +183,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                       left: 0,
                       right: 0,
                       child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        const StarLogo(size: 34),
+                        const AppLogo(size: 42),
                         const SizedBox(width: 8),
                         Text('razarsa', style: TextStyle(fontSize: 38, fontWeight: FontWeight.w800, letterSpacing: -1.1, color: c.ink)),
                       ]),
@@ -223,23 +224,23 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         right: 24,
         top: 516,
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          _PillButton(label: 'MASUK DENGAN EMAIL', icon: Icons.mail_outline_rounded, bg: c.priBg, fg: c.priFg, onTap: () => _go(_View.login)),
+          _PillButton(label: tr('MASUK DENGAN EMAIL'), icon: Icons.mail_outline_rounded, bg: c.priBg, fg: c.priFg, onTap: () => _go(_View.login)),
           const SizedBox(height: 14),
           _PillButton(
-            label: 'MASUK DENGAN GOOGLE',
+            label: tr('MASUK DENGAN GOOGLE'),
             icon: Icons.account_circle_outlined,
             bg: Colors.transparent,
             fg: c.ink,
             border: c.ink,
-            onTap: () => showZToast(context, 'Masuk dengan Google segera hadir'),
+            onTap: () => showZToast(context, tr('Masuk dengan Google segera hadir')),
           ),
           const SizedBox(height: 20),
-          _LinkLine(text: 'Belum punya akun? ', link: 'Daftar', c: c, onTap: () => _go(_View.register)),
+          _LinkLine(text: tr('Belum punya akun? '), link: tr('Daftar'), c: c, onTap: () => _go(_View.register)),
           const SizedBox(height: 8),
           Center(
             child: TextButton(
               onPressed: () => store.login(),
-              child: Text('Lanjut tanpa akun',
+              child: Text(tr('Lanjut tanpa akun'),
                   style: TextStyle(color: c.muted, fontWeight: FontWeight.w600, decoration: TextDecoration.underline, decorationColor: c.muted)),
             ),
           ),
@@ -251,10 +252,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         bottom: 36,
         child: Text.rich(
           TextSpan(style: TextStyle(fontSize: 12, height: 1.5, color: c.muted), children: [
-            const TextSpan(text: 'Dengan melanjutkan, kamu menyetujui\n'),
-            TextSpan(text: 'Ketentuan', style: TextStyle(fontWeight: FontWeight.w800, color: c.ink)),
+            TextSpan(text: tr('Dengan melanjutkan, kamu menyetujui\n')),
+            TextSpan(text: tr('Ketentuan'), style: TextStyle(fontWeight: FontWeight.w800, color: c.ink)),
             const TextSpan(text: ' & '),
-            TextSpan(text: 'Kebijakan Privasi', style: TextStyle(fontWeight: FontWeight.w800, color: c.ink)),
+            TextSpan(text: tr('Kebijakan Privasi'), style: TextStyle(fontWeight: FontWeight.w800, color: c.ink)),
           ]),
           textAlign: TextAlign.center,
         ),
@@ -271,14 +272,14 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         child: IconButton(
           onPressed: () => _go(_View.welcome),
           icon: Icon(Icons.arrow_back_ios_new_rounded, color: c.ink),
-          tooltip: 'Kembali',
+          tooltip: tr('Kembali'),
         ),
       ),
       Positioned(
         top: 98,
         left: 0,
         right: 0,
-        child: Text(reg ? 'Daftar ke Razarsa :)' : 'Masuk ke Razarsa :)',
+        child: Text(reg ? tr('Daftar ke Razarsa :)') : tr('Masuk ke Razarsa :)'),
             textAlign: TextAlign.center, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w500, color: c.ink)),
       ),
       Positioned(
@@ -287,7 +288,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         top: _fieldsTop,
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           if (reg) ...[
-            _Field(controller: _name, focus: _nameF, hint: 'Nama panggilan', icon: Icons.person_outline_rounded, c: c),
+            _Field(controller: _name, focus: _nameF, hint: tr('Nama panggilan'), icon: Icons.person_outline_rounded, c: c),
             const SizedBox(height: 14),
           ],
           _Field(
@@ -302,12 +303,12 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           _Field(
             controller: _pw,
             focus: _pwF,
-            hint: 'Kata sandi (min. 8 karakter)',
+            hint: tr('Kata sandi (min. 8 karakter)'),
             icon: Icons.key_outlined,
             c: c,
             obscure: !_showPw,
             suffix: IconButton(
-              tooltip: _showPw ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi',
+              tooltip: _showPw ? tr('Sembunyikan kata sandi') : tr('Tampilkan kata sandi'),
               icon: Icon(_showPw ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: c.muted, size: 20),
               onPressed: () => setState(() {
                 _showPw = !_showPw;
@@ -317,7 +318,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             onSubmit: () => _submit(store),
           ),
           const SizedBox(height: 14),
-          _PillButton(label: reg ? 'DAFTAR DENGAN EMAIL' : 'MASUK DENGAN EMAIL', bg: c.priBg, fg: c.priFg, onTap: () => _submit(store)),
+          _PillButton(label: reg ? tr('DAFTAR DENGAN EMAIL') : tr('MASUK DENGAN EMAIL'), bg: c.priBg, fg: c.priFg, onTap: () => _submit(store)),
           if (_msg.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 10),
@@ -327,11 +328,11 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             ),
           const SizedBox(height: 14),
           if (!reg) ...[
-            _LinkLine(text: 'Lupa kata sandi? ', link: 'Klik di sini', c: c, onTap: () => showZToast(context, 'Fitur ini segera hadir')),
+            _LinkLine(text: tr('Lupa kata sandi? '), link: tr('Klik di sini'), c: c, onTap: () => showZToast(context, tr('Fitur ini segera hadir'))),
             const SizedBox(height: 10),
-            _LinkLine(text: 'Belum punya akun? ', link: 'Daftar', c: c, onTap: () => _go(_View.register)),
+            _LinkLine(text: tr('Belum punya akun? '), link: tr('Daftar'), c: c, onTap: () => _go(_View.register)),
           ] else
-            _LinkLine(text: 'Sudah punya akun? ', link: 'Masuk', c: c, onTap: () => _go(_View.login)),
+            _LinkLine(text: tr('Sudah punya akun? '), link: tr('Masuk'), c: c, onTap: () => _go(_View.login)),
         ]),
       ),
     ]);

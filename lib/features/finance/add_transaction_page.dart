@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../data/store.dart';
 import '../../shell/app_shell.dart';
 import '../../widgets/common.dart';
+import '../../core/i18n.dart';
 
 class AddTransactionPage extends StatefulWidget {
   const AddTransactionPage({super.key, required this.income});
@@ -27,7 +28,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
   bool _showNewCat = false;
   DateTime _date = DateTime.now();
 
-  int get _value => int.tryParse(_amount.text.replaceAll('.', '')) ?? 0;
+  int get _value => int.tryParse(_amount.text.replaceAll(RegExp(r'\D'), '')) ?? 0;
   bool get _canSave => _value > 0 && _cat != null;
 
   @override
@@ -70,10 +71,10 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
     return Scaffold(
       backgroundColor: z.bg,
       body: PageScroll(withDock: false, children: [
-        PageTitle('Tambah Transaksi', onBack: () => Navigator.of(context).pop(), backIcon: Icons.close_rounded),
+        PageTitle(tr('Tambah Transaksi'), onBack: () => Navigator.of(context).pop(), backIcon: Icons.close_rounded),
         const SizedBox(height: 14),
         Segmented<bool>(
-          items: const [(false, 'Pengeluaran'), (true, 'Pemasukan')],
+          items: [(false, tr('Pengeluaran')), (true, tr('Pemasukan'))],
           value: _income,
           onChanged: (v) => setState(() {
             _income = v;
@@ -85,9 +86,9 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
         ZCard(
           padding: const EdgeInsets.fromLTRB(18, 14, 18, 10),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Jumlah', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: z.muted)),
+            Text(tr('Jumlah'), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: z.muted)),
             Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-              Text('Rp', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: z.muted)),
+              Text(currencySymbol, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: z.muted)),
               const SizedBox(width: 8),
               Expanded(
                 child: TextField(
@@ -108,9 +109,9 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
           ]),
         ),
         const SizedBox(height: 18),
-        SectionTitle('Kategori',
+        SectionTitle(tr('Kategori'),
             trailing: Text(
-              _income ? 'Sumber pemasukan' : (_expanded ? 'Semua kategori' : 'Paling sering dipakai'),
+              _income ? tr('Sumber pemasukan') : (_expanded ? tr('Semua kategori') : tr('Paling sering dipakai')),
               style: TextStyle(fontSize: 12, color: z.muted2),
             )),
         const SizedBox(height: 10),
@@ -131,21 +132,21 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
               ),
             if (!_income && !_expanded)
               _CatButton(
-                label: 'Semua',
+                label: tr('Semua'),
                 selected: false,
                 tile: _DashedTile(icon: Icons.grid_view_rounded),
                 onTap: () => setState(() => _expanded = true),
               ),
             if (_income || _expanded)
               _CatButton(
-                label: 'Baru',
+                label: tr('Baru'),
                 selected: _showNewCat,
                 tile: _DashedTile(icon: Icons.add_rounded),
                 onTap: () => setState(() => _showNewCat = !_showNewCat),
               ),
             if (!_income && _expanded)
               _CatButton(
-                label: 'Ringkas',
+                label: tr('Ringkas'),
                 selected: false,
                 tile: _DashedTile(icon: Icons.expand_less_rounded),
                 onTap: () => setState(() {
@@ -163,7 +164,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                 controller: _newCat,
                 maxLength: 16,
                 onChanged: (_) => setState(() {}),
-                decoration: _inputDeco(z, 'Nama kategori, mis. Hobi').copyWith(counterText: ''),
+                decoration: _inputDeco(z, tr('Nama kategori, mis. Hobi')).copyWith(counterText: ''),
               ),
             ),
             const SizedBox(width: 8),
@@ -179,22 +180,22 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                       });
                     },
               style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
-              child: const Text('Tambah', style: TextStyle(fontWeight: FontWeight.w800)),
+              child: Text(tr('Tambah'), style: TextStyle(fontWeight: FontWeight.w800)),
             ),
           ]),
         ],
         const SizedBox(height: 18),
-        const SectionTitle('Tanggal'),
+        SectionTitle(tr('Tanggal')),
         const SizedBox(height: 10),
         Wrap(spacing: 8, runSpacing: 8, children: [
-          ZChip(label: 'Hari ini', selected: isToday, onTap: () => setState(() => _date = DateTime.now())),
+          ZChip(label: tr('Hari ini'), selected: isToday, onTap: () => setState(() => _date = DateTime.now())),
           ZChip(
-            label: 'Kemarin',
+            label: tr('Kemarin'),
             selected: isYesterday,
             onTap: () => setState(() => _date = DateTime.now().subtract(const Duration(days: 1))),
           ),
           ZChip(
-            label: !isToday && !isYesterday ? DateFormat('d MMM y', 'id_ID').format(_date) : 'Pilih tanggal',
+            label: !isToday && !isYesterday ? DateFormat('d MMM y', 'id_ID').format(_date) : tr('Pilih tanggal'),
             selected: !isToday && !isYesterday,
             onTap: () async {
               final d = await showDatePicker(
@@ -209,11 +210,11 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
         ]),
         const SizedBox(height: 18),
         Text.rich(TextSpan(children: [
-          const TextSpan(text: 'Catatan ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
-          TextSpan(text: '(opsional)', style: TextStyle(fontSize: 14, color: z.muted2)),
+          TextSpan(text: tr('Catatan '), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+          TextSpan(text: tr('(opsional)'), style: TextStyle(fontSize: 14, color: z.muted2)),
         ])),
         const SizedBox(height: 8),
-        TextField(controller: _note, maxLength: 40, decoration: _inputDeco(z, 'Contoh: makan siang').copyWith(counterText: '')),
+        TextField(controller: _note, maxLength: 40, decoration: _inputDeco(z, tr('Contoh: makan siang')).copyWith(counterText: '')),
         const SizedBox(height: 18),
         SizedBox(
           height: 56,
@@ -226,7 +227,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
               disabledForegroundColor: z['disabledFg'],
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             ),
-            child: Text(_canSave ? 'Simpan ${rp(_value)}' : 'Simpan Transaksi',
+            child: Text(_canSave ? trf('Simpan {0}', [rp(_value)]) : tr('Simpan Transaksi'),
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
           ),
         ),

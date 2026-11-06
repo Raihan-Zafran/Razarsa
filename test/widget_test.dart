@@ -2,11 +2,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:razarsa/core/format.dart';
+import 'package:razarsa/core/i18n.dart';
 import 'package:razarsa/data/store.dart';
 import 'package:razarsa/main.dart';
 
 void main() {
-  setUpAll(() async => initializeDateFormatting('id_ID'));
+  setUpAll(() async => initializeDateFormatting());
 
   group('Format rupiah', () {
     test('titik ribuan', () {
@@ -65,6 +66,29 @@ void main() {
       store.addTxn(name: 'Parkir', cat: 'transport', amount: -5000);
       expect(store.rankedCategories(income: false).first.id, 'transport');
     });
+  });
+
+  test('bahasa Inggris & dolar', () {
+    L.lang = 'en';
+    L.currency = 'USD';
+    expect(tr('Pengeluaran'), 'Expense');
+    expect(trf('Sisa {0}', [rp(1500)]), r'$1,500 left');
+    expect(rpShort(3200000), r'$3.2M');
+    L.lang = 'id';
+    L.currency = 'IDR';
+    expect(tr('Pengeluaran'), 'Pengeluaran');
+  });
+
+  test('awal bulan anggaran mengikuti tanggal gajian', () async {
+    SharedPreferences.setMockInitialValues({});
+    final store = AppStore(await SharedPreferences.getInstance());
+    store.setMonthStart(25);
+    final (from, to) = store.periodRange();
+    expect(from.day, 25);
+    expect(to.difference(from).inDays, inInclusiveRange(28, 31));
+    expect(store.checkPin('1234'), isFalse);
+    store.setPin('1234');
+    expect(store.checkPin('1234'), isTrue);
   });
 
   testWidgets('aplikasi terbuka di halaman masuk', (tester) async {

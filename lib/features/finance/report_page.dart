@@ -8,6 +8,7 @@ import '../../core/theme.dart';
 import '../../data/store.dart';
 import '../../shell/app_shell.dart';
 import '../../widgets/common.dart';
+import '../../core/i18n.dart';
 
 enum Period { week, month, year }
 
@@ -25,12 +26,12 @@ class _ReportPageState extends State<ReportPage> {
     final now = DateTime.now();
     switch (_period) {
       case Period.week:
-        final start = dayOnly(now).subtract(const Duration(days: 6));
-        return (start, dayOnly(now).add(const Duration(days: 1)));
+        final start = StoreScope.read(context).weekStart(now);
+        return (start, start.add(const Duration(days: 7)));
       case Period.year:
         return (DateTime(now.year), DateTime(now.year + 1));
       case Period.month:
-        return (DateTime(now.year, now.month), DateTime(now.year, now.month + 1));
+        return StoreScope.read(context).periodRange();
     }
   }
 
@@ -52,20 +53,20 @@ class _ReportPageState extends State<ReportPage> {
     String trend;
     Color trendColor;
     if (last == 0) {
-      trend = 'Belum ada data bulan lalu';
+      trend = tr('Belum ada data bulan lalu');
       trendColor = z.muted2;
     } else {
       final d = (cur - last) / last * 100;
-      trend = '${d <= 0 ? 'Turun' : 'Naik'} ${d.abs().toStringAsFixed(1).replaceAll('.', ',')}% dari ${monthLong(months[4].key)}';
+      trend = trf(d <= 0 ? 'Turun {0}% dari {1}' : 'Naik {0}% dari {1}', [L.en ? d.abs().toStringAsFixed(1) : d.abs().toStringAsFixed(1).replaceAll('.', ','), monthLong(months[4].key)]);
       trendColor = d <= 0 ? z.accentText : z.warn;
     }
 
     return PageScroll(children: [
-      const PageTitle('Laporan'),
+      PageTitle(tr('Laporan')),
       const SizedBox(height: 12),
       Segmented<Period>(
         height: 36,
-        items: const [(Period.week, 'Minggu'), (Period.month, 'Bulan'), (Period.year, 'Tahun')],
+        items: [(Period.week, tr('Minggu')), (Period.month, tr('Bulan')), (Period.year, tr('Tahun'))],
         value: _period,
         onChanged: (p) => setState(() => _period = p),
       ),
@@ -78,7 +79,7 @@ class _ReportPageState extends State<ReportPage> {
           Row(children: [
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Anggaran bulan ini', style: TextStyle(fontSize: 13, color: z.heroMuted)),
+                Text(tr('Anggaran bulan ini'), style: TextStyle(fontSize: 13, color: z.heroMuted)),
                 const SizedBox(height: 4),
                 Text(rp(budget), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Colors.white)),
               ]),
@@ -91,7 +92,7 @@ class _ReportPageState extends State<ReportPage> {
                 side: BorderSide(color: z['heroMuted'].withValues(alpha: 0.4)),
                 shape: const StadiumBorder(),
               ),
-              child: const Text('Ubah', style: TextStyle(fontWeight: FontWeight.w700)),
+              child: Text(tr('Ubah'), style: TextStyle(fontWeight: FontWeight.w700)),
             ),
           ]),
           const SizedBox(height: 14),
@@ -111,8 +112,8 @@ class _ReportPageState extends State<ReportPage> {
           ),
           const SizedBox(height: 10),
           Row(children: [
-            Expanded(child: Text('Terpakai ${rp(spentMonth)}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: z.heroMuted))),
-            Text(remain >= 0 ? 'Sisa ${rp(remain)}' : 'Lebih ${rp(remain)}',
+            Expanded(child: Text(trf('Terpakai {0}', [rp(spentMonth)]), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: z.heroMuted))),
+            Text(remain >= 0 ? trf('Sisa {0}', [rp(remain)]) : trf('Lebih {0}', [rp(remain)]),
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: z.heroMuted)),
           ]),
         ]),
@@ -125,7 +126,7 @@ class _ReportPageState extends State<ReportPage> {
             child: ZCard(
               padding: const EdgeInsets.all(14),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Tren', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+                Text(tr('Tren'), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 2),
                 Text(trend, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: trendColor, height: 1.35)),
                 const SizedBox(height: 10),
@@ -138,9 +139,9 @@ class _ReportPageState extends State<ReportPage> {
             child: ZCard(
               padding: const EdgeInsets.all(14),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Per Kategori', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+                Text(tr('Per Kategori'), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 2),
-                Text('Pembagian belanja', style: TextStyle(fontSize: 11, color: z.muted2)),
+                Text(tr('Pembagian belanja'), style: TextStyle(fontSize: 11, color: z.muted2)),
                 const SizedBox(height: 10),
                 Center(
                   child: SizedBox(
@@ -175,10 +176,10 @@ class _ReportPageState extends State<ReportPage> {
       const SizedBox(height: 14),
       _BudgetMood(pct: pct, hasSpending: spentMonth > 0),
       const SizedBox(height: 18),
-      const SectionTitle('Rincian per Kategori'),
+      SectionTitle(tr('Rincian per Kategori')),
       const SizedBox(height: 10),
       if (byCat.isEmpty)
-        const ZCard(child: EmptyState(title: 'Belum ada pengeluaran', message: 'Rincian kategori muncul setelah kamu mencatat pengeluaran.'))
+        ZCard(child: EmptyState(title: tr('Belum ada pengeluaran'), message: tr('Rincian kategori muncul setelah kamu mencatat pengeluaran.')))
       else
         ZCard(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
@@ -222,13 +223,13 @@ class _BudgetMood extends StatelessWidget {
     final z = ZColors.of(context);
     final warn = pct >= 0.9;
     final title = warn
-        ? (pct >= 1 ? 'Anggaran bulan ini sudah habis' : 'Anggaran bulan ini hampir habis')
+        ? (pct >= 1 ? tr('Anggaran bulan ini sudah habis') : tr('Anggaran bulan ini hampir habis'))
         : hasSpending
-            ? 'Pengeluaran masih aman'
-            : 'Belum ada pengeluaran bulan ini';
+            ? tr('Pengeluaran masih aman')
+            : tr('Belum ada pengeluaran bulan ini');
     final body = warn
-        ? 'Sudah terpakai ${(pct * 100).round()}% dari anggaran. Coba tahan dulu belanja yang tidak penting, ya.'
-        : 'Kerja bagus! Pertahankan pengeluaranmu di bawah 70% anggaran.';
+        ? trf('Sudah terpakai {0}% dari anggaran. Coba tahan dulu belanja yang tidak penting, ya.', [(pct * 100).round()])
+        : tr('Kerja bagus! Pertahankan pengeluaranmu di bawah 70% anggaran.');
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 10, 16, 10),
       decoration: BoxDecoration(
@@ -327,19 +328,19 @@ Future<void> editBudget(BuildContext context, AppStore store) async {
   final value = await showDialog<int>(
     context: context,
     builder: (c) => AlertDialog(
-      title: const Text('Anggaran bulanan'),
+      title: Text(tr('Anggaran bulanan')),
       content: TextField(
         controller: ctrl,
         autofocus: true,
         keyboardType: TextInputType.number,
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        decoration: const InputDecoration(prefixText: 'Rp ', hintText: '5000000'),
+        decoration: InputDecoration(prefixText: '$currencySymbol '),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(c), child: const Text('Batal')),
+        TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Batal'))),
         FilledButton(
-          onPressed: () => Navigator.pop(c, int.tryParse(ctrl.text.replaceAll('.', ''))),
-          child: const Text('Simpan'),
+          onPressed: () => Navigator.pop(c, int.tryParse(ctrl.text.replaceAll(RegExp(r'\D'), ''))),
+          child: Text(tr('Simpan')),
         ),
       ],
     ),

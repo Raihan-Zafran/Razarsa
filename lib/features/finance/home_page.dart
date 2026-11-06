@@ -8,6 +8,7 @@ import '../../shell/app_shell.dart';
 import '../../widgets/common.dart';
 import '../settings/profile_page.dart';
 import 'add_transaction_page.dart';
+import '../../core/i18n.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key, required this.onSeeAll});
@@ -24,20 +25,20 @@ class HomePage extends StatelessWidget {
     return PageScroll(children: [
       // Header: logo, tombol mode, profil
       Row(children: [
-        const StarLogo(),
+        const AppLogo(size: 30),
         const SizedBox(width: 8),
         const Expanded(
           child: Text('razarsa', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
         ),
         RoundIconButton(
           icon: dark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-          tooltip: dark ? 'Ganti ke mode terang' : 'Ganti ke mode gelap',
+          tooltip: dark ? tr('Ganti ke mode terang') : tr('Ganti ke mode gelap'),
           onTap: () => store.setThemeMode(dark ? ThemeMode.light : ThemeMode.dark),
         ),
         const SizedBox(width: 8),
         RoundIconButton(
           icon: Icons.person_outline_rounded,
-          tooltip: 'Buka profil',
+          tooltip: tr('Buka profil'),
           filled: true,
           onTap: () => pushPage(context, const ProfilePage()),
         ),
@@ -46,7 +47,7 @@ class HomePage extends StatelessWidget {
       Text('${greeting()},', style: TextStyle(fontSize: 13, color: z.muted)),
       const SizedBox(height: 2),
       Text(
-        store.userName.isEmpty ? 'Yuk, atur uangmu!' : 'Halo, ${store.userName}!',
+        store.userName.isEmpty ? tr('Yuk, atur uangmu!') : trf('Halo, {0}!', [store.userName]),
         style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.4),
       ),
       const SizedBox(height: 18),
@@ -55,7 +56,7 @@ class HomePage extends StatelessWidget {
       Row(children: [
         Expanded(
           child: _AddButton(
-            label: 'Pengeluaran',
+            label: tr('Pengeluaran'),
             filled: true,
             onTap: () => pushPage(context, const AddTransactionPage(income: false)),
           ),
@@ -63,15 +64,15 @@ class HomePage extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: _AddButton(
-            label: 'Pemasukan',
+            label: tr('Pemasukan'),
             filled: false,
             onTap: () => pushPage(context, const AddTransactionPage(income: true)),
           ),
         ),
       ]),
       const SizedBox(height: 22),
-      SectionTitle('Catat Cepat',
-          trailing: Text('Sekali tap langsung tercatat', style: TextStyle(fontSize: 12, color: z.muted2))),
+      SectionTitle(tr('Catat Cepat'),
+          trailing: Text(tr('Sekali tap langsung tercatat'), style: TextStyle(fontSize: 12, color: z.muted2))),
       const SizedBox(height: 10),
       SizedBox(
         height: 52,
@@ -84,17 +85,17 @@ class HomePage extends StatelessWidget {
         ),
       ),
       const SizedBox(height: 22),
-      SectionTitle('Transaksi Terbaru',
+      SectionTitle(tr('Transaksi Terbaru'),
           trailing: TextButton(
             onPressed: onSeeAll,
-            child: Text('Lihat semua', style: TextStyle(color: z.accentText, fontWeight: FontWeight.w700)),
+            child: Text(tr('Lihat semua'), style: TextStyle(color: z.accentText, fontWeight: FontWeight.w700)),
           )),
       const SizedBox(height: 6),
       if (recent.isEmpty)
-        const ZCard(
+        ZCard(
           child: EmptyState(
-            title: 'Belum ada transaksi',
-            message: 'Catat pengeluaran atau pemasukan pertamamu lewat tombol di atas.',
+            title: tr('Belum ada transaksi'),
+            message: tr('Catat pengeluaran atau pemasukan pertamamu lewat tombol di atas.'),
           ),
         )
       else
@@ -135,13 +136,13 @@ class _BalanceCard extends StatelessWidget {
         Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Total Saldo', style: TextStyle(fontSize: 13, color: z.heroMuted)),
+              Text(tr('Total Saldo'), style: TextStyle(fontSize: 13, color: z.heroMuted)),
               const SizedBox(height: 6),
               FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  store.hideBalance ? 'Rp ••••••••' : (store.balance < 0 ? '-' : '') + rp(store.balance),
+                  store.hideBalance ? rpHidden : (store.balance < 0 ? '-' : '') + rp(store.balance),
                   style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.6),
                 ),
               ),
@@ -151,9 +152,9 @@ class _BalanceCard extends StatelessWidget {
         ]),
         const SizedBox(height: 16),
         Row(children: [
-          Expanded(child: _MiniStat(label: 'Pemasukan', value: rp(store.monthIncome()), up: false)),
+          Expanded(child: _MiniStat(label: tr('Pemasukan'), value: rp(store.monthIncome()), up: false)),
           const SizedBox(width: 10),
-          Expanded(child: _MiniStat(label: 'Pengeluaran', value: rp(store.monthExpense()), up: true)),
+          Expanded(child: _MiniStat(label: tr('Pengeluaran'), value: rp(store.monthExpense()), up: true)),
         ]),
       ]),
     );
@@ -268,8 +269,8 @@ class _QuickChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         onTap: () {
           final t = store.addTxn(name: item.name, cat: item.cat, amount: -item.amount);
-          showZToast(context, '${item.name} ${rp(item.amount)} dicatat',
-              actionLabel: 'Batalkan', onAction: () => store.removeTxn(t.id));
+          showZToast(context, trf('{0} {1} dicatat', [tr(item.name), rp(item.amount)]),
+              actionLabel: tr('Batalkan'), onAction: () => store.removeTxn(t.id));
         },
         child: Padding(
           padding: const EdgeInsets.fromLTRB(6, 6, 14, 6),
@@ -277,7 +278,7 @@ class _QuickChip extends StatelessWidget {
             CategoryTile(category: cat, size: 36),
             const SizedBox(width: 8),
             Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(item.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+              Text(tr(item.name), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
               Text(rpShort(item.amount), style: TextStyle(fontSize: 11, color: z.muted2)),
             ]),
           ]),
