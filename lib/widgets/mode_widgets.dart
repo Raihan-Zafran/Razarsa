@@ -7,7 +7,7 @@ import 'common.dart';
 
 /// Tombol terang/gelap berbentuk pil bergambar pemandangan siang/malam.
 class ThemeToggle extends StatelessWidget {
-  const ThemeToggle({super.key, this.width = 76, this.height = 28});
+  const ThemeToggle({super.key, this.width = 64, this.height = 24});
 
   final double width;
   final double height;

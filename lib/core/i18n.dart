@@ -212,7 +212,7 @@ const _en = <String, String>{
   'Akun': 'Account',
   'Keluar': 'Log out',
   'Kembali ke halaman masuk': 'Back to the sign-in page',
-  'Razarsa versi 1.1.0': 'Razarsa version 1.1.0',
+  'Razarsa versi 1.1.1': 'Razarsa version 1.1.1',
   'Pilih tanggal awal bulan anggaran': 'Pick the day your budget month starts',
   // Keamanan
   'Buat PIN': 'Create PIN',

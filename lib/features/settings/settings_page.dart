@@ -13,6 +13,8 @@ import '../../widgets/common.dart';
 import '../finance/report_page.dart' show editBudget;
 import '../security/lock.dart';
 import 'profile_page.dart';
+import '../../shell/classroom_background.dart';
+import '../../shell/desert_background.dart';
 import '../../core/i18n.dart';
 
 /// Pengaturan dipakai bersama untuk semua mode Razarsa.
@@ -33,7 +35,14 @@ class SettingsPage extends StatelessWidget {
 
     return PageScroll(children: [
       PageTitle(tr('Pengaturan')),
-      const SizedBox(height: 12),
+      // Ruang kosong supaya latar (gurun / kelas) terlihat.
+      Builder(builder: (context) {
+        final mq = MediaQuery.of(context);
+        final scene = store.mode == 'productive'
+            ? ClassroomBackground.heightFor(mq.size.width) - 4
+            : DesertBackground.heightFor(mq.size.width) * 0.76;
+        return SizedBox(height: (scene - mq.padding.top - 12 - 48).clamp(12.0, 400.0));
+      }),
       Material(
         color: z.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: z.cardBorder)),
@@ -120,14 +129,14 @@ class SettingsPage extends StatelessWidget {
         _Row(icon: Icons.chat_bubble_outline_rounded, tone: 'blue', label: tr('Kirim masukan'), onTap: soon),
         _Row(icon: Icons.shield_outlined, tone: 'green', label: tr('Kebijakan privasi'), onTap: soon),
         _Row(icon: Icons.description_outlined, tone: 'gray', label: tr('Syarat & ketentuan'), onTap: soon),
-        _Row(icon: Icons.info_outline_rounded, tone: 'gray', label: tr('Versi aplikasi'), value: '1.1.0', onTap: () {}),
+        _Row(icon: Icons.info_outline_rounded, tone: 'gray', label: tr('Versi aplikasi'), value: '1.1.1', onTap: () {}),
       ]),
       _Group(tr('Akun'), [
         _Row(icon: Icons.logout_rounded, tone: 'warn', label: tr('Keluar'), sub: tr('Kembali ke halaman masuk'), danger: true,
             onTap: store.logout),
       ]),
       const SizedBox(height: 14),
-      Text(tr('Razarsa versi 1.1.0'), textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: z.muted2)),
+      Text(tr('Razarsa versi 1.1.1'), textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: z.muted2)),
     ]);
   }
 

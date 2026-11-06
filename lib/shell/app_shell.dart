@@ -13,7 +13,7 @@ import '../features/settings/settings_page.dart';
 import '../data/store.dart';
 import 'classroom_background.dart';
 import 'dock.dart';
-import 'sky_background.dart';
+import 'desert_background.dart';
 import '../core/i18n.dart';
 
 /// Kerangka utama setelah masuk: mengikuti mode aktif (Keuangan / Produktif).
@@ -24,7 +24,9 @@ class AppShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final mode = StoreScope.of(context).mode;
     return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 420),
+      duration: const Duration(milliseconds: 220),
+      switchInCurve: Curves.easeOut,
+      switchOutCurve: Curves.easeIn,
       child: ModeShell(key: ValueKey(mode), mode: mode),
     );
   }
@@ -115,7 +117,7 @@ class _ModeShellState extends State<ModeShell> {
             right: 0,
             child: _prod
                 ? ClassroomBackground(dark: dark, tab: _tab, name: StoreScope.of(context).userName)
-                : SkyBackground(dark: dark),
+                : DesertBackground(dark: dark, tab: _tab),
           ),
           Positioned.fill(
             child: AnimatedSwitcher(

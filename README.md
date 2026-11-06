@@ -40,7 +40,7 @@ Banyak orang memasang 4–5 aplikasi berbeda untuk mencatat uang, daftar tugas, 
 - **Target**: target tabungan dengan progres. Gambar gunung berganti siang dan malam.
 - **Pengaturan**: satu untuk semua mode. Isinya tema, **bahasa (Indonesia/English)**, **mata uang (Rupiah/Dolar)**, **awal bulan anggaran (tanggal gajian)**, awal minggu, **notifikasi** (pengingat harian & peringatan anggaran), **kunci PIN + sidik jari**, sembunyikan saldo, **backup & pulihkan**, **ekspor CSV**, hapus data, dan keluar.
 - **Dock** dengan bola hijau yang **melompat** ke menu yang dipilih.
-- **Latar animasi**: siang ada awan, burung, dan pesawat kertas; malam ada bintang dan **kunang-kunang**. Semua animasi otomatis berhenti kalau HP memakai pengaturan *kurangi gerakan*.
+- **Latar gurun beranimasi**: bukit pasir, angin, awan; setiap pindah halaman seekor kadal naik ke batu dan isi gurun bertambah (kaktus, rumput kering & tumbleweed, oasis & pohon kurma, bukit batu). Malam: bulan, banyak bintang, oasis memantulkan bulan, kunang-kunang. Semua animasi otomatis berhenti kalau HP memakai pengaturan *kurangi gerakan*.
 
 > **⚠️ Login versi beta belum aman:** masih **lokal**, kata sandi **tidak dicek**, akun hanya tersimpan di HP. Cocok untuk uji coba, bukan untuk data sungguhan. Nanti akan memakai Firebase. Tombol "Masuk dengan Google", kategori, Catat Cepat, transaksi berulang, dan menu Tentang masih bertanda *segera hadir*.
 
@@ -85,7 +85,7 @@ lib/
 ├── shell/
 │   ├── app_shell.dart        # Kerangka: latar, perpindahan halaman, dock
 │   ├── dock.dart             # Dock dengan lekukan & bola yang melompat
-│   ├── sky_background.dart   # Latar langit (Keuangan)
+│   ├── desert_background.dart # Latar gurun (Keuangan)
 │   └── classroom_background.dart # Latar kelas (Produktif)
 ├── features/
 │   ├── auth/                 # Masuk/Daftar + karakter kawaii
