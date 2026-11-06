@@ -49,18 +49,26 @@ jobs:
       - name: Jalankan tes
         run: flutter test
 
-      # Supaya setiap APK ditandatangani kunci yang sama (bisa update tanpa uninstall),
-      # isi secret DEBUG_KEYSTORE_BASE64 di Settings > Secrets and variables > Actions.
-      - name: Pasang kunci tanda tangan
+      # Kunci rilis dari GitHub Secrets (Settings > Secrets and variables > Actions).
+      # Kalau secret belum diisi, APK tetap jadi tapi memakai kunci debug.
+      - name: Pasang kunci rilis
         env:
-          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
         run: |
-          if [ -n "$DEBUG_KEYSTORE_BASE64" ]; then
-            mkdir -p ~/.android
-            echo "$DEBUG_KEYSTORE_BASE64" | base64 -d > ~/.android/debug.keystore
-            echo "Kunci dari secret dipasang."
+          if [ -n "$RELEASE_KEYSTORE_BASE64" ]; then
+            echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > android/app/zevra-release.jks
+            {
+              echo "storeFile=zevra-release.jks"
+              echo "storePassword=$RELEASE_STORE_PASSWORD"
+              echo "keyPassword=$RELEASE_KEY_PASSWORD"
+              echo "keyAlias=$RELEASE_KEY_ALIAS"
+            } > android/key.properties
+            echo "Kunci rilis dipasang."
           else
-            echo "::warning::Secret DEBUG_KEYSTORE_BASE64 belum diisi. APK tetap jadi, tapi kuncinya berbeda tiap build."
+            echo "::warning::Secret kunci rilis belum diisi. APK memakai kunci debug (jangan dibagikan luas)."
           fi
 
       - name: Build APK
