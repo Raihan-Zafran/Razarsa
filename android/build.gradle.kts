@@ -22,3 +22,13 @@ subprojects {
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
+
+// Kunci androidx.core ke versi yang cocok dengan compileSdk 36.
+subprojects {
+    configurations.all {
+        resolutionStrategy {
+            force("androidx.core:core:1.17.0")
+            force("androidx.core:core-ktx:1.17.0")
+        }
+    }
+}
