@@ -59,9 +59,9 @@ jobs:
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
         run: |
           if [ -n "$RELEASE_KEYSTORE_BASE64" ]; then
-            echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > android/app/zevra-release.jks
+            echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > android/app/razarsa-release.jks
             {
-              echo "storeFile=zevra-release.jks"
+              echo "storeFile=razarsa-release.jks"
               echo "storePassword=$RELEASE_STORE_PASSWORD"
               echo "keyPassword=$RELEASE_KEY_PASSWORD"
               echo "keyAlias=$RELEASE_KEY_ALIAS"
@@ -81,7 +81,7 @@ jobs:
         id: apk
         run: |
           VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //; s/+.*//')
-          BASE="zevra-v${VERSION}-build${{ github.run_number }}"
+          BASE="razarsa-v${VERSION}-build${{ github.run_number }}"
           mkdir -p dist
           mv build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "dist/${BASE}-arm64.apk"
           mv build/app/outputs/flutter-apk/app-release.apk "dist/${BASE}-universal.apk"
@@ -101,3 +101,4 @@ jobs:
         with:
           files: dist/*.apk
           generate_release_notes: true
+          prerelease: ${{ contains(github.ref, '-') }}

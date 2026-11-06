@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:zevra/core/format.dart';
-import 'package:zevra/data/store.dart';
-import 'package:zevra/main.dart';
+import 'package:razarsa/core/format.dart';
+import 'package:razarsa/data/store.dart';
+import 'package:razarsa/main.dart';
 
 void main() {
   setUpAll(() async => initializeDateFormatting('id_ID'));
@@ -70,7 +70,7 @@ void main() {
   testWidgets('aplikasi terbuka di halaman masuk', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final store = AppStore(await SharedPreferences.getInstance());
-    await tester.pumpWidget(ZevraApp(store: store));
+    await tester.pumpWidget(RazarsaApp(store: store));
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('MASUK DENGAN EMAIL'), findsOneWidget);
     expect(find.text('Lanjut tanpa akun'), findsOneWidget);

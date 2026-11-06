@@ -46,7 +46,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
         RoundIconButton(
           icon: Icons.add_rounded,
           tooltip: 'Tambah transaksi',
-          onTap: () => Navigator.of(context).push(slideUpRoute(const AddTransactionPage(income: false))),
+          onTap: () => pushPage(context, const AddTransactionPage(income: false)),
         ),
       ]),
       const SizedBox(height: 12),

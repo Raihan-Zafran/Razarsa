@@ -27,7 +27,7 @@ class HomePage extends StatelessWidget {
         const StarLogo(),
         const SizedBox(width: 8),
         const Expanded(
-          child: Text('zevra', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+          child: Text('razarsa', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
         ),
         RoundIconButton(
           icon: dark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
@@ -39,7 +39,7 @@ class HomePage extends StatelessWidget {
           icon: Icons.person_outline_rounded,
           tooltip: 'Buka profil',
           filled: true,
-          onTap: () => Navigator.of(context).push(slideUpRoute(const ProfilePage())),
+          onTap: () => pushPage(context, const ProfilePage()),
         ),
       ]),
       const SizedBox(height: 18),
@@ -57,7 +57,7 @@ class HomePage extends StatelessWidget {
           child: _AddButton(
             label: 'Pengeluaran',
             filled: true,
-            onTap: () => Navigator.of(context).push(slideUpRoute(const AddTransactionPage(income: false))),
+            onTap: () => pushPage(context, const AddTransactionPage(income: false)),
           ),
         ),
         const SizedBox(width: 10),
@@ -65,7 +65,7 @@ class HomePage extends StatelessWidget {
           child: _AddButton(
             label: 'Pemasukan',
             filled: false,
-            onTap: () => Navigator.of(context).push(slideUpRoute(const AddTransactionPage(income: true))),
+            onTap: () => pushPage(context, const AddTransactionPage(income: true)),
           ),
         ),
       ]),

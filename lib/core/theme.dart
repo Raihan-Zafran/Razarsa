@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Semua warna Zevra untuk mode terang dan gelap.
+/// Semua warna Razarsa untuk mode terang dan gelap.
 /// Disimpan sebagai ThemeExtension supaya pergantian mode bisa beranimasi halus.
 class ZColors extends ThemeExtension<ZColors> {
   const ZColors(this.c);

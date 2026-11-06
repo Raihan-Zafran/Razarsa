@@ -31,6 +31,7 @@ class _AppShellState extends State<AppShell> {
 
   void goTo(int i) {
     if (i == _tab) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     setState(() {
       _dir = i > _tab ? 1 : -1;
       _tab = i;
@@ -110,9 +111,15 @@ class PageScroll extends StatelessWidget {
   }
 }
 
+/// Tutup pop-up lalu buka halaman pendukung.
+Future<T?> pushPage<T>(BuildContext context, Widget page) {
+  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+  return Navigator.of(context).push<T>(slideUpRoute<T>(page));
+}
+
 /// Rute halaman pendukung: naik dari bawah sambil memudar.
 Route<T> slideUpRoute<T>(Widget page) => PageRouteBuilder<T>(
-      transitionDuration: const Duration(milliseconds: 380),
+      transitionDuration: const Duration(milliseconds: 300),
       reverseTransitionDuration: const Duration(milliseconds: 280),
       pageBuilder: (_, _, _) => page,
       transitionsBuilder: (_, anim, _, child) {

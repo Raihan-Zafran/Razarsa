@@ -13,11 +13,11 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('id_ID');
   final prefs = await SharedPreferences.getInstance();
-  runApp(ZevraApp(store: AppStore(prefs)));
+  runApp(RazarsaApp(store: AppStore(prefs)));
 }
 
-class ZevraApp extends StatelessWidget {
-  const ZevraApp({super.key, required this.store});
+class RazarsaApp extends StatelessWidget {
+  const RazarsaApp({super.key, required this.store});
 
   final AppStore store;
 
@@ -28,7 +28,7 @@ class ZevraApp extends StatelessWidget {
       child: ListenableBuilder(
         listenable: store,
         builder: (context, _) => MaterialApp(
-          title: 'Zevra',
+          title: 'Razarsa',
           debugShowCheckedModeBanner: false,
           theme: buildTheme(Brightness.light),
           darkTheme: buildTheme(Brightness.dark),

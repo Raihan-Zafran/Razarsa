@@ -184,7 +184,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                       child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                         const StarLogo(size: 34),
                         const SizedBox(width: 8),
-                        Text('zevra', style: TextStyle(fontSize: 38, fontWeight: FontWeight.w800, letterSpacing: -1.1, color: c.ink)),
+                        Text('razarsa', style: TextStyle(fontSize: 38, fontWeight: FontWeight.w800, letterSpacing: -1.1, color: c.ink)),
                       ]),
                     ),
                     // Karakter
@@ -278,7 +278,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         top: 98,
         left: 0,
         right: 0,
-        child: Text(reg ? 'Daftar ke zevra :)' : 'Masuk ke zevra :)',
+        child: Text(reg ? 'Daftar ke Razarsa :)' : 'Masuk ke Razarsa :)',
             textAlign: TextAlign.center, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w500, color: c.ink)),
       ),
       Positioned(

@@ -1,17 +1,18 @@
 <p align="center">
-  <img src="docs/app_icon.png" width="120" alt="Ikon aplikasi Zevra">
+  <img src="docs/app_icon.png" width="120" alt="Ikon aplikasi Razarsa">
 </p>
 
-<h1 align="center">Zevra</h1>
+<h1 align="center">Razarsa</h1>
+<p align="center"><i>Dari nama pembuatnya: <b>Ra</b>ihan <b>Za</b>fran Sy<b>a</b>ddat (dulu bernama Zevra)</i></p>
 <p align="center"><b>Satu aplikasi untuk mengatur hidup.</b><br>Keuangan, produktivitas, dan kesehatan dalam satu tempat.</p>
 
 ---
 
-## Apa itu Zevra?
+## Apa itu Razarsa?
 
-Zevra adalah aplikasi Android berbasis **Flutter** yang dirancang sebagai **"multi app"**: satu aplikasi dengan beberapa *mode*, dan setiap mode mengurus satu bagian hidup.
+Razarsa adalah aplikasi Android berbasis **Flutter** yang dirancang sebagai **"multi app"**: satu aplikasi dengan beberapa *mode*, dan setiap mode mengurus satu bagian hidup.
 
-Banyak orang memasang 4–5 aplikasi berbeda untuk mencatat uang, daftar tugas, catatan, latihan, dan kesehatan. Datanya tersebar, tampilannya beda-beda, dan semuanya harus dibuka satu per satu. Zevra menyatukan semuanya dengan tampilan yang konsisten, satu pengaturan, dan satu teman maskot: **naga hijau kecil** yang ikut senang kalau kamu konsisten.
+Banyak orang memasang 4–5 aplikasi berbeda untuk mencatat uang, daftar tugas, catatan, latihan, dan kesehatan. Datanya tersebar, tampilannya beda-beda, dan semuanya harus dibuka satu per satu. Razarsa menyatukan semuanya dengan tampilan yang konsisten, satu pengaturan, dan satu teman maskot: **naga hijau kecil** yang ikut senang kalau kamu konsisten.
 
 ## Tujuan
 
@@ -43,7 +44,7 @@ Banyak orang memasang 4–5 aplikasi berbeda untuk mencatat uang, daftar tugas, 
 - **Dock** dengan bola hijau yang **melompat** ke menu yang dipilih.
 - **Latar animasi**: siang ada awan, burung, dan pesawat kertas; malam ada bintang dan **kunang-kunang**. Semua animasi otomatis berhenti kalau HP memakai pengaturan *kurangi gerakan*.
 
-> **Catatan:** login di versi 1 masih **lokal** (belum ada server). Tombol "Masuk dengan Google", backup, ekspor, dan beberapa menu Pengaturan masih bertanda *segera hadir*.
+> **⚠️ Login versi beta belum aman:** masih **lokal**, kata sandi **tidak dicek**, akun hanya tersimpan di HP. Cocok untuk uji coba, bukan untuk data sungguhan. Nanti akan memakai Firebase. Tombol "Masuk dengan Google", backup, ekspor, dan beberapa menu Pengaturan masih bertanda *segera hadir*.
 
 ## Cara mendapatkan APK
 
@@ -51,7 +52,7 @@ APK dibuat otomatis oleh **GitHub Actions** setiap ada push.
 
 1. Buka tab **Actions** di repo ini.
 2. Pilih run **Build APK** terbaru yang berhasil (centang hijau).
-3. Di bagian **Artifacts**, unduh file berawalan **zevra-v…**. File yang diunduh berbentuk zip, ekstrak dulu. Di dalamnya ada dua APK:
+3. Di bagian **Artifacts**, unduh file berawalan **razarsa-v…**. File yang diunduh berbentuk zip, ekstrak dulu. Di dalamnya ada dua APK:
    - **`…-arm64.apk`** (sekitar 20 MB): **pilih ini** untuk hampir semua HP Android keluaran 2017 ke atas.
    - **`…-universal.apk`** (sekitar 55 MB): untuk semua HP, termasuk HP lama dan emulator.
 4. Pasang di HP Android (izinkan "instal dari sumber tidak dikenal").
@@ -105,9 +106,9 @@ File berikut **tidak boleh** masuk ke repo ini, dan sudah dicegah lewat `.gitign
 - `google-services.json`: konfigurasi Firebase
 - isi base64 keystore
 
-Simpan semuanya di **GitHub Secrets**, jangan di kode.
+Simpan semuanya di **GitHub Secrets**, jangan di kode. APK rilis ditandatangani **kunci rilis** dari secret `RELEASE_KEYSTORE_BASE64`, `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_PASSWORD`, `RELEASE_KEY_ALIAS`.
 
 ## Lisensi aset
 
 - Font **Plus Jakarta Sans** memakai lisensi SIL Open Font License (`assets/fonts/OFL.txt`).
-- Maskot dan ilustrasi adalah aset milik pemilik proyek Zevra.
+- Maskot dan ilustrasi adalah aset milik pemilik proyek Razarsa.

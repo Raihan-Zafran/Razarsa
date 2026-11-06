@@ -9,7 +9,7 @@ import '../../widgets/common.dart';
 import '../finance/report_page.dart' show editBudget;
 import 'profile_page.dart';
 
-/// Pengaturan dipakai bersama untuk semua mode Zevra.
+/// Pengaturan dipakai bersama untuk semua mode Razarsa.
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
@@ -33,7 +33,7 @@ class SettingsPage extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: z.cardBorder)),
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
-          onTap: () => Navigator.of(context).push(slideUpRoute(const ProfilePage())),
+          onTap: () => pushPage(context, const ProfilePage()),
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Row(children: [
@@ -41,7 +41,7 @@ class SettingsPage extends StatelessWidget {
               const SizedBox(width: 14),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(store.userName.isEmpty ? 'Pengguna Zevra' : store.userName,
+                  Text(store.userName.isEmpty ? 'Pengguna Razarsa' : store.userName,
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
                   const SizedBox(height: 3),
                   Text(store.email.isEmpty ? 'Atur profil & akun' : store.email,
@@ -98,7 +98,7 @@ class SettingsPage extends StatelessWidget {
             onTap: store.logout),
       ]),
       const SizedBox(height: 14),
-      Text('Zevra versi 1.0.0 (build 1)', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: z.muted2)),
+      Text('Razarsa versi 1.0.0-beta', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: z.muted2)),
     ]);
   }
 

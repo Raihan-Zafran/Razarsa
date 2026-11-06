@@ -306,7 +306,7 @@ class TxnRow extends StatelessWidget {
   }
 }
 
-/// Bintang logo Zevra.
+/// Bintang logo Razarsa.
 class StarLogo extends StatelessWidget {
   const StarLogo({super.key, this.size = 26});
 
@@ -345,7 +345,7 @@ void showZToast(BuildContext context, String text, {String? actionLabel, VoidCal
       Expanded(child: Text(text)),
     ]),
     margin: const EdgeInsets.fromLTRB(16, 0, 16, 104),
-    duration: const Duration(seconds: 4),
+    duration: const Duration(seconds: 2),
     action: actionLabel == null ? null : SnackBarAction(label: actionLabel, onPressed: onAction ?? () {}),
   ));
 }

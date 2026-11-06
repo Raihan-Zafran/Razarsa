@@ -120,6 +120,12 @@ class GoalsPage extends StatelessWidget {
   }
 }
 
+/// 0.3333 -> "33,3%", 0.4 -> "40%"
+String _pct(double p) {
+  final v = (p * 1000).floor() / 10;
+  return v == v.roundToDouble() ? '${v.toInt()}%' : '${v.toStringAsFixed(1).replaceAll('.', ',')}%';
+}
+
 class _GoalCard extends StatelessWidget {
   const _GoalCard({required this.goal, required this.icon});
 
@@ -145,9 +151,11 @@ class _GoalCard extends StatelessWidget {
                 Text(goal.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 2),
                 Text('${rp(goal.saved)} / ${rp(goal.target)}', style: TextStyle(fontSize: 12, color: z.muted2)),
+                Text(goal.saved >= goal.target ? 'Target tercapai!' : 'Kurang ${rp(goal.target - goal.saved)}',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: z.accentText)),
               ]),
             ),
-            Text('${(goal.progress * 100).round()}%',
+            Text(_pct(goal.progress),
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: z.accentText)),
           ]),
           const SizedBox(height: 10),

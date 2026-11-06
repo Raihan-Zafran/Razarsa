@@ -1,4 +1,4 @@
-package com.raihan.zevra
+package com.raihan.razarsa
 
 import io.flutter.embedding.android.FlutterActivity
 
