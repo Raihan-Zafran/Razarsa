@@ -9,7 +9,7 @@ import '../../data/store.dart';
 import '../../shell/app_shell.dart';
 import '../../widgets/common.dart';
 
-const kAppVersion = '1.2.0';
+const kAppVersion = '1.2.1';
 
 InputDecoration _input(BuildContext context, String hint, {String? prefix}) {
   final z = ZColors.of(context);
@@ -399,6 +399,7 @@ class LegalPage extends StatelessWidget {
         (tr('Data yang disimpan'), tr('Nama tampilan dan email yang kamu isi saat masuk, transaksi, anggaran, target tabungan, tugas, agenda, catatan, dan pengaturan aplikasi. Semua tersimpan di penyimpanan lokal HP.')),
         (tr('Izin yang dipakai'), tr('Notifikasi: untuk pengingat harian, pengingat kalender, peringatan anggaran, dan pengingat tagihan. Sidik jari: hanya untuk membuka kunci aplikasi; data sidik jari tidak pernah dibaca atau disimpan oleh Razarsa, semuanya diurus oleh sistem Android.')),
         (tr('PIN'), tr('PIN disimpan dalam bentuk acak (hash), bukan angka aslinya.')),
+        (tr('Catatan terkunci'), tr('Catatan yang dikunci dengan PIN hanya disembunyikan di layar. Isinya belum dienkripsi di penyimpanan HP.')),
         (tr('Backup & ekspor'), tr('File backup dan CSV dibuat hanya saat kamu memintanya dan disimpan di lokasi yang kamu pilih. Simpan file itu dengan aman karena isinya tidak dienkripsi.')),
         (tr('Menghapus data'), tr('Kamu bisa menghapus semua data lewat Pengaturan → Hapus semua data, atau dengan menghapus aplikasi.')),
         (tr('Perubahan'), tr('Kebijakan ini bisa berubah saat ada fitur baru, misalnya login online. Perubahan akan dicantumkan di catatan rilis.')),

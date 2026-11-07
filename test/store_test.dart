@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:razarsa/core/i18n.dart';
 import 'package:razarsa/data/models.dart';
+import 'package:razarsa/data/productive_models.dart';
 import 'package:razarsa/data/store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -130,6 +131,48 @@ void main() {
       await newStore();
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getInt('dataVersion'), AppStore.dataVersion);
+    });
+  });
+
+  group('Catatan: folder dan kunci', () {
+    test('folder: tambah, tolak kosong atau ganda, hapus memindahkan catatan', () async {
+      final s = await newStore();
+      expect(s.addNoteFolder('Kuliah'), isTrue);
+      expect(s.addNoteFolder(' Kuliah '), isFalse);
+      expect(s.addNoteFolder('   '), isFalse);
+      expect(s.addNoteFolder('x' * 21), isFalse);
+      final n = s.addNote(title: 'A', folder: 'Kuliah');
+      expect(n.folder, 'Kuliah');
+      s.removeNoteFolder('Kuliah');
+      expect(s.noteFolders, isEmpty);
+      expect(s.notes.single.folder, '');
+    });
+
+    test('memindah folder atau mengunci tidak mengubah waktu terakhir diubah', () async {
+      final s = await newStore();
+      final n = s.addNote(title: 'A');
+      final t = n.updatedAt;
+      s.updateNote(n, folder: 'Ide', locked: true);
+      expect(n.updatedAt, t);
+      expect(n.locked, isTrue);
+    });
+
+    test('folder dan kunci ikut backup', () async {
+      final a = await newStore();
+      a.addNoteFolder('Ide');
+      final n = a.addNote(title: 'Rahasia', body: 'x', folder: 'Ide');
+      a.updateNote(n, locked: true);
+      final b = await newStore();
+      expect(b.importJson(a.exportJson()), isTrue);
+      expect(b.noteFolders, ['Ide']);
+      expect(b.notes.single.folder, 'Ide');
+      expect(b.notes.single.locked, isTrue);
+    });
+
+    test('catatan versi lama tanpa folder tetap terbaca', () {
+      final n = Note.fromJson({'id': '1', 'title': 't', 'body': 'b', 'tone': 'amber', 'pinned': false, 'updatedAt': '2026-01-01T00:00:00'});
+      expect(n.folder, '');
+      expect(n.locked, isFalse);
     });
   });
 

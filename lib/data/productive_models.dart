@@ -89,13 +89,19 @@ class Agenda {
 }
 
 class Note {
-  Note({required this.id, required this.title, required this.body, required this.tone, this.pinned = false, required this.updatedAt});
+  Note({required this.id, required this.title, required this.body, required this.tone, this.pinned = false, this.folder = '', this.locked = false, required this.updatedAt});
 
   final String id;
   String title;
   String body;
   String tone;
   bool pinned;
+
+  /// Nama folder; kosong = tanpa folder.
+  String folder;
+
+  /// Terkunci PIN: isi disembunyikan di layar (belum dienkripsi).
+  bool locked;
   DateTime updatedAt;
 
   Map<String, dynamic> toJson() => {
@@ -104,6 +110,8 @@ class Note {
         'body': body,
         'tone': tone,
         'pinned': pinned,
+        'folder': folder,
+        'locked': locked,
         'updatedAt': updatedAt.toIso8601String(),
       };
 
@@ -113,6 +121,8 @@ class Note {
         body: j['body'] as String? ?? '',
         tone: j['tone'] as String? ?? 'amber',
         pinned: j['pinned'] == true,
+        folder: j['folder'] as String? ?? '',
+        locked: j['locked'] == true,
         updatedAt: DateTime.tryParse(j['updatedAt'] as String? ?? '') ?? DateTime.now(),
       );
 }

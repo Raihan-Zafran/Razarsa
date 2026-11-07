@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../core/theme.dart';
@@ -16,6 +18,22 @@ import 'dock.dart';
 import 'desert_background.dart';
 import 'sky_background.dart';
 import '../core/i18n.dart';
+import '../widgets/mode_widgets.dart' show ModeReveal;
+
+/// Potongan lingkaran yang membesar dari satu titik (untuk animasi ganti mode).
+class _RevealClipper extends CustomClipper<Path> {
+  _RevealClipper(this.fraction, this.center, this.maxRadius);
+
+  final double fraction;
+  final Offset center;
+  final double maxRadius;
+
+  @override
+  Path getClip(Size size) => Path()..addOval(Rect.fromCircle(center: center, radius: maxRadius * fraction));
+
+  @override
+  bool shouldReclip(_RevealClipper old) => old.fraction != fraction || old.center != center || old.maxRadius != maxRadius;
+}
 
 /// Kerangka utama setelah masuk: mengikuti mode aktif (Keuangan / Produktif).
 class AppShell extends StatelessWidget {
@@ -24,25 +42,26 @@ class AppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mode = StoreScope.of(context).mode;
-    // Transisi ganti mode: mode lama mengecil & memudar, mode baru masuk dari sedikit
-    // lebih besar sambil naik — terasa seperti "pindah ruangan".
+    final size = MediaQuery.sizeOf(context);
+    // Transisi ganti mode: bulatan melebar dari tombol mode sampai memenuhi layar,
+    // mode baru muncul di dalam lubangnya sementara mode lama tetap di belakang.
+    final center = ModeReveal.origin ?? Offset(88, MediaQuery.paddingOf(context).top + 36);
+    final corners = [Offset.zero, Offset(size.width, 0), Offset(0, size.height), Offset(size.width, size.height)];
+    final far = corners.map((c) => (c - center).distance).reduce(math.max);
+    final ms = MediaQuery.disableAnimationsOf(context) ? 0 : 750;
     return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 520),
-      reverseDuration: const Duration(milliseconds: 320),
-      switchInCurve: const Cubic(0.2, 0.8, 0.2, 1),
-      switchOutCurve: Curves.easeIn,
+      duration: Duration(milliseconds: ms),
+      reverseDuration: Duration(milliseconds: ms),
+      switchInCurve: Curves.easeInOutCubic,
+      switchOutCurve: Curves.linear,
       transitionBuilder: (child, anim) {
         final incoming = child.key == ValueKey(mode);
-        if (incoming) {
-          return FadeTransition(
-            opacity: anim,
-            child: ScaleTransition(
-              scale: Tween(begin: 1.06, end: 1.0).animate(anim),
-              child: SlideTransition(position: Tween(begin: const Offset(0, 0.03), end: Offset.zero).animate(anim), child: child),
-            ),
-          );
-        }
-        return FadeTransition(opacity: anim, child: ScaleTransition(scale: Tween(begin: 0.94, end: 1.0).animate(anim), child: child));
+        if (!incoming) return child;
+        return AnimatedBuilder(
+          animation: anim,
+          child: child,
+          builder: (context, c) => ClipPath(clipper: _RevealClipper(anim.value, center, far), child: c),
+        );
       },
       child: RepaintBoundary(key: ValueKey(mode), child: ModeShell(mode: mode)),
     );

@@ -5,60 +5,41 @@ import '../core/theme.dart';
 import '../data/store.dart';
 import 'common.dart';
 
-/// Tombol terang/gelap berbentuk pil bergambar pemandangan siang/malam.
+/// Tombol terang/gelap: satu tombol bulat berisi matahari (terang) atau bulan (gelap).
 class ThemeToggle extends StatelessWidget {
-  const ThemeToggle({super.key, this.width = 64, this.height = 24});
-
-  final double width;
-  final double height;
+  const ThemeToggle({super.key});
 
   @override
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
     final z = ZColors.of(context);
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final knob = height - 6;
-    const dur = Duration(milliseconds: 420);
     return Semantics(
       button: true,
       toggled: dark,
       label: dark ? tr('Ganti ke mode terang') : tr('Ganti ke mode gelap'),
-      child: GestureDetector(
-        onTap: () => store.setThemeMode(dark ? ThemeMode.light : ThemeMode.dark),
-        child: Container(
-          width: width,
-          height: height,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(height / 2),
-            border: Border.all(color: z.border, width: 2),
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.14), blurRadius: 8, offset: const Offset(0, 2))],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(height / 2),
-            child: Stack(fit: StackFit.expand, children: [
-              Image.asset(Assets.toggleDay, fit: BoxFit.cover),
-              AnimatedOpacity(duration: dur, opacity: dark ? 1 : 0, child: Image.asset(Assets.toggleNight, fit: BoxFit.cover)),
-              AnimatedPositioned(
-                duration: dur,
-                curve: const Cubic(0.3, 1.4, 0.6, 1),
-                top: 1,
-                left: dark ? width - knob - 5 : 1,
-                child: Container(
-                  width: knob,
-                  height: knob,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 6, offset: const Offset(0, 2))],
-                  ),
-                  child: ClipOval(
-                    child: Stack(fit: StackFit.expand, children: [
-                      Image.asset(Assets.knobSun, fit: BoxFit.cover),
-                      AnimatedOpacity(duration: dur, opacity: dark ? 1 : 0, child: Image.asset(Assets.knobMoon, fit: BoxFit.cover)),
-                    ]),
-                  ),
-                ),
+      child: Material(
+        color: z.card,
+        shape: CircleBorder(side: BorderSide(color: z.border)),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: () => store.setThemeMode(dark ? ThemeMode.light : ThemeMode.dark),
+          child: SizedBox(
+            width: 44,
+            height: 44,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 350),
+              transitionBuilder: (child, anim) => RotationTransition(
+                turns: Tween(begin: 0.75, end: 1.0).animate(anim),
+                child: FadeTransition(opacity: anim, child: child),
               ),
-            ]),
+              child: Icon(
+                dark ? Icons.nightlight_round : Icons.wb_sunny_rounded,
+                key: ValueKey(dark),
+                size: 24,
+                color: dark ? const Color(0xFFA5B4FC) : const Color(0xFFD97706),
+              ),
+            ),
           ),
         ),
       ),
@@ -83,6 +64,11 @@ List<AppMode> get kModes => [
       AppMode('productive', tr('Produktif'), tr('To-do, kalender, pengingat, catatan'), Icons.task_alt_rounded, 'blue'),
     ];
 
+/// Titik asal animasi ganti mode: tengah tombol mode yang terakhir diketuk.
+class ModeReveal {
+  static Offset? origin;
+}
+
 /// Tombol di kiri atas: logo + nama mode. Diketuk untuk ganti mode.
 class ModeButton extends StatelessWidget {
   const ModeButton({super.key});
@@ -100,7 +86,11 @@ class ModeButton extends StatelessWidget {
         shape: StadiumBorder(side: BorderSide(color: z.border)),
         child: InkWell(
           customBorder: const StadiumBorder(),
-          onTap: () => showModeSheet(context),
+          onTap: () {
+            final box = context.findRenderObject();
+            if (box is RenderBox && box.hasSize) ModeReveal.origin = box.localToGlobal(box.size.center(Offset.zero));
+            showModeSheet(context);
+          },
           child: Padding(
             padding: const EdgeInsets.fromLTRB(8, 7, 12, 7),
             child: Row(mainAxisSize: MainAxisSize.min, children: [

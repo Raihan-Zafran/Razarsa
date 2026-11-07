@@ -16,10 +16,6 @@ class Assets {
   static const dragonHappy = 'assets/images/dragon_happy.webp';
   static const dragonWin = 'assets/images/dragon_win.webp';
   static const dragonCurious = 'assets/images/dragon_curious.webp';
-  static const toggleDay = 'assets/images/toggle_day.webp';
-  static const toggleNight = 'assets/images/toggle_night.webp';
-  static const knobSun = 'assets/images/knob_sun.webp';
-  static const knobMoon = 'assets/images/knob_moon.webp';
 }
 
 /// Kartu dasar: putih di mode terang, hijau gelap bergaris di mode gelap.

@@ -1,6 +1,6 @@
 # Catatan serah-terima Razarsa (untuk sesi berikutnya)
 
-Terakhir diperbarui: 7 Nov 2026, disiapkan rilis **v1.2.0** (fix bug dan lain-lain).
+Terakhir diperbarui: 7 Nov 2026, disiapkan rilis **v1.2.1** (animasi ganti mode, toggle ikon, folder dan kunci catatan).
 
 ## Pemilik & cara kerja
 - Pemilik: **Raihan Zafran Syaddat**. Jawab dalam bahasa Indonesia sederhana, sebut namanya, istilah asing dijelaskan di bagian bawah, berani mengingatkan kalau ada langkah berisiko.
@@ -45,3 +45,12 @@ Antrean, urut prioritas:
 5. File latar besar (`classroom_background.dart`, `sky_background.dart`): jangan diubah sebelum soal Liquid Glass diputuskan.
 
 Kunci rilis: **aman**. Workflow menggagalkan rilis kalau 4 secret `RELEASE_*` kosong. Kunci debug hanya dipakai build cabang biasa (bukan rilis).
+
+## Desain 1.3 (sudah digambar di Artifact, belum dikodekan)
+Kanvas kini satu prototipe terhubung: Main (Keuangan) mengimpor Produktif dan Profil, jadi ubah di komponen aslinya. Liquid Glass sudah dihapus (diputuskan: tidak dipakai).
+- **Login/daftar/lupa sandi**: desain ada di papan Login. Butuh Firebase dulu (`google-services.json` untuk `com.raihan.razarsa`, simpan sebagai GitHub Secret, jangan di-commit).
+- **Kebijakan Privasi/Ketentuan/Tentang**: desain ada di papan Profil. Masih ada isian `[KURUNG SIKU]` yang harus diputuskan Raihan (penyedia login, e-mail kontak, batas usia, masa hapus data). Jangan dikodekan sebelum diisi.
+- **Profil** (bingkai, cover GIF, lencana pajangan, usia akun, kelengkapan profil, Akun dan Data): ditunda oleh Raihan. Saran: pajang 3 lencana, kartu bagikan tanpa nominal uang, bingkai Pelangi animasinya hanya saat profil terbuka.
+- **Syarat unggahan** (usulan, belum disetujui): foto maks 2 MB (JPG/PNG/WebP, min 256x256, 1:1, tanpa GIF); cover maks 5 MB (JPG/PNG/WebP/GIF, 3:1, GIF maks 10 detik).
+- **Aset yang diminta**: ikon notifikasi Android (putih polos 96x96), 8-12 avatar bawaan 512x512, 4-6 cover 1200x400, logo vektor, ilustrasi layar kosong. Prompt gaya dasar naga hijau sudah diberikan.
+- Catatan terkunci PIN hanya disembunyikan di layar, belum dienkripsi (tertulis di Kebijakan Privasi).

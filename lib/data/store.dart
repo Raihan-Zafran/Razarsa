@@ -33,6 +33,7 @@ class AppStore extends ChangeNotifier {
   List<Todo> todos = [];
   List<Agenda> agenda = [];
   List<Note> notes = [];
+  List<String> noteFolders = [];
 
   // ---------- Mode & profil ----------
   /// Mode aktif: 'finance' atau 'productive'.
@@ -101,6 +102,7 @@ class AppStore extends ChangeNotifier {
     todos = _readList('todos', Todo.fromJson);
     agenda = _readList('agenda', Agenda.fromJson);
     notes = _readList('notes', Note.fromJson);
+    noteFolders = _prefs.getStringList('noteFolders') ?? [];
     mode = _prefs.getString('mode') ?? 'finance';
     financeBg = _prefs.getString('financeBg') ?? 'desert';
     recurring = _readList('recurring', Recurring.fromJson);
@@ -197,6 +199,7 @@ class AppStore extends ChangeNotifier {
     await _prefs.setString('todos', jsonEncode(todos.map((e) => e.toJson()).toList()));
     await _prefs.setString('agenda', jsonEncode(agenda.map((e) => e.toJson()).toList()));
     await _prefs.setString('notes', jsonEncode(notes.map((e) => e.toJson()).toList()));
+    await _prefs.setStringList('noteFolders', noteFolders);
     await _prefs.setString('mode', mode);
     await _prefs.setString('financeBg', financeBg);
     await _prefs.setString('recurring', jsonEncode(recurring.map((e) => e.toJson()).toList()));
@@ -348,6 +351,7 @@ class AppStore extends ChangeNotifier {
         'todos': todos.map((e) => e.toJson()).toList(),
         'agenda': agenda.map((e) => e.toJson()).toList(),
         'notes': notes.map((e) => e.toJson()).toList(),
+        'noteFolders': noteFolders,
         'recurring': recurring.map((e) => e.toJson()).toList(),
         'quickItems': quickItems.map((e) => e.toJson()).toList(),
       });
@@ -372,6 +376,10 @@ class AppStore extends ChangeNotifier {
       final newAgenda = opt('agenda', Agenda.fromJson);
       final newNotes = opt('notes', Note.fromJson);
       final newRecurring = opt('recurring', Recurring.fromJson);
+      final newFolders = ((m['noteFolders'] as List?) ?? const []).map((e) => e as String).toList();
+      for (final n in newNotes) {
+        if (n.folder.isNotEmpty && !newFolders.contains(n.folder)) newFolders.add(n.folder);
+      }
       final newQuick = m['quickItems'] != null ? opt('quickItems', QuickEntry.fromJson) : null;
       final newBudget = (m['monthlyBudget'] as num?)?.toInt() ?? monthlyBudget;
 
@@ -385,6 +393,7 @@ class AppStore extends ChangeNotifier {
       todos = newTodos;
       agenda = newAgenda;
       notes = newNotes;
+      noteFolders = newFolders;
       recurring = newRecurring;
       if (newQuick != null) quickItems = newQuick;
       monthlyBudget = newBudget;
@@ -437,6 +446,7 @@ class AppStore extends ChangeNotifier {
     todos = [];
     agenda = [];
     notes = [];
+    noteFolders = [];
     recurring = [];
     _changed();
     onRecurringChanged?.call();
@@ -739,19 +749,40 @@ class AppStore extends ChangeNotifier {
     ..sort((a, b) => a.minuteOfDay.compareTo(b.minuteOfDay));
 
   // ---------- Catatan ----------
-  Note addNote({String title = '', String body = '', String tone = 'amber'}) {
-    final n = Note(id: newId(), title: title, body: body, tone: tone, updatedAt: DateTime.now());
+  Note addNote({String title = '', String body = '', String tone = 'amber', String folder = ''}) {
+    final n = Note(id: newId(), title: title, body: body, tone: tone, folder: folder, updatedAt: DateTime.now());
     notes.insert(0, n);
     _changed();
     return n;
   }
 
-  void updateNote(Note n, {String? title, String? body, String? tone, bool? pinned}) {
+  void updateNote(Note n, {String? title, String? body, String? tone, bool? pinned, String? folder, bool? locked}) {
     if (title != null) n.title = title;
     if (body != null) n.body = body;
     if (tone != null) n.tone = tone;
     if (pinned != null) n.pinned = pinned;
-    n.updatedAt = DateTime.now();
+    if (folder != null) n.folder = folder;
+    if (locked != null) n.locked = locked;
+    // Memindah folder atau mengunci tidak mengubah "terakhir diubah".
+    if (title != null || body != null || tone != null || pinned != null) n.updatedAt = DateTime.now();
+    _changed();
+  }
+
+  /// Membuat folder catatan. false kalau kosong, kepanjangan, atau sudah ada.
+  bool addNoteFolder(String name) {
+    final f = name.trim();
+    if (f.isEmpty || f.length > 20 || noteFolders.contains(f)) return false;
+    noteFolders.add(f);
+    _changed();
+    return true;
+  }
+
+  /// Menghapus folder; catatan di dalamnya tidak dihapus, hanya jadi tanpa folder.
+  void removeNoteFolder(String name) {
+    noteFolders.remove(name);
+    for (final n in notes) {
+      if (n.folder == name) n.folder = '';
+    }
     _changed();
   }
 
