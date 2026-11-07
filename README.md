@@ -3,123 +3,66 @@
 </p>
 
 <h1 align="center">Razarsa</h1>
-<p align="center"><i>Dari nama pembuatnya: <b>Ra</b>ihan <b>Za</b>fran Sy<b>a</b>ddat (dulu bernama Zevra)</i></p>
 <p align="center"><b>Satu aplikasi untuk mengatur hidup.</b><br>Keuangan dan produktivitas dalam satu tempat.</p>
+<p align="center"><a href="../../releases/latest"><b>⬇️ Unduh APK terbaru</b></a></p>
 
 ---
 
-## Apa itu Razarsa?
+## Tentang
 
-Razarsa adalah aplikasi Android berbasis **Flutter** yang dirancang sebagai **"multi app"**: satu aplikasi dengan beberapa *mode*, dan setiap mode mengurus satu bagian hidup.
+Aplikasi Android (Flutter) dengan beberapa **mode**. Satu aplikasi, satu pengaturan, satu maskot naga hijau. Semua data tersimpan **di HP**, tanpa server.
 
-Banyak orang memasang 4–5 aplikasi berbeda untuk mencatat uang, daftar tugas, kalender, dan catatan. Datanya tersebar, tampilannya beda-beda, dan semuanya harus dibuka satu per satu. Razarsa menyatukan semuanya dengan tampilan yang konsisten, satu pengaturan, dan satu teman maskot: **naga hijau kecil** yang ikut senang kalau kamu konsisten.
+Nama berasal dari pembuatnya: **Ra**ihan **Za**fran Sy**a**ddat.
 
-## Tujuan
+## Fitur
 
-1. **Mudah dan cepat.** Mencatat sesuatu harus selesai dalam hitungan detik, contohnya lewat tombol *Catat Cepat*.
-2. **Semua di satu tempat.** Pindah mode cukup lewat satu tombol, dan pengaturannya tetap satu untuk semua mode.
-3. **Saling terhubung.** Contoh ke depannya: tagihan otomatis jadi pengingat di kalender.
-4. **Nyaman dilihat.** Ada mode terang dan gelap, animasi halus, dan latar yang ikut berganti siang dan malam.
-5. **Data milik pengguna.** Versi awal menyimpan semua data **di HP**, tanpa server.
+**💰 Keuangan**
+- Catat pemasukan dan pengeluaran, **Catat Cepat** sekali tap
+- Laporan, anggaran bulanan, target tabungan
+- Kategori khas Indonesia, bisa buat sendiri
 
-## Rencana mode
+**✅ Produktif**
+- To-do, kalender dengan pengingat
+- Catatan dengan **folder**, sematan, dan **kunci PIN**
 
-| Mode | Isi | Status |
-|---|---|---|
-| 💰 **Keuangan** | Catat pemasukan dan pengeluaran, laporan, anggaran, target tabungan | ✅ Versi 1 |
-| ✅ **Produktif** | To-do, kalender + pengingat, catatan | ✅ Versi 1.1 |
-| 🏠 **Dashboard Utama** | Ringkasan semua mode setelah login, plus tombol ganti mode | 🔜 Direncanakan |
+**Untuk semua mode**
+- Ganti mode dengan animasi bulatan
+- Terang/gelap, Indonesia/English, Rupiah/Dolar
+- Kunci PIN + sidik jari, sembunyikan saldo
+- Backup, pulihkan, dan ekspor CSV
+- Profil dengan level dan XP
+- Latar beranimasi siang/malam
 
-## Fitur versi 1 (mode Keuangan)
+## Visi
 
-- **Masuk / Daftar**: empat karakter lucu yang mengintip saat kata sandi diketik, sedih kalau data salah, dan senang kalau berhasil. Ada juga pilihan *Lanjut tanpa akun*.
-- **Beranda**: total saldo, pemasukan dan pengeluaran bulan ini, tombol **+ Pengeluaran** dan **+ Pemasukan**, **Catat Cepat** sekali tap (dengan tombol *Batalkan*), dan transaksi terbaru.
-- **Tambah transaksi**: kategori yang paling sering dipakai tampil duluan, 19 kategori khas Indonesia (Kos, Cicilan, Kondangan, Sedekah, THR, dll.), bisa **bikin kategori sendiri**, dan bisa pilih tanggal.
-- **Transaksi**: riwayat per hari, filter Pemasukan/Pengeluaran, tekan lama untuk menghapus.
-- **Laporan**: anggaran bulanan (bisa diubah), grafik tren 6 bulan, **donut** pembagian belanja per kategori, dan maskot yang ikut cemas kalau anggaran hampir habis.
-- **Target**: target tabungan dengan progres. Gambar gunung berganti siang dan malam.
-- **Pengaturan**: satu untuk semua mode. Isinya tema, **bahasa (Indonesia/English)**, **mata uang (Rupiah/Dolar)**, **awal bulan anggaran (tanggal gajian)**, awal minggu, **notifikasi** (pengingat harian & peringatan anggaran), **kunci PIN + sidik jari**, sembunyikan saldo, **backup & pulihkan**, **ekspor CSV**, hapus data, dan keluar.
-- **Dock** dengan bola hijau yang **melompat** ke menu yang dipilih.
-- **Latar beranimasi (bisa dipilih di Pengaturan)**: **Gurun** (bawaan) dengan kaktus, tumbleweed, oasis, dan kadal yang muncul tiap pindah halaman; atau **Langit** dengan pesawat, balon udara, roket, dan pegunungan. Keduanya punya versi malam (bintang, bulan, aurora, kunang-kunang). Semua animasi otomatis berhenti kalau HP memakai pengaturan *kurangi gerakan*.
+- **1.3** Cek pembaruan, pengaturan kategori, anggaran per kategori
+- **1.4** Profil seru: lencana, bingkai, kartu bagikan
+- **1.5** Widget layar utama, enkripsi data
+- **1.6** Ringkasan bulanan, tantangan mingguan
+- **2.0** Dashboard Utama yang merangkum semua mode
 
-> **⚠️ Login versi beta belum aman:** masih **lokal**, kata sandi **tidak dicek**, akun hanya tersimpan di HP. Cocok untuk uji coba, bukan untuk data sungguhan. Nanti akan memakai Firebase. Tombol "Masuk dengan Google" dan pengaturan kategori masih bertanda *segera hadir*.
+## Pasang
 
-## Fitur mode Produktif (v1.1)
+1. Buka halaman [**Releases**](../../releases/latest).
+2. Unduh **`…-arm64.apk`** (hampir semua HP modern) atau `…-universal.apk`.
+3. Pasang. Izinkan "sumber tidak dikenal" jika diminta.
 
-- **Ganti mode** lewat tombol di kiri atas (logo + nama mode).
-- **Hari ini**: fokus harian, Tambah Cepat, jadwal hari ini, tugas berikutnya, catatan disematkan.
-- **To-do**: kategori, tanggal & jam, filter, tekan lama untuk menghapus.
-- **Kalender + Pengingat**: tampilan Bulan/Minggu/Hari; acara dan pengingat (sekali / setiap hari) dengan notifikasi.
-- **Catatan**: warna, cari, sematkan, tersimpan otomatis.
-- **Latar kelas** beranimasi yang bertambah isinya setiap pindah halaman, dengan versi malam.
-- **Profil untuk semua mode**: level & XP, hari aktif, hari beruntun, pencapaian, ringkasan tiap mode.
+Pasang di atas versi lama, data tetap aman.
 
-## Cara mendapatkan APK
+> Login saat ini masih lokal dan kata sandi tidak diperiksa. Jangan pakai kata sandi penting.
 
-APK dibuat otomatis oleh **GitHub Actions** setiap ada push.
+## Pengembangan
 
-1. Buka tab **Actions** di repo ini.
-2. Pilih run **Build APK** terbaru yang berhasil (centang hijau).
-3. Di bagian **Artifacts**, unduh file berawalan **razarsa-v…**. File yang diunduh berbentuk zip, ekstrak dulu. Di dalamnya ada dua APK:
-   - **`…-arm64.apk`** (sekitar 20 MB): **pilih ini** untuk hampir semua HP Android keluaran 2017 ke atas.
-   - **`…-universal.apk`** (sekitar 55 MB): untuk semua HP, termasuk HP lama dan emulator.
-4. Pasang di HP Android (izinkan "instal dari sumber tidak dikenal").
-
-Kalau kamu push tag berawalan `v` (contoh `v1.0.0`), APK juga otomatis muncul di halaman **Releases**.
-
-### Supaya APK bisa di-update tanpa uninstall
-
-Isi secret **`DEBUG_KEYSTORE_BASE64`** di *Settings → Secrets and variables → Actions*. Dengan begitu setiap build ditandatangani kunci yang sama. Tanpa secret ini, APK tetap jadi, tapi tiap build punya kunci berbeda, jadi aplikasi lama harus dihapus dulu sebelum memasang yang baru.
-
-## Struktur kode
-
-```
-lib/
-├── main.dart                 # Titik awal aplikasi, tema, login atau aplikasi
-├── core/
-│   ├── theme.dart            # Warna mode terang & gelap (berganti halus)
-│   └── format.dart           # Format Rupiah, tanggal, sapaan
-├── data/
-│   ├── models.dart           # Transaksi, kategori, target, Catat Cepat
-│   └── store.dart            # Penyimpanan data di HP (shared_preferences)
-├── shell/
-│   ├── app_shell.dart        # Kerangka: latar, perpindahan halaman, dock
-│   ├── dock.dart             # Dock dengan lekukan & bola yang melompat
-│   ├── desert_background.dart # Latar gurun (Keuangan, bawaan)
-│   ├── sky_background.dart   # Latar langit (Keuangan, pilihan)
-│   └── classroom_background.dart # Latar kelas (Produktif)
-├── features/
-│   ├── auth/                 # Masuk/Daftar + karakter kawaii
-│   ├── finance/              # Beranda, Transaksi, Tambah, Laporan, Target
-│   ├── productive/           # Hari ini, To-do, Kalender + pengingat, Catatan
-│   └── settings/             # Pengaturan & Profil
-└── widgets/common.dart       # Komponen yang dipakai bersama
-```
-
-Setiap mode baru nanti cukup ditambahkan sebagai folder baru di `lib/features/`, tanpa membongkar yang sudah ada.
-
-## Menjalankan di komputer
-
-Butuh **Flutter 3.47** dan **Android SDK**.
+Butuh Flutter 3.47.
 
 ```bash
 flutter pub get
-flutter run            # jalankan di HP / emulator
-flutter test           # jalankan tes
-flutter build apk      # buat APK
+flutter run
+flutter test
 ```
 
-## Keamanan
+APK dan Release dibuat otomatis oleh GitHub Actions saat versi di `pubspec.yaml` naik. File kunci (`*.jks`, `google-services.json`) **jangan** di-commit; simpan di GitHub Secrets.
 
-File berikut **tidak boleh** masuk ke repo ini, dan sudah dicegah lewat `.gitignore`:
+## Lisensi
 
-- `debug.keystore` / `*.jks`: kunci tanda tangan APK
-- `google-services.json`: konfigurasi Firebase
-- isi base64 keystore
-
-Simpan semuanya di **GitHub Secrets**, jangan di kode. APK rilis ditandatangani **kunci rilis** dari secret `RELEASE_KEYSTORE_BASE64`, `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_PASSWORD`, `RELEASE_KEY_ALIAS`.
-
-## Lisensi aset
-
-- Font **Plus Jakarta Sans** memakai lisensi SIL Open Font License (`assets/fonts/OFL.txt`).
-- Maskot dan ilustrasi adalah aset milik pemilik proyek Razarsa.
+Font Plus Jakarta Sans: SIL Open Font License. Maskot dan ilustrasi: milik pemilik proyek.
