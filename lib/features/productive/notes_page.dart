@@ -119,7 +119,7 @@ class _NotesPageState extends State<NotesPage> {
     final q = _q.toLowerCase();
     return ValueListenableBuilder<Set<String>>(
       valueListenable: NoteLock.open,
-      builder: (context, _, __) {
+      builder: (context, _, _) {
         final list = store.sortedNotes
             .where((n) => !_pinnedOnly || n.pinned)
             .where((n) => _folder.isEmpty || n.folder == _folder)
@@ -288,7 +288,7 @@ class NoteCard extends StatelessWidget {
     final z = ZColors.of(context);
     return ValueListenableBuilder<Set<String>>(
       valueListenable: NoteLock.open,
-      builder: (context, _, __) {
+      builder: (context, _, _) {
         final hidden = !NoteLock.isOpen(note);
         return Material(
           color: z.toneBg(note.tone),
