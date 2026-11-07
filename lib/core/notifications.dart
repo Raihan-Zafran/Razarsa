@@ -33,7 +33,8 @@ class Notif {
       tzdata.initializeTimeZones();
       final info = await FlutterTimezone.getLocalTimezone();
       tz.setLocalLocation(tz.getLocation(info.identifier));
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Razarsa: zona waktu gagal: $e');
       // Zona waktu tidak dikenal: pakai bawaan.
     }
     try {
@@ -41,7 +42,9 @@ class Notif {
         settings: const InitializationSettings(android: AndroidInitializationSettings('@mipmap/ic_launcher')),
       );
       _ready = true;
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Razarsa: notifikasi gagal disiapkan: $e');
+    }
   }
 
   /// Minta izin notifikasi (Android 13+). Mengembalikan true kalau diizinkan.

@@ -80,6 +80,7 @@ class AppStore extends ChangeNotifier {
   bool get hideBalance => switches['hide'] == true;
 
   void _load() {
+    _migrate();
     loggedIn = _prefs.getBool('loggedIn') ?? false;
     userName = _prefs.getString('userName') ?? '';
     email = _prefs.getString('email') ?? '';
@@ -113,10 +114,30 @@ class AppStore extends ChangeNotifier {
     _markActive();
     final sw = _prefs.getString('switches');
     if (sw != null) {
-      final m = jsonDecode(sw) as Map<String, dynamic>;
-      m.forEach((k, v) => switches[k] = v == true);
+      try {
+        final m = jsonDecode(sw) as Map<String, dynamic>;
+        m.forEach((k, v) => switches[k] = v == true);
+      } catch (e) {
+        debugPrint('Razarsa: gagal membaca pengaturan: $e');
+      }
     }
     _sortTxns();
+    _autoSnapshot();
+  }
+
+  /// Versi format data di HP. Naikkan kalau bentuk data berubah, lalu tulis
+  /// langkah migrasinya di [_migrate].
+  static const dataVersion = 1;
+
+  /// Daftar data yang gagal dibaca saat aplikasi dibuka (isi aslinya diselamatkan
+  /// ke kunci `rusak_<nama>` di penyimpanan, tidak dibuang).
+  final List<String> loadProblems = [];
+
+  void _migrate() {
+    final v = _prefs.getInt('dataVersion') ?? 0;
+    // v0 -> v1: belum ada perubahan bentuk data, hanya menandai versinya.
+    // Kalau v > dataVersion, data ditulis aplikasi yang lebih baru: jangan diubah.
+    if (v < dataVersion) _prefs.setInt('dataVersion', dataVersion);
   }
 
   List<T> _readList<T>(String key, T Function(Map<String, dynamic>) f) {
@@ -124,9 +145,36 @@ class AppStore extends ChangeNotifier {
     if (raw == null) return [];
     try {
       return (jsonDecode(raw) as List).map((e) => f(e as Map<String, dynamic>)).toList();
-    } catch (_) {
+    } catch (e) {
+      // Jangan diam-diam membuang data: simpan salinan mentahnya sebelum
+      // penyimpanan berikutnya menimpanya dengan daftar kosong.
+      debugPrint('Razarsa: gagal membaca "$key": $e');
+      loadProblems.add(key);
+      if (!_prefs.containsKey('rusak_$key')) _prefs.setString('rusak_$key', raw);
       return [];
     }
+  }
+
+  // ---------- Cadangan otomatis ----------
+  /// Salinan data terakhir (maksimal sehari sekali), disimpan di HP.
+  String get autoBackupAt => _prefs.getString('autoBackupAt') ?? '';
+  bool get hasAutoBackup => (_prefs.getString('autoBackup') ?? '').isNotEmpty;
+
+  void _autoSnapshot() {
+    // Jangan menimpa cadangan yang bagus dengan data yang gagal terbaca.
+    if (loadProblems.isNotEmpty) return;
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    if (autoBackupAt.startsWith(today)) return;
+    if (txns.isEmpty && goals.isEmpty && todos.isEmpty && agenda.isEmpty && notes.isEmpty) return;
+    _prefs.setString('autoBackup', exportJson());
+    _prefs.setString('autoBackupAt', DateTime.now().toIso8601String());
+  }
+
+  /// Memulihkan dari cadangan otomatis. Mengembalikan false kalau tidak ada / rusak.
+  bool restoreAutoBackup() {
+    final raw = _prefs.getString('autoBackup');
+    if (raw == null || raw.isEmpty) return false;
+    return importJson(raw, keepSafetyCopy: false);
   }
 
   Future<void> _save() async {
@@ -305,21 +353,41 @@ class AppStore extends ChangeNotifier {
       });
 
   /// Mengganti data dengan isi backup. Mengembalikan false kalau file tidak valid.
-  bool importJson(String raw) {
+  ///
+  /// Semua isi file dibaca dulu; data baru dipasang hanya kalau seluruhnya valid,
+  /// jadi file rusak tidak membuat data setengah terganti. Sebelum diganti, data
+  /// lama disalin ke `autoBackup` (kecuali [keepSafetyCopy] false).
+  bool importJson(String raw, {bool keepSafetyCopy = true}) {
     try {
       final m = jsonDecode(raw) as Map<String, dynamic>;
       if (m['app'] != 'razarsa' && m['app'] != 'zevra') return false;
-      txns = (m['txns'] as List).map((e) => Txn.fromJson(e as Map<String, dynamic>)).toList();
-      goals = (m['goals'] as List).map((e) => Goal.fromJson(e as Map<String, dynamic>)).toList();
-      customCats = (m['customCats'] as List).map((e) => CustomCategory.fromJson(e as Map<String, dynamic>)).toList();
-      monthlyBudget = (m['monthlyBudget'] as num?)?.toInt() ?? monthlyBudget;
+      List<T> req<T>(String k, T Function(Map<String, dynamic>) f) =>
+          (m[k] as List).map((e) => f(e as Map<String, dynamic>)).toList();
       List<T> opt<T>(String k, T Function(Map<String, dynamic>) f) =>
           ((m[k] as List?) ?? const []).map((e) => f(e as Map<String, dynamic>)).toList();
-      todos = opt('todos', Todo.fromJson);
-      agenda = opt('agenda', Agenda.fromJson);
-      notes = opt('notes', Note.fromJson);
-      recurring = opt('recurring', Recurring.fromJson);
-      if (m['quickItems'] != null) quickItems = opt('quickItems', QuickEntry.fromJson);
+      final newTxns = req('txns', Txn.fromJson);
+      final newGoals = req('goals', Goal.fromJson);
+      final newCats = req('customCats', CustomCategory.fromJson);
+      final newTodos = opt('todos', Todo.fromJson);
+      final newAgenda = opt('agenda', Agenda.fromJson);
+      final newNotes = opt('notes', Note.fromJson);
+      final newRecurring = opt('recurring', Recurring.fromJson);
+      final newQuick = m['quickItems'] != null ? opt('quickItems', QuickEntry.fromJson) : null;
+      final newBudget = (m['monthlyBudget'] as num?)?.toInt() ?? monthlyBudget;
+
+      if (keepSafetyCopy) {
+        _prefs.setString('autoBackup', exportJson());
+        _prefs.setString('autoBackupAt', DateTime.now().toIso8601String());
+      }
+      txns = newTxns;
+      goals = newGoals;
+      customCats = newCats;
+      todos = newTodos;
+      agenda = newAgenda;
+      notes = newNotes;
+      recurring = newRecurring;
+      if (newQuick != null) quickItems = newQuick;
+      monthlyBudget = newBudget;
       onRecurringChanged?.call();
       for (final a in agenda) {
         onAgendaChanged?.call(a);
@@ -327,7 +395,8 @@ class AppStore extends ChangeNotifier {
       _sortTxns();
       _changed();
       return true;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Razarsa: impor backup gagal: $e');
       return false;
     }
   }
@@ -353,6 +422,11 @@ class AppStore extends ChangeNotifier {
   }
 
   Future<void> clearAll() async {
+    // Simpan salinan dulu supaya hapus-semua yang tidak sengaja masih bisa dibatalkan.
+    if (txns.isNotEmpty || goals.isNotEmpty || todos.isNotEmpty || agenda.isNotEmpty || notes.isNotEmpty) {
+      _prefs.setString('autoBackup', exportJson());
+      _prefs.setString('autoBackupAt', DateTime.now().toIso8601String());
+    }
     txns = [];
     goals = [];
     customCats = [];
@@ -516,8 +590,9 @@ class AppStore extends ChangeNotifier {
   /// Tambah transaksi berulang. Kalau tanggalnya sudah lewat bulan ini, mulai bulan depan.
   Recurring addRecurring({required String name, required String cat, required int amount, required int day}) {
     final now = DateTime.now();
-    final r = Recurring(id: newId(), name: name.trim(), cat: cat, amount: amount, day: day.clamp(1, 28),
-        lastPosted: now.day > day ? _monthKey(now) : '');
+    final d = day.clamp(1, 28);
+    final r = Recurring(id: newId(), name: name.trim(), cat: cat, amount: amount, day: d,
+        lastPosted: now.day > d ? _monthKey(now) : '');
     recurring.add(r);
     postRecurring(notify: false);
     _changed();

@@ -250,6 +250,13 @@ class SettingsPage extends StatelessWidget {
             title: Text(tr('Pulihkan dari file'), style: const TextStyle(fontWeight: FontWeight.w700)),
             onTap: () => Navigator.pop(c, 'restore'),
           ),
+          if (store.hasAutoBackup)
+            ListTile(
+              leading: const Icon(Icons.history_rounded),
+              title: Text(tr('Pulihkan cadangan otomatis'), style: const TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: Text(store.autoBackupAt.length >= 10 ? store.autoBackupAt.substring(0, 10) : ''),
+              onTap: () => Navigator.pop(c, 'auto'),
+            ),
           const SizedBox(height: 8),
         ]),
       ),
@@ -259,6 +266,21 @@ class SettingsPage extends StatelessWidget {
       await _backup(context, store);
     } else if (v == 'restore') {
       await _restore(context, store);
+    } else if (v == 'auto') {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (c) => AlertDialog(
+          title: Text(tr('Pulihkan cadangan otomatis?')),
+          content: Text(tr('Data di HP ini akan diganti dengan cadangan otomatis terakhir.')),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Batal'))),
+            FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Pulihkan'))),
+          ],
+        ),
+      );
+      if (ok != true || !context.mounted) return;
+      final done = store.restoreAutoBackup();
+      showZToast(context, done ? tr('Data berhasil dipulihkan') : tr('File backup tidak valid'));
     }
   }
 
@@ -274,7 +296,8 @@ class SettingsPage extends StatelessWidget {
       if (uri == null) return;
       store.markBackup();
       if (context.mounted) showZToast(context, tr('Backup tersimpan'));
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Razarsa: operasi file gagal: $e');
       if (context.mounted) showZToast(context, tr('Gagal menyimpan file'));
     }
   }
@@ -287,7 +310,8 @@ class SettingsPage extends StatelessWidget {
         mimeType: 'text/csv',
       );
       if (uri != null && context.mounted) showZToast(context, tr('File CSV tersimpan'));
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Razarsa: operasi file gagal: $e');
       if (context.mounted) showZToast(context, tr('Gagal menyimpan file'));
     }
   }
@@ -311,7 +335,8 @@ class SettingsPage extends StatelessWidget {
       final raw = await files.first.xFile.readAsString();
       final done = store.importJson(raw);
       if (context.mounted) showZToast(context, done ? tr('Data berhasil dipulihkan') : tr('File backup tidak valid'));
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Razarsa: operasi file gagal: $e');
       if (context.mounted) showZToast(context, tr('File backup tidak valid'));
     }
   }
