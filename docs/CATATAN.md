@@ -31,3 +31,15 @@ Terakhir diperbarui: 7 Nov 2026, setelah rilis **v1.1.3**.
 - Cek hasil v1.1.3 di HP: apakah ganti tema masih tersendat, dan apakah transisi ganti mode enak.
 - Raihan pernah bilang ada beberapa bug yang mau dijelaskan.
 - Pengaturan **Kategori** masih "segera hadir". Login masih lokal (rencana Firebase; `google-services.json` lama terdaftar untuk `com.raihan.zevra`, perlu didaftarkan ulang).
+
+## Hasil kritik kode (7 Nov 2026)
+Sudah: PIN pakai PBKDF2 + salt (upgrade otomatis dari format lama), `allowBackup=false`. Perlu dicek CI hijau dan dites di HP.
+
+Antrean, urut prioritas:
+1. **Versi data + cadangan otomatis** sebelum model data berubah. `_readList` di `store.dart` diam-diam mengembalikan `[]` kalau format gagal dibaca, jadi data bisa hilang tanpa peringatan.
+2. **Tes inti** (~10): saldo, anggaran, transaksi berulang, impor/ekspor. Plus satu tes yang memeriksa semua `tr('...')` punya terjemahan Inggris.
+3. **Enkripsi data** di HP (butuh `flutter_secure_storage`, uji lewat CI dan HP). PIN 4–6 digit tetap lemah tanpa ini.
+4. Ganti `catch (_)` yang diam dengan log; kurangi rebuild `AppStore`; login/Firebase; perbarui deskripsi `pubspec.yaml` (masih menyebut "kesehatan").
+5. File latar besar (`classroom_background.dart`, `sky_background.dart`): jangan diubah sebelum soal Liquid Glass diputuskan.
+
+Kunci rilis: **aman**. Workflow menggagalkan rilis kalau 4 secret `RELEASE_*` kosong. Kunci debug hanya dipakai build cabang biasa (bukan rilis).
