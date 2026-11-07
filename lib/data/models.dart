@@ -134,3 +134,49 @@ const kQuickItems = <QuickItem>[
   QuickItem('Parkir', 'transport', 5000, 3),
   QuickItem('Pulsa', 'bills', 50000, 20),
 ];
+
+/// Tombol Catat Cepat yang bisa diatur sendiri.
+class QuickEntry {
+  QuickEntry({required this.name, required this.cat, required this.amount});
+
+  String name;
+  String cat;
+  int amount;
+
+  Map<String, dynamic> toJson() => {'name': name, 'cat': cat, 'amount': amount};
+
+  factory QuickEntry.fromJson(Map<String, dynamic> j) =>
+      QuickEntry(name: j['name'] as String? ?? '', cat: j['cat'] as String? ?? 'other', amount: (j['amount'] as num? ?? 0).toInt());
+}
+
+/// Transaksi berulang: tercatat otomatis setiap bulan pada tanggal [day].
+class Recurring {
+  Recurring({required this.id, required this.name, required this.cat, required this.amount, required this.day, this.lastPosted = ''});
+
+  final String id;
+  String name;
+  String cat;
+
+  /// Negatif = pengeluaran, positif = pemasukan.
+  int amount;
+  int day;
+
+  /// Bulan terakhir tercatat, format yyyy-mm.
+  String lastPosted;
+
+  bool get isExpense => amount < 0;
+
+  /// Nomor notifikasi pengingat tagihan.
+  int get notifId => 500000 + (int.tryParse(id.length > 8 ? id.substring(id.length - 8) : id) ?? id.hashCode).abs() % 400000;
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'cat': cat, 'amount': amount, 'day': day, 'lastPosted': lastPosted};
+
+  factory Recurring.fromJson(Map<String, dynamic> j) => Recurring(
+        id: j['id'] as String,
+        name: j['name'] as String? ?? '',
+        cat: j['cat'] as String? ?? 'other',
+        amount: (j['amount'] as num? ?? 0).toInt(),
+        day: (j['day'] as num? ?? 1).toInt().clamp(1, 28),
+        lastPosted: j['lastPosted'] as String? ?? '',
+      );
+}

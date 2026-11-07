@@ -36,6 +36,15 @@ class AppStore extends ChangeNotifier {
   // ---------- Mode & profil ----------
   /// Mode aktif: 'finance' atau 'productive'.
   String mode = 'finance';
+
+  /// Latar mode Keuangan: 'desert' (bawaan) atau 'sky'.
+  String financeBg = 'desert';
+
+  List<QuickEntry> quickItems = [];
+  List<Recurring> recurring = [];
+
+  /// Dipanggil setiap transaksi berulang berubah (untuk pengingat tagihan).
+  void Function()? onRecurringChanged;
   String bio = '';
   String joinedAt = '';
 
@@ -91,6 +100,12 @@ class AppStore extends ChangeNotifier {
     agenda = _readList('agenda', Agenda.fromJson);
     notes = _readList('notes', Note.fromJson);
     mode = _prefs.getString('mode') ?? 'finance';
+    financeBg = _prefs.getString('financeBg') ?? 'desert';
+    recurring = _readList('recurring', Recurring.fromJson);
+    quickItems = _prefs.getString('quickItems') == null
+        ? kQuickItems.map((q) => QuickEntry(name: q.name, cat: q.cat, amount: q.amount)).toList()
+        : _readList('quickItems', QuickEntry.fromJson);
+    postRecurring();
     bio = _prefs.getString('bio') ?? '';
     joinedAt = _prefs.getString('joinedAt') ?? '';
     activeDays = _prefs.getStringList('activeDays') ?? [];
@@ -134,6 +149,9 @@ class AppStore extends ChangeNotifier {
     await _prefs.setString('agenda', jsonEncode(agenda.map((e) => e.toJson()).toList()));
     await _prefs.setString('notes', jsonEncode(notes.map((e) => e.toJson()).toList()));
     await _prefs.setString('mode', mode);
+    await _prefs.setString('financeBg', financeBg);
+    await _prefs.setString('recurring', jsonEncode(recurring.map((e) => e.toJson()).toList()));
+    await _prefs.setString('quickItems', jsonEncode(quickItems.map((e) => e.toJson()).toList()));
     await _prefs.setString('bio', bio);
     await _prefs.setString('joinedAt', joinedAt);
     await _prefs.setStringList('activeDays', activeDays);
@@ -229,6 +247,8 @@ class AppStore extends ChangeNotifier {
         'todos': todos.map((e) => e.toJson()).toList(),
         'agenda': agenda.map((e) => e.toJson()).toList(),
         'notes': notes.map((e) => e.toJson()).toList(),
+        'recurring': recurring.map((e) => e.toJson()).toList(),
+        'quickItems': quickItems.map((e) => e.toJson()).toList(),
       });
 
   /// Mengganti data dengan isi backup. Mengembalikan false kalau file tidak valid.
@@ -245,6 +265,9 @@ class AppStore extends ChangeNotifier {
       todos = opt('todos', Todo.fromJson);
       agenda = opt('agenda', Agenda.fromJson);
       notes = opt('notes', Note.fromJson);
+      recurring = opt('recurring', Recurring.fromJson);
+      if (m['quickItems'] != null) quickItems = opt('quickItems', QuickEntry.fromJson);
+      onRecurringChanged?.call();
       for (final a in agenda) {
         onAgendaChanged?.call(a);
       }
@@ -287,7 +310,9 @@ class AppStore extends ChangeNotifier {
     todos = [];
     agenda = [];
     notes = [];
+    recurring = [];
     _changed();
+    onRecurringChanged?.call();
   }
 
   // ---------- Kategori ----------
@@ -411,6 +436,64 @@ class AppStore extends ChangeNotifier {
   void removeGoal(String id) {
     goals.removeWhere((g) => g.id == id);
     _changed();
+  }
+
+  // ---------- Latar, Catat Cepat, transaksi berulang ----------
+  void setFinanceBg(String v) {
+    financeBg = v;
+    _changed();
+  }
+
+  void saveQuickItem(QuickEntry q, {int? index}) {
+    if (index == null) {
+      quickItems.add(q);
+    } else {
+      quickItems[index] = q;
+    }
+    _changed();
+  }
+
+  void removeQuickItem(int index) {
+    quickItems.removeAt(index);
+    _changed();
+  }
+
+  static String _monthKey(DateTime d) => d.toIso8601String().substring(0, 7);
+
+  /// Tambah transaksi berulang. Kalau tanggalnya sudah lewat bulan ini, mulai bulan depan.
+  Recurring addRecurring({required String name, required String cat, required int amount, required int day}) {
+    final now = DateTime.now();
+    final r = Recurring(id: newId(), name: name.trim(), cat: cat, amount: amount, day: day.clamp(1, 28),
+        lastPosted: now.day > day ? _monthKey(now) : '');
+    recurring.add(r);
+    postRecurring(notify: false);
+    _changed();
+    onRecurringChanged?.call();
+    return r;
+  }
+
+  void removeRecurring(String id) {
+    recurring.removeWhere((r) => r.id == id);
+    _changed();
+    onRecurringChanged?.call();
+  }
+
+  /// Catat transaksi berulang yang jatuh tempo bulan ini. Mengembalikan jumlah yang dicatat.
+  int postRecurring({bool notify = true}) {
+    final now = DateTime.now();
+    final key = _monthKey(now);
+    var n = 0;
+    for (final r in recurring) {
+      if (r.lastPosted == key || now.day < r.day) continue;
+      txns.add(Txn(id: newId(), name: r.name, cat: r.cat, amount: r.amount, at: DateTime(now.year, now.month, r.day, 8)));
+      r.lastPosted = key;
+      n++;
+    }
+    if (n > 0) {
+      _sortTxns();
+      if (notify) _save();
+    }
+    return n;
   }
 
   // ---------- Mode & profil ----------

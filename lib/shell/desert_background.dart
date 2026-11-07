@@ -1,12 +1,14 @@
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
-/// Latar mode Keuangan: gurun dengan bukit pasir.
-/// Setiap pindah halaman seekor kadal berlari ke atas batu dan mengangguk,
-/// dan isi gurun bertambah: kaktus → rumput kering & tumbleweed → oasis & pohon kurma → bukit batu.
+import 'desert_art.dart';
+
+/// Latar mode Keuangan: gurun (sesuai desain di kanvas).
+/// Setiap pindah halaman seekor kadal berlari ke atas batu, dan isi gurun bertambah:
+/// kaktus → agave, rumput kering & tumbleweed → oasis & pohon kurma → tebing batu.
 /// Malam: bulan, banyak bintang, oasis memantulkan bulan, kunang-kunang.
 class DesertBackground extends StatefulWidget {
   const DesertBackground({super.key, required this.dark, required this.tab});
@@ -26,9 +28,9 @@ class _DesertBackgroundState extends State<DesertBackground> with TickerProvider
   late final Ticker _ticker;
   late final AnimationController _level =
       AnimationController(vsync: this, lowerBound: 0, upperBound: 4, value: widget.tab.toDouble());
-  late final AnimationController _lizard =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 2600), value: 0);
+  late final AnimationController _lizard = AnimationController(vsync: this, duration: const Duration(milliseconds: 2600));
   bool _reduce = false;
+  bool _lizardShown = false;
 
   @override
   void initState() {
@@ -48,6 +50,7 @@ class _DesertBackgroundState extends State<DesertBackground> with TickerProvider
   void didUpdateWidget(covariant DesertBackground old) {
     super.didUpdateWidget(old);
     if (old.tab != widget.tab) {
+      _lizardShown = true;
       if (_reduce) {
         _level.value = widget.tab.toDouble();
         _lizard.value = 1;
@@ -72,9 +75,10 @@ class _DesertBackgroundState extends State<DesertBackground> with TickerProvider
     return IgnorePointer(
       child: LayoutBuilder(builder: (context, box) {
         final w = box.maxWidth;
+        final h = DesertBackground.heightFor(w);
         return SizedBox(
           width: w,
-          height: DesertBackground.heightFor(w),
+          height: h,
           child: ShaderMask(
             blendMode: BlendMode.dstIn,
             shaderCallback: (r) => const LinearGradient(
@@ -83,14 +87,17 @@ class _DesertBackgroundState extends State<DesertBackground> with TickerProvider
               colors: [Colors.black, Colors.black, Colors.transparent],
               stops: [0, 0.74, 1],
             ).createShader(r),
-            child: TweenAnimationBuilder<double>(
-              tween: Tween(end: widget.dark ? 1 : 0),
+            child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 450),
-              builder: (context, night, _) => RepaintBoundary(
-                child: CustomPaint(
-                  size: Size.infinite,
-                  painter: _DesertPainter(time: _time, level: _level, lizard: _lizard, night: night),
-                ),
+              child: _Scene(
+                key: ValueKey(widget.dark),
+                dark: widget.dark,
+                w: w,
+                h: h,
+                time: _time,
+                level: _level,
+                lizard: _lizard,
+                lizardShown: _lizardShown,
               ),
             ),
           ),
@@ -100,333 +107,348 @@ class _DesertBackgroundState extends State<DesertBackground> with TickerProvider
   }
 }
 
-Color _mix(int day, int night, double t) => Color.lerp(Color(day), Color(night), t)!;
+class _Scene extends StatelessWidget {
+  const _Scene({
+    super.key,
+    required this.dark,
+    required this.w,
+    required this.h,
+    required this.time,
+    required this.level,
+    required this.lizard,
+    required this.lizardShown,
+  });
 
-class _DesertPainter extends CustomPainter {
-  _DesertPainter({required this.time, required this.level, required this.lizard, required this.night})
-      : super(repaint: Listenable.merge([time, level, lizard]));
-
+  final bool dark;
+  final double w;
+  final double h;
   final ValueNotifier<double> time;
   final Animation<double> level;
   final Animation<double> lizard;
-  final double night;
+  final bool lizardShown;
 
-  double _pop(int n) => (level.value - (n - 1)).clamp(0.0, 1.0);
+  static final Map<String, String> _cache = {};
 
-  // Bintang tetap (posisi acak tapi sama setiap kali).
+  String _fill(String tpl) {
+    final key = '$dark|$tpl';
+    return _cache.putIfAbsent(key, () {
+      final pal = dark ? kDesertNight : kDesertDay;
+      return tpl.replaceAllMapped(RegExp(r'\{(\w+)\}'), (m) {
+        final k = m.group(1)!;
+        if (k == 'dayOp') return dark ? '0' : '1';
+        return pal[k] ?? '#000000';
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = w / 780; // satuan desain → piksel
+    final layers = {for (final (n, svg) in kDesertLayers) n: _fill(svg)};
+
+    Widget svg(String name) => Positioned.fill(child: SvgPicture.string(layers[name]!, fit: BoxFit.fill));
+
+    // Lapisan yang muncul bertahap sesuai halaman.
+    Widget pop(int n, Widget child) => Positioned.fill(
+          child: AnimatedBuilder(
+            animation: level,
+            builder: (context, c) {
+              final p = (level.value - (n - 1)).clamp(0.0, 1.0);
+              if (p <= 0) return const SizedBox.shrink();
+              return Opacity(opacity: p, child: Transform.translate(offset: Offset(0, (1 - p) * 20 * s), child: c));
+            },
+            child: child,
+          ),
+        );
+
+    // Lapisan yang bergoyang di sekitar titik [ox, oy] (satuan desain).
+    Widget sway(String name, double ox, double oy, double period, double from, double to, double phase) =>
+        Positioned.fill(
+          child: ValueListenableBuilder<double>(
+            valueListenable: time,
+            builder: (context, t, c) {
+              final k = 0.5 + 0.5 * math.sin((t / period + phase) * 2 * math.pi);
+              final a = (from + (to - from) * k) * math.pi / 180;
+              final m = Matrix4.identity()
+                ..translateByDouble(ox * s, oy * s, 0, 1)
+                ..rotateZ(a)
+                ..translateByDouble(-ox * s, -oy * s, 0, 1);
+              return Transform(transform: m, child: c);
+            },
+            child: SvgPicture.string(layers[name]!, fit: BoxFit.fill),
+          ),
+        );
+
+    final pal = dark ? kDesertNight : kDesertDay;
+    return Stack(clipBehavior: Clip.hardEdge, children: [
+      Positioned.fill(child: CustomPaint(painter: _SkyPainter(time: time, dark: dark, s: s))),
+      pop(4, Stack(children: [svg('p4')])),
+      svg('base1'),
+      pop(1, Stack(children: [svg('p1far')])),
+      svg('base2'),
+      pop(3, Stack(children: [
+        sway('palmSmall', 408, 372, 4.6, -2, 2.5, 0.2),
+        svg('p3'),
+        Positioned.fill(child: CustomPaint(painter: _GlintPainter(time: time, s: s, dark: dark))),
+        sway('palmBig', 600, 380, 4, -2, 2.5, 0),
+      ])),
+      svg('base3'),
+      pop(2, Stack(children: [
+        svg('p2'),
+        sway('grass0', 300, 420, 2.6, -6, 10, 0),
+        sway('grass1', 512, 420, 3, -6, 10, 0.3),
+        sway('grass2', 712, 428, 2.8, -6, 10, 0.5),
+      ])),
+      pop(1, Stack(children: [svg('p1')])),
+      svg('rocks'),
+      // Tumbleweed menggelinding (muncul bersama rumput kering).
+      pop(2, Stack(children: [_Tumbleweed(time: time, s: s, svg: _fill(kTumbleweed), shadow: Color(int.parse(_rgbaHex(pal['shadow'] ?? '#000'), radix: 16)))])),
+      if (dark) pop(3, Stack(children: [Positioned.fill(child: CustomPaint(painter: _FirefliesPainter(time: time, s: s)))])),
+      if (lizardShown) _Lizard(anim: lizard, s: s, svg: _fill(kLizard)),
+    ]);
+  }
+
+  /// Ubah 'rgba(r,g,b,a)' atau '#rrggbb' menjadi 'AARRGGBB'.
+  static String _rgbaHex(String c) {
+    final m = RegExp(r'rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)').firstMatch(c);
+    if (m != null) {
+      String h(int v) => v.toRadixString(16).padLeft(2, '0');
+      final a = (double.parse(m.group(4)!) * 255).round();
+      return h(a) + h(int.parse(m.group(1)!)) + h(int.parse(m.group(2)!)) + h(int.parse(m.group(3)!));
+    }
+    return 'FF${c.replaceAll('#', '').padLeft(6, '0')}';
+  }
+}
+
+class _SkyPainter extends CustomPainter {
+  _SkyPainter({required this.time, required this.dark, required this.s}) : super(repaint: time);
+
+  final ValueNotifier<double> time;
+  final bool dark;
+  final double s;
+
   static final _stars = () {
-    final r = math.Random(7);
-    return List.generate(48, (_) => (r.nextDouble() * 390, r.nextDouble() * 150, 0.6 + r.nextDouble() * 1.2, r.nextDouble() * 6));
+    final r = math.Random(3);
+    return List.generate(30, (_) => (r.nextDouble() * 780, r.nextDouble() * 250, 1.6 + r.nextDouble() * 2, r.nextDouble() * 6));
   }();
 
   @override
   void paint(Canvas canvas, Size size) {
-    final s = size.width / 390;
+    final t = time.value;
     canvas.save();
     canvas.scale(s);
-    final t = time.value;
-    final day = 1 - night;
-
-    // ---------- Langit ----------
-    final sky = Paint()
-      ..shader = ui.Gradient.linear(const Offset(0, 0), const Offset(0, 220), [
-        _mix(0xFFF9D9A6, 0xFF120F2E, night),
-        _mix(0xFFFCE9C9, 0xFF2A1F4A, night),
-        _mix(0xFFFDF2E0, 0xFF3A2A55, night),
-      ], [0, 0.6, 1]);
-    canvas.drawRect(const Rect.fromLTWH(0, 0, 390, 300), sky);
-
-    // Bintang
-    if (night > 0) {
-      for (final (x, y, r, ph) in _stars) {
-        final tw = 0.35 + 0.65 * (0.5 + 0.5 * math.sin(t * 1.6 + ph));
-        canvas.drawCircle(Offset(x, y), r, Paint()..color = const Color(0xFFFFF6D6).withValues(alpha: night * tw));
-      }
-    }
-
-    // Matahari / bulan
-    const sun = Offset(318, 72);
-    canvas.drawCircle(
-      sun,
-      70,
+    final rect = const Rect.fromLTWH(0, 0, 780, 600);
+    canvas.drawRect(
+      rect,
       Paint()
-        ..shader = ui.Gradient.radial(sun, 70, [
-          _mix(0xFFFFE7A3, 0xFFF4EFC6, night).withValues(alpha: day * 0.55 + night * 0.18),
-          const Color(0x00FFE7A3),
-        ]),
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: dark
+              ? const [Color(0xFF120F2E), Color(0xFF2A1F4A), Color(0xFF3A2A55)]
+              : const [Color(0xFFC4EBDA), Color(0xFFD9F3E6), Color(0xFFEAF7EF)],
+          stops: const [0, 0.45, 0.75],
+        ).createShader(rect),
     );
-    if (day > 0) canvas.drawCircle(sun, 24, Paint()..color = const Color(0xFFFFD36B).withValues(alpha: day));
-    if (night > 0) {
+    const sun = Offset(646, 130);
+    if (dark) {
+      for (final (x, y, r, ph) in _stars) {
+        final a = 0.3 + 0.7 * (0.5 + 0.5 * math.sin(t * 1.7 + ph));
+        canvas.drawCircle(Offset(x, y), r, Paint()..color = const Color(0xFFFFF6D6).withValues(alpha: a));
+      }
+      canvas.drawCircle(
+        sun,
+        106,
+        Paint()
+          ..shader = const RadialGradient(colors: [Color(0x38F4EFC6), Color(0x00F4EFC6)])
+              .createShader(Rect.fromCircle(center: sun, radius: 106)),
+      );
       final moon = Path()
         ..fillType = PathFillType.evenOdd
-        ..addOval(Rect.fromCircle(center: sun, radius: 20))
-        ..addOval(Rect.fromCircle(center: sun + const Offset(9, -6), radius: 17));
-      canvas.drawPath(moon, Paint()..color = const Color(0xFFF4EFC6).withValues(alpha: night));
+        ..addOval(Rect.fromCircle(center: sun, radius: 40))
+        ..addOval(Rect.fromCircle(center: sun + const Offset(18, -12), radius: 34));
+      canvas.drawPath(moon, Paint()..color = const Color(0xFFF4EFC6));
+    } else {
+      canvas.drawCircle(sun, 50, Paint()..color = const Color(0xFFF9CB57));
     }
-
-    // Awan tipis (siang)
-    if (day > 0) {
-      for (final (y, speed, w, off) in [(46.0, 9.0, 70.0, 0.0), (96.0, 6.0, 52.0, 180.0)]) {
-        final x = (t * speed + off) % 520 - 80;
-        final c = Paint()..color = Colors.white.withValues(alpha: 0.85 * day);
-        canvas.drawRRect(RRect.fromLTRBR(x, y, x + w, y + 12, const Radius.circular(6)), c);
-        canvas.drawCircle(Offset(x + w * 0.35, y + 2), 9, c);
-        canvas.drawCircle(Offset(x + w * 0.62, y), 12, c);
-      }
+    // Awan bergerak
+    final cloud = Paint()..color = dark ? const Color(0xFF3B3266).withValues(alpha: 0.55) : const Color(0xFFFBFBF2).withValues(alpha: 0.95);
+    for (final (y, sc, speed, off) in [(36.0, 1.0, 9.0, 0.0), (140.0, 0.64, 6.5, 420.0)]) {
+      final x = (t * speed + off) % 1100 - 240;
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.scale(sc * 2);
+      final p = Path()
+        ..moveTo(4, 40)
+        ..quadraticBezierTo(4, 30, 16, 30)
+        ..quadraticBezierTo(18, 18, 32, 20)
+        ..quadraticBezierTo(40, 4, 60, 8)
+        ..quadraticBezierTo(74, 2, 82, 18)
+        ..quadraticBezierTo(100, 14, 104, 28)
+        ..quadraticBezierTo(118, 28, 118, 40)
+        ..close();
+      canvas.drawPath(p, cloud);
+      canvas.restore();
     }
-
     // Hembusan angin
     final wind = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4
+      ..strokeWidth = 2.8
       ..strokeCap = StrokeCap.round
-      ..color = _mix(0xFFFFFFFF, 0xFFBFB4E6, night).withValues(alpha: 0.55);
-    for (final (y, speed, ph) in [(112.0, 70.0, 0.0), (132.0, 90.0, 140.0), (88.0, 55.0, 260.0)]) {
-      final x = (t * speed + ph) % 560 - 120;
-      final p = Path()
-        ..moveTo(x, y)
-        ..cubicTo(x + 20, y - 6, x + 40, y + 6, x + 60, y)
-        ..quadraticBezierTo(x + 70, y - 4, x + 66, y - 8);
-      canvas.drawPath(p, wind);
-    }
-
-    // ---------- Bukit batu (level 4) ----------
-    final p4 = _pop(4);
-    if (p4 > 0) {
-      canvas.save();
-      canvas.translate(0, (1 - p4) * 14);
-      final mesa = Path()
-        ..moveTo(-10, 160)
-        ..lineTo(10, 128)
-        ..lineTo(58, 126)
-        ..lineTo(72, 144)
-        ..lineTo(96, 140)
-        ..lineTo(110, 122)
-        ..lineTo(150, 120)
-        ..lineTo(168, 160)
-        ..close();
-      canvas.drawPath(mesa, Paint()..color = _mix(0xFFD08B5B, 0xFF3A2440, night).withValues(alpha: p4));
-      final ridge = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2
-        ..color = _mix(0xFFB06E45, 0xFF2A1A33, night).withValues(alpha: p4);
-      canvas.drawLine(const Offset(18, 136), const Offset(52, 134), ridge);
-      canvas.drawLine(const Offset(116, 130), const Offset(146, 128), ridge);
-      canvas.restore();
-    }
-
-    // ---------- Bukit pasir ----------
-    Path dune(double base, List<double> ys) {
-      final p = Path()..moveTo(0, ys.first);
-      final step = 390 / (ys.length - 1);
-      for (var i = 1; i < ys.length; i++) {
-        final x0 = step * (i - 1), x1 = step * i;
-        p.cubicTo(x0 + step / 2, ys[i - 1], x0 + step / 2, ys[i], x1, ys[i]);
-      }
-      p
-        ..lineTo(390, base)
-        ..lineTo(0, base)
-        ..close();
-      return p;
-    }
-
-    canvas.drawPath(dune(300, [150, 140, 152, 138, 150, 144]), Paint()..color = _mix(0xFFF3D39E, 0xFF3B2F5C, night));
-    canvas.drawPath(dune(300, [182, 168, 176, 160, 174, 166]), Paint()..color = _mix(0xFFEBBE7C, 0xFF30264F, night));
-
-    // ---------- Oasis & pohon kurma (level 3) ----------
-    final p3 = _pop(3);
-    if (p3 > 0) {
-      canvas.save();
-      canvas.translate(0, (1 - p3) * 10);
-      final pond = Rect.fromCenter(center: const Offset(250, 188), width: 128, height: 22);
-      canvas.drawOval(pond.inflate(4), Paint()..color = _mix(0xFFB9D98A, 0xFF1F3A2E, night).withValues(alpha: p3));
-      canvas.drawOval(
-        pond,
-        Paint()
-          ..shader = ui.Gradient.linear(pond.topCenter, pond.bottomCenter, [
-            _mix(0xFF5EC8E5, 0xFF1D3B6E, night).withValues(alpha: p3),
-            _mix(0xFF2E9CC4, 0xFF142B52, night).withValues(alpha: p3),
-          ]),
+      ..color = dark ? const Color(0x80BFB4E6) : const Color(0xCCFFFFFF);
+    for (final (y, period, ph) in [(196.0, 6.0, 0.0), (240.0, 8.0, 0.4)]) {
+      final k = ((t / period) + ph) % 1;
+      final x = -180 + 1040 * k;
+      final a = k < 0.15 ? k / 0.15 : (k > 0.85 ? (1 - k) / 0.15 : 1.0);
+      canvas.drawPath(
+        Path()
+          ..moveTo(x, y + 16)
+          ..cubicTo(x + 40, y + 4, x + 80, y + 28, x + 120, y + 16)
+          ..quadraticBezierTo(x + 140, y + 8, x + 132, y),
+        wind..color = wind.color.withValues(alpha: (dark ? 0.5 : 0.8) * a),
       );
-      // Pantulan matahari/bulan + kilau bergerak
-      canvas.drawOval(Rect.fromCenter(center: const Offset(274, 186), width: 26, height: 5),
-          Paint()..color = _mix(0xFFFFF1B8, 0xFFF4EFC6, night).withValues(alpha: 0.75 * p3));
-      for (var i = 0; i < 6; i++) {
-        final k = (t * 0.5 + i / 6) % 1;
-        final x = 200 + i * 18 + 6 * math.sin(t + i);
-        final a = math.sin(k * math.pi);
-        canvas.drawLine(Offset(x, 183 + (i % 3) * 4), Offset(x + 7, 183 + (i % 3) * 4),
-            Paint()
-              ..strokeWidth = 1.3
-              ..strokeCap = StrokeCap.round
-              ..color = Colors.white.withValues(alpha: 0.8 * a * p3));
-      }
-      // Pohon kurma
-      final sway = 0.05 * math.sin(t * 1.3);
-      canvas.save();
-      canvas.translate(304, 190);
-      canvas.rotate(sway);
-      final trunk = Path()
-        ..moveTo(-3, 0)
-        ..quadraticBezierTo(-8, -26, 2, -52)
-        ..lineTo(6, -52)
-        ..quadraticBezierTo(-2, -26, 3, 0)
-        ..close();
-      canvas.drawPath(trunk, Paint()..color = _mix(0xFF9A6B3F, 0xFF3A2A2A, night).withValues(alpha: p3));
-      final leaf = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 5
-        ..strokeCap = StrokeCap.round
-        ..color = _mix(0xFF3E9B4F, 0xFF1E4A36, night).withValues(alpha: p3);
-      for (final a in [-2.6, -2.0, -1.2, -0.5, 0.2]) {
-        final end = Offset(4 + 26 * math.cos(a), -52 + 16 * math.sin(a) + 10);
-        final ctrl = Offset(4 + 14 * math.cos(a), -60);
-        canvas.drawPath(
-            Path()
-              ..moveTo(4, -52)
-              ..quadraticBezierTo(ctrl.dx, ctrl.dy, end.dx, end.dy),
-            leaf);
-      }
-      canvas.restore();
-      // Kunang-kunang di oasis (malam)
-      if (night > 0) {
-        for (var i = 0; i < 6; i++) {
-          final fx = 210 + 80 * ((math.sin(t * 0.4 + i * 1.7) + 1) / 2);
-          final fy = 168 + 12 * math.sin(t * 0.9 + i);
-          final glow = 0.4 + 0.6 * (0.5 + 0.5 * math.sin(t * 2.4 + i * 2));
-          canvas.drawCircle(Offset(fx, fy), 4, Paint()..color = const Color(0xFFE3FF9E).withValues(alpha: 0.25 * night * glow * p3));
-          canvas.drawCircle(Offset(fx, fy), 1.6, Paint()..color = const Color(0xFFE3FF9E).withValues(alpha: night * glow * p3));
-        }
-      }
-      canvas.restore();
     }
-
-    // Bukit pasir terdekat
-    canvas.drawPath(dune(300, [214, 204, 210, 198, 208, 202]), Paint()..color = _mix(0xFFE0A866, 0xFF251E42, night));
-    canvas.drawPath(
-        Path()
-          ..moveTo(0, 214)
-          ..cubicTo(39, 214, 39, 204, 78, 204)
-          ..cubicTo(117, 204, 117, 210, 156, 210),
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.2
-          ..color = _mix(0xFFF6CE92, 0xFF3D3366, night));
-
-    // ---------- Kaktus (level 1) ----------
-    final p1 = _pop(1);
-    if (p1 > 0) {
-      canvas.save();
-      canvas.translate(0, (1 - p1) * 12);
-      final cactus = Paint()..color = _mix(0xFF4E9A5A, 0xFF1F3F33, night).withValues(alpha: p1);
-      final rib = Paint()
-        ..strokeWidth = 1
-        ..color = _mix(0xFF3B7E46, 0xFF173027, night).withValues(alpha: p1);
-      canvas.drawRRect(RRect.fromLTRBR(88, 156, 100, 208, const Radius.circular(6)), cactus);
-      canvas.drawRRect(RRect.fromLTRBR(76, 172, 84, 192, const Radius.circular(4)), cactus);
-      canvas.drawRRect(RRect.fromLTRBR(76, 186, 92, 193, const Radius.circular(3)), cactus);
-      canvas.drawRRect(RRect.fromLTRBR(104, 164, 112, 184, const Radius.circular(4)), cactus);
-      canvas.drawRRect(RRect.fromLTRBR(96, 178, 112, 185, const Radius.circular(3)), cactus);
-      canvas.drawLine(const Offset(94, 160), const Offset(94, 205), rib);
-      if (day > 0) canvas.drawCircle(const Offset(94, 155), 3, Paint()..color = const Color(0xFFF472B6).withValues(alpha: p1 * day));
-      // Kaktus bulat kecil
-      canvas.drawOval(const Rect.fromLTRB(352, 196, 370, 210), cactus);
-      canvas.drawLine(const Offset(361, 197), const Offset(361, 209), rib);
-      canvas.restore();
-    }
-
-    // ---------- Rumput kering & tumbleweed (level 2) ----------
-    final p2 = _pop(2);
-    if (p2 > 0) {
-      final grass = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.6
-        ..strokeCap = StrokeCap.round
-        ..color = _mix(0xFFB98A45, 0xFF5A4A6E, night).withValues(alpha: p2);
-      for (final (bx, by, ph) in [(140.0, 208.0, 0.0), (196.0, 204.0, 1.3), (330.0, 206.0, 2.4), (30.0, 214.0, 3.1)]) {
-        for (var i = -2; i <= 2; i++) {
-          final bend = 5 * math.sin(t * 2.2 + ph + i * 0.4) + 3;
-          canvas.drawPath(
-              Path()
-                ..moveTo(bx + i * 2.5, by)
-                ..quadraticBezierTo(bx + i * 3 + bend * 0.5, by - 8, bx + i * 4 + bend, by - 14 + i.abs() * 2),
-              grass);
-        }
-      }
-      // Tumbleweed menggelinding
-      final k = (t / 11) % 1;
-      final tx = -30 + 450 * k;
-      final ty = 200 - 6 * (math.sin(k * math.pi * 6)).abs();
-      canvas.save();
-      canvas.translate(tx, ty);
-      canvas.rotate(t * 3);
-      final tw = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2
-        ..color = _mix(0xFFA87C40, 0xFF6A5A80, night).withValues(alpha: p2);
-      canvas.drawCircle(Offset.zero, 8, tw);
-      for (var i = 0; i < 5; i++) {
-        final a = i * math.pi / 5;
-        canvas.drawLine(Offset(math.cos(a), math.sin(a)) * -7, Offset(math.cos(a + 1), math.sin(a + 1)) * 7, tw);
-      }
-      canvas.restore();
-    }
-
-    // ---------- Batu & kadal ----------
-    final rock = Path()
-      ..moveTo(36, 214)
-      ..quadraticBezierTo(38, 198, 54, 196)
-      ..quadraticBezierTo(70, 194, 74, 206)
-      ..quadraticBezierTo(76, 214, 72, 216)
-      ..close();
-    canvas.drawPath(rock, Paint()..color = _mix(0xFFB98B62, 0xFF3E3355, night));
-    canvas.drawPath(
-        Path()
-          ..moveTo(44, 204)
-          ..quadraticBezierTo(54, 198, 66, 200),
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.4
-          ..color = _mix(0xFFD6AC82, 0xFF4E4268, night));
-    _drawLizard(canvas, lizard.value, t);
-
-    canvas.restore();
-  }
-
-  /// Kadal berlari dari kiri ke atas batu, lalu mengangguk (push-up khas kadal).
-  void _drawLizard(Canvas canvas, double v, double t) {
-    if (v <= 0) return;
-    final run = (v / 0.4).clamp(0.0, 1.0);
-    final x = -30 + (52 - -30) * Curves.easeOut.transform(run);
-    final y = 214 - 18 * Curves.easeOut.transform(((run - 0.6) / 0.4).clamp(0.0, 1.0));
-    final bob = v > 0.45 ? 2.2 * (math.sin((v - 0.45) * 40)).abs() * (1 - v).clamp(0.2, 1.0) : 0.0;
-    canvas.save();
-    canvas.translate(x, y - bob);
-    final body = Paint()..color = _mix(0xFF6E9E3A, 0xFF7C8F4A, night);
-    final dark = Paint()..color = _mix(0xFF4F7A26, 0xFF55663A, night);
-    // ekor
-    canvas.drawPath(
-        Path()
-          ..moveTo(-6, -1)
-          ..quadraticBezierTo(-16, 2, -22, -2 + 2 * math.sin(t * 6))
-          ..lineTo(-6, 1)
-          ..close(),
-        body);
-    // badan & kepala
-    canvas.drawOval(const Rect.fromLTRB(-8, -4, 8, 2), body);
-    canvas.drawOval(const Rect.fromLTRB(6, -6, 14, 0), body);
-    canvas.drawCircle(const Offset(11.5, -4), 0.9, Paint()..color = Colors.black);
-    // kaki (bergerak saat berlari)
-    final step = run < 1 ? math.sin(t * 30) * 2 : 0.0;
-    final leg = Paint()
-      ..strokeWidth = 1.6
-      ..strokeCap = StrokeCap.round
-      ..color = dark.color;
-    canvas.drawLine(const Offset(-4, 1), Offset(-7 + step, 4), leg);
-    canvas.drawLine(const Offset(4, 1), Offset(7 - step, 4), leg);
     canvas.restore();
   }
 
   @override
-  bool shouldRepaint(covariant _DesertPainter old) => old.night != night;
+  bool shouldRepaint(covariant _SkyPainter old) => old.dark != dark || old.s != s;
+}
+
+class _GlintPainter extends CustomPainter {
+  _GlintPainter({required this.time, required this.s, required this.dark}) : super(repaint: time);
+
+  final ValueNotifier<double> time;
+  final double s;
+  final bool dark;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final t = time.value;
+    canvas.save();
+    canvas.scale(s);
+    const glints = [(380.0, 374.0, 12.0, 1.6), (424.0, 386.0, 12.0, 2.1), (470.0, 392.0, 10.0, 1.8), (494.0, 370.0, 12.0, 2.3), (550.0, 384.0, 10.0, 1.7)];
+    for (var i = 0; i < glints.length; i++) {
+      final (x, y, w, d) = glints[i];
+      final a = 0.5 + 0.5 * math.sin((t / d + i * 0.3) * 2 * math.pi);
+      canvas.drawLine(
+        Offset(x, y),
+        Offset(x + w, y),
+        Paint()
+          ..strokeWidth = 2.4
+          ..strokeCap = StrokeCap.round
+          ..color = (dark ? const Color(0xFFFFF6C9) : Colors.white).withValues(alpha: a),
+      );
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _GlintPainter old) => old.dark != dark || old.s != s;
+}
+
+class _FirefliesPainter extends CustomPainter {
+  _FirefliesPainter({required this.time, required this.s}) : super(repaint: time);
+
+  final ValueNotifier<double> time;
+  final double s;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final t = time.value;
+    canvas.save();
+    canvas.scale(s);
+    const flies = [(392.0, 336.0, 7.0, 0.0), (496.0, 324.0, 9.0, 3.0), (560.0, 340.0, 8.0, 5.0)];
+    for (final (x, y, period, ph) in flies) {
+      final k = (t + ph) * 2 * math.pi / period;
+      final o = Offset(x + 28 * math.sin(k) - 12 * math.sin(2 * k), y - 24 * (1 - math.cos(k)) / 2);
+      final g = 0.2 + 0.8 * (0.5 + 0.5 * math.sin(t * 2.6 + ph));
+      canvas.drawCircle(o, 10, Paint()..color = const Color(0xFFBEF264).withValues(alpha: 0.3 * g));
+      canvas.drawCircle(o, 4, Paint()..color = const Color(0xFFE3FF9E).withValues(alpha: g));
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _FirefliesPainter old) => old.s != s;
+}
+
+class _Tumbleweed extends StatelessWidget {
+  const _Tumbleweed({required this.time, required this.s, required this.svg, required this.shadow});
+
+  final ValueNotifier<double> time;
+  final double s;
+  final String svg;
+  final Color shadow;
+
+  @override
+  Widget build(BuildContext context) {
+    final px = s * 2; // 1 piksel desain = 2 satuan
+    final picture = SvgPicture.string(svg, width: 26 * px, height: 26 * px);
+    return Positioned.fill(
+      child: ValueListenableBuilder<double>(
+        valueListenable: time,
+        builder: (context, t, _) {
+          final x = (-40 + 460 * ((t / 11) % 1)) * px;
+          final b = math.sin(((t / 0.9) % 1) * math.pi); // 0..1..0
+          return Stack(clipBehavior: Clip.none, children: [
+            Positioned(
+              left: x,
+              top: 210 * px,
+              child: Transform.scale(
+                scale: 1 - 0.3 * b,
+                child: Container(
+                  width: 26 * px,
+                  height: 6 * px,
+                  decoration: BoxDecoration(color: shadow, borderRadius: BorderRadius.circular(99)),
+                ),
+              ),
+            ),
+            Positioned(
+              left: x,
+              top: (188 - 9 * b) * px,
+              child: Transform.rotate(angle: t / 1.3 * 2 * math.pi, child: picture),
+            ),
+          ]);
+        },
+      ),
+    );
+  }
+}
+
+class _Lizard extends StatelessWidget {
+  const _Lizard({required this.anim, required this.s, required this.svg});
+
+  final Animation<double> anim;
+  final double s;
+  final String svg;
+
+  @override
+  Widget build(BuildContext context) {
+    final px = s * 2;
+    final picture = SvgPicture.string(svg, width: 40 * px, height: 14 * px);
+    return Positioned.fill(
+      child: AnimatedBuilder(
+        animation: anim,
+        builder: (context, _) {
+          final v = anim.value;
+          double dx, dy;
+          if (v < 0.35) {
+            dx = -90 + 60 * (v / 0.35);
+            dy = 20;
+          } else if (v < 0.5) {
+            final k = (v - 0.35) / 0.15;
+            dx = -30 + 30 * k;
+            dy = 20 - 20 * k;
+          } else {
+            dx = 0;
+            dy = v < 0.88 ? -3 * math.sin(((v - 0.5) / 0.12) * math.pi).abs() : 0;
+          }
+          return Stack(clipBehavior: Clip.none, children: [
+            Positioned(left: (37 + dx) * px, top: (186 + dy) * px, child: picture),
+          ]);
+        },
+      ),
+    );
+  }
 }

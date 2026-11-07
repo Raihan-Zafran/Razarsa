@@ -17,6 +17,8 @@ Future<void> main() async {
   final prefs = await SharedPreferences.getInstance();
   final store = AppStore(prefs);
   store.onExpenseAdded = () => Notif.checkBudget(store);
+  store.onRecurringChanged = () => Notif.syncBills(store);
+  Notif.syncBills(store);
   store.onAgendaChanged = (a, {bool removed = false}) =>
       Notif.syncAgenda(a, removed: removed, enabled: store.switches['agenda'] == true);
   Notif.syncDaily(store.switches['daily'] == true);

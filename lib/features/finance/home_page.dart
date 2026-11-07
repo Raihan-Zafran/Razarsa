@@ -72,9 +72,9 @@ class HomePage extends StatelessWidget {
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           clipBehavior: Clip.none,
-          itemCount: kQuickItems.length,
+          itemCount: store.quickItems.length,
           separatorBuilder: (_, _) => const SizedBox(width: 8),
-          itemBuilder: (context, i) => _QuickChip(item: kQuickItems[i]),
+          itemBuilder: (context, i) => _QuickChip(item: store.quickItems[i]),
         ),
       ),
       const SizedBox(height: 22),
@@ -248,7 +248,7 @@ class _AddButton extends StatelessWidget {
 class _QuickChip extends StatelessWidget {
   const _QuickChip({required this.item});
 
-  final QuickItem item;
+  final QuickEntry item;
 
   @override
   Widget build(BuildContext context) {

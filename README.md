@@ -40,9 +40,9 @@ Banyak orang memasang 4–5 aplikasi berbeda untuk mencatat uang, daftar tugas, 
 - **Target**: target tabungan dengan progres. Gambar gunung berganti siang dan malam.
 - **Pengaturan**: satu untuk semua mode. Isinya tema, **bahasa (Indonesia/English)**, **mata uang (Rupiah/Dolar)**, **awal bulan anggaran (tanggal gajian)**, awal minggu, **notifikasi** (pengingat harian & peringatan anggaran), **kunci PIN + sidik jari**, sembunyikan saldo, **backup & pulihkan**, **ekspor CSV**, hapus data, dan keluar.
 - **Dock** dengan bola hijau yang **melompat** ke menu yang dipilih.
-- **Latar gurun beranimasi**: bukit pasir, angin, awan; setiap pindah halaman seekor kadal naik ke batu dan isi gurun bertambah (kaktus, rumput kering & tumbleweed, oasis & pohon kurma, bukit batu). Malam: bulan, banyak bintang, oasis memantulkan bulan, kunang-kunang. Semua animasi otomatis berhenti kalau HP memakai pengaturan *kurangi gerakan*.
+- **Latar beranimasi (bisa dipilih di Pengaturan)**: **Gurun** (bawaan) dengan kaktus, tumbleweed, oasis, dan kadal yang muncul tiap pindah halaman; atau **Langit** dengan pesawat, balon udara, roket, dan pegunungan. Keduanya punya versi malam (bintang, bulan, aurora, kunang-kunang). Semua animasi otomatis berhenti kalau HP memakai pengaturan *kurangi gerakan*.
 
-> **⚠️ Login versi beta belum aman:** masih **lokal**, kata sandi **tidak dicek**, akun hanya tersimpan di HP. Cocok untuk uji coba, bukan untuk data sungguhan. Nanti akan memakai Firebase. Tombol "Masuk dengan Google", kategori, Catat Cepat, transaksi berulang, dan menu Tentang masih bertanda *segera hadir*.
+> **⚠️ Login versi beta belum aman:** masih **lokal**, kata sandi **tidak dicek**, akun hanya tersimpan di HP. Cocok untuk uji coba, bukan untuk data sungguhan. Nanti akan memakai Firebase. Tombol "Masuk dengan Google" dan pengaturan kategori masih bertanda *segera hadir*.
 
 ## Fitur mode Produktif (v1.1)
 
@@ -85,7 +85,8 @@ lib/
 ├── shell/
 │   ├── app_shell.dart        # Kerangka: latar, perpindahan halaman, dock
 │   ├── dock.dart             # Dock dengan lekukan & bola yang melompat
-│   ├── desert_background.dart # Latar gurun (Keuangan)
+│   ├── desert_background.dart # Latar gurun (Keuangan, bawaan)
+│   ├── sky_background.dart   # Latar langit (Keuangan, pilihan)
 │   └── classroom_background.dart # Latar kelas (Produktif)
 ├── features/
 │   ├── auth/                 # Masuk/Daftar + karakter kawaii

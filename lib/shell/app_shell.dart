@@ -14,6 +14,7 @@ import '../data/store.dart';
 import 'classroom_background.dart';
 import 'dock.dart';
 import 'desert_background.dart';
+import 'sky_background.dart';
 import '../core/i18n.dart';
 
 /// Kerangka utama setelah masuk: mengikuti mode aktif (Keuangan / Produktif).
@@ -117,7 +118,9 @@ class _ModeShellState extends State<ModeShell> {
             right: 0,
             child: _prod
                 ? ClassroomBackground(dark: dark, tab: _tab, name: StoreScope.of(context).userName)
-                : DesertBackground(dark: dark, tab: _tab),
+                : (StoreScope.of(context).financeBg == 'sky'
+                    ? SkyBackground(dark: dark, tab: _tab)
+                    : DesertBackground(dark: dark, tab: _tab)),
           ),
           Positioned.fill(
             child: AnimatedSwitcher(

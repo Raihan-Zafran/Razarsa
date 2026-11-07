@@ -6,6 +6,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import '../data/productive_models.dart';
 import '../data/store.dart';
+import 'format.dart';
 import 'i18n.dart';
 
 /// Notifikasi lokal: pengingat harian & peringatan anggaran.
@@ -110,5 +111,31 @@ class Notif {
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       matchDateTimeComponents: a.daily ? DateTimeComponents.time : null,
     );
+  }
+
+  /// Pengingat tagihan: sehari sebelum transaksi berulang (pengeluaran) jatuh tempo, pukul 09.00.
+  static Future<void> syncBills(AppStore store, {List<int> cancelIds = const []}) async {
+    await init();
+    if (!_ready) return;
+    for (final id in cancelIds) {
+      await _p.cancel(id: id);
+    }
+    for (final r in store.recurring) {
+      await _p.cancel(id: r.notifId);
+      if (store.switches['bill'] != true || !r.isExpense) continue;
+      final day = r.day > 1 ? r.day - 1 : 1;
+      final now = tz.TZDateTime.now(tz.local);
+      var at = tz.TZDateTime(tz.local, now.year, now.month, day, 9);
+      if (!at.isAfter(now)) at = tz.TZDateTime(tz.local, now.year, now.month + 1, day, 9);
+      await _p.zonedSchedule(
+        id: r.notifId,
+        title: trf('Besok tagihan {0}', [r.name]),
+        body: trf('Jangan lupa siapkan {0}.', [rp(-r.amount)]),
+        scheduledDate: at,
+        notificationDetails: _details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.dayOfMonthAndTime,
+      );
+    }
   }
 }

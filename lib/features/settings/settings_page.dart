@@ -6,12 +6,12 @@ import 'package:flutter/material.dart';
 import '../../core/format.dart';
 import '../../core/notifications.dart';
 import '../../core/theme.dart';
-import '../../data/models.dart';
 import '../../data/store.dart';
 import '../../shell/app_shell.dart';
 import '../../widgets/common.dart';
 import '../finance/report_page.dart' show editBudget;
 import '../security/lock.dart';
+import 'manage_pages.dart';
 import 'profile_page.dart';
 import '../../shell/classroom_background.dart';
 import '../../shell/desert_background.dart';
@@ -70,6 +70,8 @@ class SettingsPage extends StatelessWidget {
       ),
       _Group(tr('Umum'), [
         _Row(icon: Icons.dark_mode_outlined, tone: 'purple', label: tr('Tampilan'), value: themeLabel, onTap: () => _pickTheme(context, store)),
+        _Row(icon: Icons.landscape_outlined, tone: 'amber', label: tr('Latar Keuangan'), value: store.financeBg == 'sky' ? tr('Langit') : tr('Gurun'),
+            onTap: () => _pick(context, tr('Latar Keuangan'), [('desert', tr('Gurun')), ('sky', tr('Langit'))], store.financeBg, store.setFinanceBg)),
         _Row(icon: Icons.language_rounded, tone: 'blue', label: tr('Bahasa'), value: store.lang == 'en' ? 'English' : 'Indonesia',
             onTap: () => _pick(context, tr('Bahasa'), [('id', 'Indonesia'), ('en', 'English')], store.lang, store.setLang)),
         _Row(icon: Icons.payments_outlined, tone: 'amber', label: tr('Mata uang'), value: store.currency == 'USD' ? 'US Dollar (\$)' : 'Rupiah (Rp)',
@@ -84,9 +86,11 @@ class SettingsPage extends StatelessWidget {
         _Row(icon: Icons.sell_outlined, tone: 'orange', label: tr('Kategori'), value: trf('{0} kategori', [store.categoryCount]), onTap: soon),
         _Row(icon: Icons.bar_chart_rounded, tone: 'green', label: tr('Anggaran bulanan'), value: rpShort(store.monthlyBudget),
             onTap: () => editBudget(context, store)),
-        _Row(icon: Icons.repeat_rounded, tone: 'blue', label: tr('Transaksi berulang'), value: tr('Belum ada'),
-            sub: tr('Gaji, kos, langganan otomatis tercatat'), onTap: soon),
-        _Row(icon: Icons.bolt_rounded, tone: 'amber', label: tr('Catat Cepat'), value: trf('{0} tombol', [kQuickItems.length]), onTap: soon),
+        _Row(icon: Icons.repeat_rounded, tone: 'blue', label: tr('Transaksi berulang'),
+            value: store.recurring.isEmpty ? tr('Belum ada') : trf('{0} aktif', [store.recurring.length]),
+            sub: tr('Gaji, kos, langganan otomatis tercatat'), onTap: () => pushPage(context, const RecurringPage())),
+        _Row(icon: Icons.bolt_rounded, tone: 'amber', label: tr('Catat Cepat'), value: trf('{0} tombol', [store.quickItems.length]),
+            onTap: () => pushPage(context, const QuickItemsPage())),
       ]),
       _Group(tr('Notifikasi'), [
         _Switch(store, 'daily', Icons.notifications_none_rounded, 'purple', tr('Pengingat harian'), tr('Setiap hari pukul 20.00'),
@@ -108,8 +112,12 @@ class SettingsPage extends StatelessWidget {
                 await Notif.syncAgenda(a, enabled: v);
               }
             }),
-        _Switch(store, 'bill', Icons.receipt_long_outlined, 'teal', tr('Pengingat tagihan'), tr('Butuh fitur transaksi berulang (segera hadir)'),
-            onChanged: (_) async => soon()),
+        _Switch(store, 'bill', Icons.receipt_long_outlined, 'teal', tr('Pengingat tagihan'), tr('Sehari sebelum transaksi berulang jatuh tempo'),
+            onChanged: (v) async {
+              if (v && !await Notif.requestPermission()) return;
+              store.setSwitch('bill', v);
+              await Notif.syncBills(store);
+            }),
       ]),
       _Group(tr('Keamanan & Privasi'), [
         _Switch(store, 'pin', Icons.lock_outline_rounded, 'blue', tr('Kunci aplikasi (PIN)'), null, onChanged: (v) => _togglePin(context, store, v)),
@@ -125,18 +133,17 @@ class SettingsPage extends StatelessWidget {
             danger: true, onTap: () => _confirmClear(context, store)),
       ]),
       _Group(tr('Tentang'), [
-        _Row(icon: Icons.star_outline_rounded, tone: 'amber', label: tr('Beri rating'), onTap: soon),
-        _Row(icon: Icons.chat_bubble_outline_rounded, tone: 'blue', label: tr('Kirim masukan'), onTap: soon),
-        _Row(icon: Icons.shield_outlined, tone: 'green', label: tr('Kebijakan privasi'), onTap: soon),
-        _Row(icon: Icons.description_outlined, tone: 'gray', label: tr('Syarat & ketentuan'), onTap: soon),
-        _Row(icon: Icons.info_outline_rounded, tone: 'gray', label: tr('Versi aplikasi'), value: '1.1.1', onTap: () {}),
+        _Row(icon: Icons.info_outline_rounded, tone: 'green', label: tr('Tentang Razarsa'), value: kAppVersion,
+            onTap: () => pushPage(context, const AboutPage())),
+        _Row(icon: Icons.shield_outlined, tone: 'blue', label: tr('Kebijakan privasi'), onTap: () => pushPage(context, LegalPage.privacy())),
+        _Row(icon: Icons.description_outlined, tone: 'gray', label: tr('Syarat & ketentuan'), onTap: () => pushPage(context, LegalPage.terms())),
       ]),
       _Group(tr('Akun'), [
         _Row(icon: Icons.logout_rounded, tone: 'warn', label: tr('Keluar'), sub: tr('Kembali ke halaman masuk'), danger: true,
             onTap: store.logout),
       ]),
       const SizedBox(height: 14),
-      Text(tr('Razarsa versi 1.1.1'), textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: z.muted2)),
+      Text(trf('Razarsa versi {0}', [kAppVersion]), textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: z.muted2)),
     ]);
   }
 

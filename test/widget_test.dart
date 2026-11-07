@@ -12,6 +12,7 @@ import 'package:razarsa/features/productive/calendar_page.dart';
 import 'package:razarsa/features/productive/notes_page.dart';
 import 'package:razarsa/features/productive/todo_page.dart';
 import 'package:razarsa/features/settings/profile_page.dart';
+import 'package:razarsa/features/settings/manage_pages.dart';
 
 void main() {
   setUpAll(() async => initializeDateFormatting());
@@ -170,6 +171,37 @@ void main() {
         await tester.pump(const Duration(milliseconds: 600));
         expect(tester.takeException(), isNull);
       }
+    }
+  });
+
+  test('transaksi berulang & catat cepat', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final a = AppStore(prefs);
+    expect(a.financeBg, 'desert');
+    expect(a.quickItems, isNotEmpty);
+    final today = DateTime.now().day.clamp(1, 28);
+    a.addRecurring(name: 'Netflix', cat: 'fun', amount: -54000, day: today);
+    expect(a.txns.where((t) => t.name == 'Netflix').length, DateTime.now().day >= today ? 1 : 0);
+    expect(a.postRecurring(), 0); // tidak dicatat dua kali di bulan yang sama
+    a.setFinanceBg('sky');
+    await Future<void>.delayed(Duration.zero);
+    final b = AppStore(prefs);
+    expect(b.financeBg, 'sky');
+    expect(b.recurring.single.name, 'Netflix');
+  });
+
+  testWidgets('halaman pengaturan baru tampil tanpa error', (tester) async {
+    tester.view.physicalSize = const Size(390 * 3, 844 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    SharedPreferences.setMockInitialValues({});
+    final store = AppStore(await SharedPreferences.getInstance());
+    store.addRecurring(name: 'Gaji', cat: 'salary', amount: 8500000, day: 25);
+    for (final page in [const QuickItemsPage(), const RecurringPage(), const AboutPage(), LegalPage.privacy(), LegalPage.terms()]) {
+      await tester.pumpWidget(StoreScope(store: store, child: MaterialApp(theme: buildTheme(Brightness.light), home: page)));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(tester.takeException(), isNull);
     }
   });
 }
