@@ -36,6 +36,7 @@ class _DesertBackgroundState extends State<DesertBackground> with TickerProvider
   void initState() {
     super.initState();
     _ticker = createTicker((e) => _time.value = e.inMicroseconds / 1e6);
+    _Scene.precache();
   }
 
   @override
@@ -128,8 +129,24 @@ class _Scene extends StatelessWidget {
   final bool lizardShown;
 
   static final Map<String, String> _cache = {};
+  static bool _warmed = false;
 
-  String _fill(String tpl) {
+  /// Siapkan gambar siang & malam sejak awal supaya ganti tema tidak tersendat.
+  static void precache() {
+    if (_warmed) return;
+    _warmed = true;
+    for (final dark in [false, true]) {
+      for (final (_, tpl) in kDesertLayers) {
+        SvgStringLoader(_fillFor(dark, tpl)).loadBytes(null);
+      }
+      SvgStringLoader(_fillFor(dark, kTumbleweed)).loadBytes(null);
+      SvgStringLoader(_fillFor(dark, kLizard)).loadBytes(null);
+    }
+  }
+
+  String _fill(String tpl) => _fillFor(dark, tpl);
+
+  static String _fillFor(bool dark, String tpl) {
     final key = '$dark|$tpl';
     return _cache.putIfAbsent(key, () {
       final pal = dark ? kDesertNight : kDesertDay;

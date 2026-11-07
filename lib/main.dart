@@ -42,7 +42,7 @@ class RazarsaApp extends StatelessWidget {
           theme: buildTheme(Brightness.light),
           darkTheme: buildTheme(Brightness.dark),
           themeMode: store.themeMode,
-          themeAnimationDuration: const Duration(milliseconds: 450),
+          themeAnimationDuration: const Duration(milliseconds: 300),
           locale: store.lang == 'en' ? const Locale('en', 'US') : const Locale('id', 'ID'),
           supportedLocales: const [Locale('id', 'ID'), Locale('en', 'US')],
           localizationsDelegates: const [

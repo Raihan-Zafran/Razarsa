@@ -24,11 +24,27 @@ class AppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mode = StoreScope.of(context).mode;
+    // Transisi ganti mode: mode lama mengecil & memudar, mode baru masuk dari sedikit
+    // lebih besar sambil naik — terasa seperti "pindah ruangan".
     return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 220),
-      switchInCurve: Curves.easeOut,
+      duration: const Duration(milliseconds: 520),
+      reverseDuration: const Duration(milliseconds: 320),
+      switchInCurve: const Cubic(0.2, 0.8, 0.2, 1),
       switchOutCurve: Curves.easeIn,
-      child: ModeShell(key: ValueKey(mode), mode: mode),
+      transitionBuilder: (child, anim) {
+        final incoming = child.key == ValueKey(mode);
+        if (incoming) {
+          return FadeTransition(
+            opacity: anim,
+            child: ScaleTransition(
+              scale: Tween(begin: 1.06, end: 1.0).animate(anim),
+              child: SlideTransition(position: Tween(begin: const Offset(0, 0.03), end: Offset.zero).animate(anim), child: child),
+            ),
+          );
+        }
+        return FadeTransition(opacity: anim, child: ScaleTransition(scale: Tween(begin: 0.94, end: 1.0).animate(anim), child: child));
+      },
+      child: RepaintBoundary(key: ValueKey(mode), child: ModeShell(mode: mode)),
     );
   }
 }
