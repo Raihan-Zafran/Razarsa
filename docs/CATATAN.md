@@ -1,6 +1,6 @@
 # Catatan serah-terima Razarsa (untuk sesi berikutnya)
 
-Terakhir diperbarui: 7 Nov 2026, setelah rilis **v1.1.3**.
+Terakhir diperbarui: 7 Nov 2026, disiapkan rilis **v1.2.0** (fix bug dan lain-lain).
 
 ## Pemilik & cara kerja
 - Pemilik: **Raihan Zafran Syaddat**. Jawab dalam bahasa Indonesia sederhana, sebut namanya, istilah asing dijelaskan di bagian bawah, berani mengingatkan kalau ada langkah berisiko.
@@ -33,11 +33,10 @@ Terakhir diperbarui: 7 Nov 2026, setelah rilis **v1.1.3**.
 - Pengaturan **Kategori** masih "segera hadir". Login masih lokal (rencana Firebase; `google-services.json` lama terdaftar untuk `com.raihan.zevra`, perlu didaftarkan ulang).
 
 ## Hasil kritik kode (7 Nov 2026)
-Sudah: PIN pakai PBKDF2 + salt (upgrade otomatis dari format lama), `allowBackup=false`. Perlu dicek CI hijau dan dites di HP.
+Sudah (v1.2.0): PIN PBKDF2 + salt, `allowBackup=false`, versi data, cadangan otomatis harian, impor atomik, data rusak diselamatkan (`rusak_<nama>`), terjemahan Inggris lengkap + tes pemeriksanya, 12 tes baru di `test/store_test.dart`. Perlu dites di HP.
 
 Antrean, urut prioritas:
-1. **Versi data + cadangan otomatis** sebelum model data berubah. `_readList` di `store.dart` diam-diam mengembalikan `[]` kalau format gagal dibaca, jadi data bisa hilang tanpa peringatan.
-2. **Tes inti** (~10): saldo, anggaran, transaksi berulang, impor/ekspor. Plus satu tes yang memeriksa semua `tr('...')` punya terjemahan Inggris.
+1. (Selesai di v1.2.0) versi data, cadangan otomatis, tes inti, tes terjemahan. Kalau model data berubah, tulis migrasinya di `_migrate` (`store.dart`) dan naikkan `dataVersion`.
 3. **Enkripsi data** di HP (butuh `flutter_secure_storage`, uji lewat CI dan HP). PIN 4–6 digit tetap lemah tanpa ini.
 4. Ganti `catch (_)` yang diam dengan log; kurangi rebuild `AppStore`; login/Firebase; perbarui deskripsi `pubspec.yaml` (masih menyebut "kesehatan").
 5. File latar besar (`classroom_background.dart`, `sky_background.dart`): jangan diubah sebelum soal Liquid Glass diputuskan.
