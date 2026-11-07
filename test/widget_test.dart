@@ -99,6 +99,35 @@ void main() {
     expect(store.checkPin('1234'), isTrue);
   });
 
+  test('PIN: format baru memakai salt acak dan menolak PIN salah', () async {
+    SharedPreferences.setMockInitialValues({});
+    final a = AppStore(await SharedPreferences.getInstance());
+    a.setPin('1234');
+    final first = a.pinHash;
+    expect(first.startsWith(r'v2$'), isTrue);
+    expect(a.checkPin('1234'), isTrue);
+    expect(a.checkPin('4321'), isFalse);
+    a.setPin('1234');
+    expect(a.pinHash, isNot(first)); // salt beda -> hash beda
+    a.setPin(null);
+    expect(a.pinEnabled, isFalse);
+    expect(a.checkPin('1234'), isFalse);
+  });
+
+  test('PIN: format lama (SHA-256 polos) tetap bisa dipakai lalu di-upgrade', () async {
+    // sha256('razarsa:1234')
+    SharedPreferences.setMockInitialValues({
+      'pinHash': '2fc87f8286ffc6bc8a3696adbf13c104b100a04af525a96d93d665e99ecadf58',
+    });
+    final store = AppStore(await SharedPreferences.getInstance());
+    expect(store.checkPin('0000'), isFalse);
+    expect(store.pinHash.startsWith(r'v2$'), isFalse); // salah -> tidak di-upgrade
+    expect(store.checkPin('1234'), isTrue);
+    expect(store.pinHash.startsWith(r'v2$'), isTrue); // benar -> di-upgrade
+    expect(store.checkPin('1234'), isTrue);
+    expect(store.checkPin('0000'), isFalse);
+  });
+
   testWidgets('aplikasi terbuka di halaman masuk', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final store = AppStore(await SharedPreferences.getInstance());

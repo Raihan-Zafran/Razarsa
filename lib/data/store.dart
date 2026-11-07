@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
@@ -214,12 +215,64 @@ class AppStore extends ChangeNotifier {
   // ---------- PIN ----------
   bool get pinEnabled => pinHash.isNotEmpty;
 
-  String _hash(String pin) => sha256.convert(utf8.encode('razarsa:$pin')).toString();
+  // PIN disimpan sebagai "v2$iterasi$salt$hash" (PBKDF2-HMAC-SHA256, salt acak per HP).
+  // Format lama (SHA-256 polos tanpa salt) masih bisa dibaca, lalu otomatis di-upgrade
+  // saat PIN yang benar dimasukkan.
+  static const _pinIterations = 30000;
 
-  bool checkPin(String pin) => pinEnabled && _hash(pin) == pinHash;
+  static String _hex(List<int> b) => b.map((e) => e.toRadixString(16).padLeft(2, '0')).join();
+
+  static List<int> _unhex(String h) =>
+      [for (var i = 0; i + 1 < h.length; i += 2) int.parse(h.substring(i, i + 2), radix: 16)];
+
+  static List<int> _pbkdf2(String pin, List<int> salt, int iterations) {
+    final hmac = Hmac(sha256, utf8.encode(pin));
+    var u = hmac.convert([...salt, 0, 0, 0, 1]).bytes;
+    final t = List<int>.from(u);
+    for (var i = 1; i < iterations; i++) {
+      u = hmac.convert(u).bytes;
+      for (var j = 0; j < t.length; j++) {
+        t[j] ^= u[j];
+      }
+    }
+    return t;
+  }
+
+  static bool _sameHex(String a, String b) {
+    if (a.length != b.length) return false;
+    var diff = 0;
+    for (var i = 0; i < a.length; i++) {
+      diff |= a.codeUnitAt(i) ^ b.codeUnitAt(i);
+    }
+    return diff == 0;
+  }
+
+  static String _hashPin(String pin) {
+    final rnd = Random.secure();
+    final salt = List<int>.generate(16, (_) => rnd.nextInt(256));
+    final hash = _hex(_pbkdf2(pin, salt, _pinIterations));
+    return 'v2\$$_pinIterations\$${_hex(salt)}\$$hash';
+  }
+
+  bool checkPin(String pin) {
+    if (!pinEnabled) return false;
+    if (pinHash.startsWith('v2\$')) {
+      final parts = pinHash.split('\$');
+      if (parts.length != 4) return false;
+      final iterations = int.tryParse(parts[1]);
+      if (iterations == null || iterations < 1) return false;
+      return _sameHex(_hex(_pbkdf2(pin, _unhex(parts[2]), iterations)), parts[3]);
+    }
+    // Format lama (SHA-256 polos). Kalau cocok, upgrade ke format baru.
+    final legacy = sha256.convert(utf8.encode('razarsa:$pin')).toString();
+    if (!_sameHex(legacy, pinHash)) return false;
+    pinHash = _hashPin(pin);
+    _changed();
+    return true;
+  }
 
   void setPin(String? pin) {
-    pinHash = pin == null ? '' : _hash(pin);
+    pinHash = pin == null ? '' : _hashPin(pin);
     switches['pin'] = pin != null;
     if (pin == null) switches['bio'] = false;
     _changed();
