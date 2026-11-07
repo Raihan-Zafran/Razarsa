@@ -7,6 +7,9 @@ Terakhir diperbarui: 7 Nov 2026, disiapkan rilis **v1.2.0** (fix bug dan lain-la
 - **Desain dulu, baru kode.** Perubahan tampilan dibuat di kanvas desain, tunggu "oke" dari Raihan, baru masuk ke Flutter.
 - **Jangan menambah papan baru di kanvas.** Ubah papan yang sudah ada. Kalau perlu eksperimen, tanya dulu dan hapus setelah selesai.
 - Raihan tidak suka token terbuang untuk pengecekan manual berulang. Dia tes sendiri di HP.
+- **Desain selalu diputuskan lewat Artifact.** Jangan menebak tampilan, tunjukkan dulu di Artifact.
+- **Hindari penjelasan panjang.** Kalau terpaksa panjang, buat ringkas atau pakai tabel/daftar. Hemat token dengan cara apa pun (alat, skrip, plugin).
+- **Berani proaktif:** sarankan tools/plugin yang membantu, minta aset (gambar, ikon, font) kalau perlu, kritik terus terang, dan cari desain yang lebih profesional daripada yang diminta.
 
 ## Tautan
 - Repo: https://github.com/Raihan-Zafran/Razarsa (nama lama: Zevra). Branch utama saat ini: `ccr-85eddd7b-dfef8b`.
