@@ -1,0 +1,29 @@
+version: 2
+updates:
+  # Versi GitHub Actions dipin ke SHA. Pembaruan mayor dikerjakan manual; hanya minor/patch otomatis,
+  # satu PR gabungan sebulan sekali supaya tidak menumpuk.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 1
+    groups:
+      actions:
+        patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+  # Paket Dart/Flutter. pubspec.lock tetap dikunci; pembaruan datang sebagai PR yang dites CI.
+  - package-ecosystem: pub
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2
+    groups:
+      pub:
+        patterns: ["*"]
+    ignore:
+      # Lompatan versi mayor (mis. flutter_local_notifications 22 -> 23) mengubah API dan harus
+      # dikerjakan manual bersama tesnya, bukan lewat PR otomatis.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]

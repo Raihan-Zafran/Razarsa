@@ -1,0 +1,242 @@
+name: Build APK
+
+# Alur: verify (analyze + test, tanpa secret) -> build (APK) -> release (hanya kalau versi baru).
+# Push hanya di main dan tag; PR hanya menjalankan cek kode & tes (tanpa membangun APK).
+# Rilis dibuat kalau: push tag v*, push ke branch utama dengan versi baru di pubspec.yaml,
+# atau dijalankan manual dengan isian "rilis".
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      rilis:
+        description: "Buat GitHub Release dengan tag ini (contoh v1.0.0). Kosongkan kalau cuma build."
+        required: false
+        default: ""
+
+# Izin paling kecil secara bawaan; hanya job release yang boleh menulis.
+permissions:
+  contents: read
+
+# Build di branch utama dan tag tidak boleh dibatalkan di tengah jalan (bisa menggagalkan rilis).
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') && github.ref != format('refs/heads/{0}', github.event.repository.default_branch) }}
+
+env:
+  FLUTTER_VERSION: "3.47.9"
+  # versionCode = 1000 + nomor run. Offset ini menjaga versionCode tetap lebih besar dari APK lama
+  # yang dibuat di repo sebelumnya, supaya HP yang sudah terpasang bisa memperbarui.
+  VERSION_CODE_OFFSET: "1000"
+
+jobs:
+  verify:
+    name: Cek kode & tes
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - name: Pastikan tidak ada rahasia di repo
+        run: bash scripts/check-secrets.sh
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Unduh paket (sesuai pubspec.lock)
+        run: flutter pub get --enforce-lockfile
+
+      - name: Analyze (semua temuan dianggap gagal)
+        run: flutter analyze --fatal-infos
+
+      - name: Tes
+        run: flutter test
+
+  build:
+    name: Build APK
+    needs: verify
+    # PR cukup diverifikasi (analyze + tes); APK hanya dibuat untuk push main, tag, atau manual.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    outputs:
+      signed: ${{ steps.sign.outputs.signed }}
+      base: ${{ steps.apk.outputs.base }}
+      version: ${{ steps.apk.outputs.version }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Unduh paket (sesuai pubspec.lock)
+        run: flutter pub get --enforce-lockfile
+
+      # Kunci rilis hanya ada di job ini, tidak pernah ditulis ke folder proyek yang di-commit,
+      # dan dihapus lagi di akhir. Build dari fork/PR tidak punya secret, jadi memakai kunci debug.
+      - name: Pasang kunci rilis
+        id: sign
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          if [ -n "${RELEASE_KEYSTORE_BASE64:-}" ] && [ -n "${RELEASE_STORE_PASSWORD:-}" ] \
+             && [ -n "${RELEASE_KEY_PASSWORD:-}" ] && [ -n "${RELEASE_KEY_ALIAS:-}" ]; then
+            umask 077
+            echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/razarsa-release.jks"
+            {
+              echo "storeFile=$RUNNER_TEMP/razarsa-release.jks"
+              echo "storePassword=$RELEASE_STORE_PASSWORD"
+              echo "keyPassword=$RELEASE_KEY_PASSWORD"
+              echo "keyAlias=$RELEASE_KEY_ALIAS"
+            } > android/key.properties
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+            echo "Kunci rilis dipasang."
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Secret kunci rilis belum lengkap. APK memakai kunci debug (tidak bisa jadi rilis)."
+          fi
+
+      - name: Build APK
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          BUILD=$((VERSION_CODE_OFFSET + RUN_NUMBER))
+          # APK kecil untuk HP modern (arm64) + APK universal untuk semua HP.
+          flutter build apk --release --split-per-abi --build-number="$BUILD" -P force-version-code-ignoring-abi=true
+          flutter build apk --release --build-number="$BUILD"
+
+      - name: Hapus kunci rilis dari runner
+        if: always()
+        run: rm -f android/key.properties "$RUNNER_TEMP/razarsa-release.jks"
+
+      - name: Beri nama file APK
+        id: apk
+        env:
+          SIGNED: ${{ steps.sign.outputs.signed }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //; s/+.*//')
+          BASE="razarsa-v${VERSION}-build${RUN_NUMBER}"
+          [ "$SIGNED" = "true" ] || BASE="${BASE}-DEBUGKEY"
+          mkdir -p dist
+          mv build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "dist/${BASE}-arm64.apk"
+          mv build/app/outputs/flutter-apk/app-release.apk "dist/${BASE}-universal.apk"
+          (cd dist && sha256sum *.apk > SHA256SUMS.txt && cat SHA256SUMS.txt)
+          {
+            echo "base=$BASE"
+            echo "version=$VERSION"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Simpan APK (tab Actions > Artifacts)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ steps.apk.outputs.base }}
+          path: dist/*
+          retention-days: 30
+
+  release:
+    name: Buat GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Hanya push (bukan PR) atau jalan manual. Detail tag ditentukan di langkah pertama.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Tentukan rilis
+        id: rel
+        env:
+          INPUT_RILIS: ${{ github.event.inputs.rilis }}
+          VERSION: ${{ needs.build.outputs.version }}
+          SIGNED: ${{ needs.build.outputs.signed }}
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          REF_NAME: ${{ github.ref_name }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          TAG="${INPUT_RILIS:-}"
+          if [ -z "$TAG" ] && [[ "$REF" == refs/tags/v* ]]; then TAG="${REF#refs/tags/}"; fi
+          # Rilis otomatis: push ke branch utama dengan versi baru di pubspec.yaml.
+          if [ -z "$TAG" ] && [ "$EVENT" = "push" ] && [ "$REF_NAME" = "$DEFAULT_BRANCH" ]; then
+            if ! git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null 2>&1; then
+              TAG="v$VERSION"
+              echo "Versi baru $VERSION, rilis otomatis dibuat."
+            fi
+          fi
+          if [ -z "$TAG" ]; then
+            echo "Tidak ada rilis baru."
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Nilai dari input dipakai di perintah dan nama file: batasi bentuknya.
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+            echo "::error::Nama tag tidak valid: $TAG"
+            exit 1
+          fi
+          if [ "$SIGNED" != "true" ]; then
+            if [ -n "${INPUT_RILIS:-}" ] || [[ "$REF" == refs/tags/v* ]]; then
+              # Rilis yang diminta sengaja (tag / manual) tanpa kunci harus gagal.
+              echo "::error::Rilis butuh kunci rilis. Isi 4 secret RELEASE_* dulu, lalu jalankan ulang."
+              exit 1
+            fi
+            # Rilis otomatis tanpa kunci: lewati saja, build tetap hijau.
+            echo "::warning::Versi $VERSION belum dirilis karena secret RELEASE_* belum diisi."
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          NOTES="docs/rilis/$TAG.md"
+          [ -f "$NOTES" ] || NOTES=""
+          {
+            echo "tag=$TAG"
+            echo "notes=$NOTES"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Ambil APK dari build
+        if: steps.rel.outputs.tag != ''
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: ${{ needs.build.outputs.base }}
+          path: dist
+
+      - name: Buat GitHub Release
+        if: steps.rel.outputs.tag != ''
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          tag_name: ${{ steps.rel.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: Razarsa ${{ steps.rel.outputs.tag }}
+          body_path: ${{ steps.rel.outputs.notes }}
+          generate_release_notes: ${{ steps.rel.outputs.notes == '' }}
+          prerelease: ${{ contains(steps.rel.outputs.tag, '-') }}
+          files: dist/*
