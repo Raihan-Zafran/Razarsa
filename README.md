@@ -48,4 +48,6 @@ Dokumen: [Keamanan](SECURITY.md) · [Laporan audit](docs/AUDIT.md)
 
 ## Lisensi
 
-Font Plus Jakarta Sans: SIL Open Font License. Maskot dan ilustrasi: milik pemilik proyek.
+Hak cipta © 2026 Razarsa. Semua hak dilindungi: kode, maskot, dan ilustrasi tidak boleh disalin, diubah, atau disebarkan ulang tanpa izin tertulis. Lihat [LICENSE](LICENSE).
+
+Pengecualian: font Plus Jakarta Sans memakai SIL Open Font License.

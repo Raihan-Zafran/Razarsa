@@ -67,7 +67,7 @@ Tingkat: **T** tinggi, **S** sedang, **R** rendah. Setiap perbaikan punya regres
 | C3 | S | Izin `contents: write` untuk semua job & event | Default read; write hanya job release |
 | C4 | S | Build bisa dibatalkan di tengah rilis (cancel-in-progress) | Tidak berlaku di branch utama/tag |
 | C5 | S | Keystore & `key.properties` ditulis di folder kerja, tidak dibersihkan | Ke `$RUNNER_TEMP`, dihapus `if: always()`; checkout tanpa kredensial |
-| C6 | R | `pub get` bisa mengubah versi; analyze tak ketat | `--enforce-lockfile`, `--fatal-infos`, `scripts/check-secrets.sh`, APK + `SHA256SUMS.txt`, Dependabot |
+| C6 | R | `pub get` bisa mengubah versi; analyze tak ketat | `--enforce-lockfile`, `--fatal-infos`, `scripts/check-secrets.sh`, Dependabot |
 
 ## 2. Fitur yang dipertahankan
 Semua: Keuangan (Catat Cepat, laporan, anggaran, target, berulang, kategori), Produktif (tugas, kalender, catatan + folder + sematan + kunci), profil/XP, mode & animasi, tema, bahasa ID/EN, mata uang, PIN + sidik jari, backup/pulihkan/CSV, pengingat. Kode UI tidak ditulis ulang; yang diubah hanya lapisan data, keamanan, notifikasi, layar PIN/Pengaturan, dan CI.
