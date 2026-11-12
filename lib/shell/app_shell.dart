@@ -80,7 +80,6 @@ class ModeShell extends StatefulWidget {
 
 class _ModeShellState extends State<ModeShell> {
   int _tab = 0;
-  int _dir = 1;
 
   bool get _prod => widget.mode == 'productive';
 
@@ -103,10 +102,7 @@ class _ModeShellState extends State<ModeShell> {
   void goTo(int i) {
     if (i == _tab) return;
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    setState(() {
-      _dir = i > _tab ? 1 : -1;
-      _tab = i;
-    });
+    setState(() => _tab = i);
   }
 
   Widget _page() {
@@ -163,24 +159,10 @@ class _ModeShellState extends State<ModeShell> {
                     ? SkyBackground(dark: dark, tab: _tab)
                     : DesertBackground(dark: dark, tab: _tab)),
           ),
+          // Pindah tab: halaman baru muncul seketika, lalu elemen-elemennya naik satu per satu
+          // (lihat [PageStagger]). Dock dan latar tidak ikut bergerak.
           Positioned.fill(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 380),
-              switchInCurve: const Cubic(0.22, 0.8, 0.3, 1),
-              switchOutCurve: Curves.easeIn,
-              transitionBuilder: (child, anim) {
-                final incoming = child.key == ValueKey(_tab);
-                final dx = 0.07 * _dir * (incoming ? 1 : -1);
-                return FadeTransition(
-                  opacity: anim,
-                  child: SlideTransition(
-                    position: Tween(begin: Offset(dx, 0), end: Offset.zero).animate(anim),
-                    child: child,
-                  ),
-                );
-              },
-              child: KeyedSubtree(key: ValueKey(_tab), child: _page()),
-            ),
+            child: PageStagger(child: KeyedSubtree(key: ValueKey(_tab), child: _page())),
           ),
           Positioned(
             left: 16,
@@ -195,6 +177,82 @@ class _ModeShellState extends State<ModeShell> {
   }
 }
 
+/// Menandai halaman tab: elemen-elemen pertamanya ikut animasi naik bertahap saat halaman dibuka.
+/// Halaman yang dibuka dari dalam (Profil, Tambah Transaksi) berada di luar penanda ini dan tetap meluncur.
+class PageStagger extends InheritedWidget {
+  const PageStagger({super.key, required super.child});
+
+  static bool active(BuildContext context) => context.getInheritedWidgetOfExactType<PageStagger>() != null;
+
+  @override
+  bool updateShouldNotify(PageStagger oldWidget) => false;
+}
+
+/// Satu elemen halaman yang muncul naik 14 px sambil memudar, tertunda 60 ms per urutan.
+/// Hanya opacity dan transform; mati kalau pengguna memilih "kurangi animasi".
+class StaggerItem extends StatefulWidget {
+  const StaggerItem({super.key, required this.index, required this.child});
+
+  final int index;
+  final Widget child;
+
+  /// Jumlah elemen pertama yang dianimasikan; sisanya langsung tampil.
+  static const maxItems = 7;
+  static const delay = Duration(milliseconds: 60);
+  static const duration = Duration(milliseconds: 450);
+
+  @override
+  State<StaggerItem> createState() => _StaggerItemState();
+}
+
+class _StaggerItemState extends State<StaggerItem> with SingleTickerProviderStateMixin {
+  AnimationController? _c;
+  Animation<double>? _a;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_c != null || MediaQuery.disableAnimationsOf(context)) return;
+    final lead = StaggerItem.delay * widget.index;
+    final total = lead + StaggerItem.duration;
+    final c = AnimationController(vsync: this, duration: total);
+    _a = CurvedAnimation(
+      parent: c,
+      curve: Interval(lead.inMicroseconds / total.inMicroseconds, 1, curve: const Cubic(0.22, 0.8, 0.3, 1)),
+    );
+    _c = c..forward();
+  }
+
+  @override
+  void dispose() {
+    _c?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final a = _a;
+    if (a == null) return widget.child;
+    return AnimatedBuilder(
+      animation: a,
+      child: widget.child,
+      builder: (context, child) => Opacity(
+        opacity: a.value.clamp(0.0, 1.0),
+        child: Transform.translate(offset: Offset(0, 14 * (1 - a.value)), child: child),
+      ),
+    );
+  }
+}
+
+/// Membungkus [children] dengan [StaggerItem] (7 pertama) kalau berada di halaman tab.
+List<Widget> staggered(BuildContext context, List<Widget> children, {int start = 0}) {
+  if (!PageStagger.active(context)) return children;
+  return [
+    for (var i = 0; i < children.length; i++)
+      i + start < StaggerItem.maxItems ? StaggerItem(index: i + start, child: children[i]) : children[i],
+  ];
+}
+
 /// Isi halaman yang bisa digulir dengan jarak aman atas dan bawah (untuk dock).
 class PageScroll extends StatelessWidget {
   const PageScroll({super.key, required this.children, this.withDock = true});
@@ -207,7 +265,7 @@ class PageScroll extends StatelessWidget {
     final pad = MediaQuery.of(context).padding;
     return ListView(
       padding: EdgeInsets.fromLTRB(20, pad.top + 12, 20, pad.bottom + (withDock ? 120 : 28)),
-      children: children,
+      children: staggered(context, children),
     );
   }
 }

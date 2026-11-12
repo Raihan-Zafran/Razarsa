@@ -70,6 +70,7 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/sky/
     - assets/profile/avatars/
     - assets/profile/frames/
     - assets/profile/badges/

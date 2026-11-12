@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../core/format.dart';
@@ -25,8 +27,7 @@ class HomePage extends StatelessWidget {
     return PageScroll(children: [
       // Header: logo, tombol mode, profil
       Row(children: [
-        // Tombol mode mengecil (bukan overflow) di layar sempit / font besar.
-        const Expanded(child: Align(alignment: Alignment.centerLeft, child: FittedBox(fit: BoxFit.scaleDown, child: ModeButton()))),
+        const Expanded(child: Align(alignment: Alignment.centerLeft, child: ModeSwitch())),
         const ThemeToggle(),
         const SizedBox(width: 8),
         RoundIconButton(
@@ -141,7 +142,7 @@ class _BalanceCard extends StatelessWidget {
               ),
             ]),
           ),
-          const SizedBox(width: 84, height: 48, child: CustomPaint(painter: _SparkPainter())),
+          _BalanceSpark(series: store.balanceSeries(12), hidden: store.hideBalance),
         ]),
         const SizedBox(height: 16),
         Row(children: [
@@ -187,29 +188,156 @@ class _MiniStat extends StatelessWidget {
   }
 }
 
+/// Garis kecil saldo 12 hari terakhir di kartu saldo. Isinya data nyata (saldo akhir tiap hari).
+/// Sentuh atau geser untuk melihat saldo per hari.
+class _BalanceSpark extends StatefulWidget {
+  const _BalanceSpark({required this.series, required this.hidden});
+
+  final List<int> series;
+  final bool hidden;
+
+  @override
+  State<_BalanceSpark> createState() => _BalanceSparkState();
+}
+
+class _BalanceSparkState extends State<_BalanceSpark> with TickerProviderStateMixin {
+  static const _w = 84.0, _h = 48.0;
+  // Garis menggambar dirinya (1,1 dtk, mulai setelah 0,1 dtk); titik akhir berdenyut beberapa kali.
+  late final AnimationController _draw = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
+  late final AnimationController _pulse = AnimationController(vsync: this, duration: const Duration(milliseconds: 1800));
+  bool _started = false;
+  int? _hover;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _draw.value = 1;
+    } else {
+      _draw.forward();
+      _pulse.repeat(count: 4);
+    }
+  }
+
+  @override
+  void dispose() {
+    _draw.dispose();
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  List<Offset> get _pts {
+    final v = widget.series;
+    final lo = v.reduce(math.min), hi = v.reduce(math.max);
+    final span = (hi - lo) == 0 ? 1 : (hi - lo);
+    return [for (var i = 0; i < v.length; i++) Offset(3 + i / (v.length - 1) * 78, 4 + 40 * (1 - (v[i] - lo) / span))];
+  }
+
+  void _touch(Offset local) {
+    final n = widget.series.length;
+    final k = (local.dx / _w).clamp(0.0, 1.0);
+    final i = (k * (n - 1)).round();
+    if (i != _hover) setState(() => _hover = i);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final z = ZColors.of(context);
+    final n = widget.series.length;
+    final hv = _hover;
+    final today = dayOnly(DateTime.now());
+    String? tip;
+    if (hv != null) {
+      final d = DateTime(today.year, today.month, today.day - (n - 1 - hv));
+      tip = '${d.day} ${monthShort(d)} · ${widget.hidden ? rpHidden : rp(widget.series[hv])}';
+    }
+    return Semantics(
+      container: true,
+      label: tr('Saldo 12 hari terakhir'),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (d) => _touch(d.localPosition),
+        onTapUp: (_) => setState(() => _hover = null),
+        onTapCancel: () => setState(() => _hover = null),
+        onPanStart: (d) => _touch(d.localPosition),
+        onPanUpdate: (d) => _touch(d.localPosition),
+        onPanEnd: (_) => setState(() => _hover = null),
+        onPanCancel: () => setState(() => _hover = null),
+        child: SizedBox(
+          width: _w,
+          height: _h,
+          child: Stack(clipBehavior: Clip.none, children: [
+            AnimatedBuilder(
+              animation: Listenable.merge([_draw, _pulse]),
+              builder: (_, _) => CustomPaint(
+                size: const Size(_w, _h),
+                painter: _SparkPainter(
+                  pts: _pts,
+                  draw: Interval(0.083, 1, curve: const Cubic(0.22, 0.8, 0.3, 1)).transform(_draw.value),
+                  pulse: _pulse.isAnimating ? _pulse.value : null,
+                  hover: hv,
+                ),
+              ),
+            ),
+            if (tip != null)
+              Positioned(
+                top: -34,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(99),
+                    boxShadow: const [BoxShadow(color: Color(0x2E000000), blurRadius: 8, offset: Offset(0, 2))],
+                  ),
+                  child: Text(tip, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: z.hero)),
+                ),
+              ),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
 class _SparkPainter extends CustomPainter {
-  const _SparkPainter();
+  const _SparkPainter({required this.pts, required this.draw, required this.pulse, required this.hover});
+
+  final List<Offset> pts;
+  final double draw;
+  final double? pulse;
+  final int? hover;
+
+  static const _green = Color(0xFF86EFAC);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final sx = size.width / 96, sy = size.height / 56;
-    const pts = [Offset(2, 48), Offset(18, 38), Offset(32, 42), Offset(48, 24), Offset(62, 30), Offset(78, 12), Offset(94, 6)];
-    final p = Path()..moveTo(pts.first.dx * sx, pts.first.dy * sy);
+    final path = Path()..moveTo(pts.first.dx, pts.first.dy);
     for (final o in pts.skip(1)) {
-      p.lineTo(o.dx * sx, o.dy * sy);
+      path.lineTo(o.dx, o.dy);
     }
     final paint = Paint()
-      ..color = const Color(0xFF86EFAC)
+      ..color = _green
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
-    canvas.drawPath(p, paint);
-    canvas.drawCircle(Offset(94 * sx, 6 * sy), 4, Paint()..color = const Color(0xFF86EFAC));
+    for (final m in path.computeMetrics()) {
+      canvas.drawPath(m.extractPath(0, m.length * draw), paint);
+    }
+    final end = pts.last;
+    if (pulse != null) {
+      canvas.drawCircle(end, 4 * (1 + 2 * pulse!), Paint()..color = _green.withValues(alpha: 0.55 * (1 - pulse!)));
+    }
+    canvas.drawCircle(end, 4, Paint()..color = _green);
+    if (hover != null) canvas.drawCircle(pts[hover!], 3.5, Paint()..color = Colors.white);
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _SparkPainter old) =>
+      old.draw != draw || old.pulse != pulse || old.hover != hover || old.pts != pts;
 }
 
 class _AddButton extends StatelessWidget {
@@ -271,14 +399,24 @@ class _QuickChip extends StatelessWidget {
               actionLabel: tr('Batalkan'), onAction: () => store.removeTxn(t.id));
         },
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(6, 6, 14, 6),
+          padding: const EdgeInsets.fromLTRB(8, 6, 16, 6),
           child: Row(children: [
             CategoryTile(category: cat, size: 36),
-            const SizedBox(width: 8),
+            const SizedBox(width: 10),
             Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(tr(item.name), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+              Text(tr(item.name), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               Text(rpShort(item.amount), style: TextStyle(fontSize: 11, color: z.muted2)),
             ]),
+            const SizedBox(width: 14),
+            // Penanda "tambah" kecil; seluruh chip tetap satu tombol.
+            ExcludeSemantics(
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(color: z.primary, shape: BoxShape.circle),
+                child: Icon(Icons.add_rounded, size: 16, color: z.onPrimary),
+              ),
+            ),
           ]),
         ),
       ),

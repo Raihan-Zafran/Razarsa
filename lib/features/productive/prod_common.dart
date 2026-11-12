@@ -6,6 +6,7 @@ import '../../core/notifications.dart';
 import '../../core/theme.dart';
 import '../../data/productive_models.dart';
 import '../../data/store.dart';
+import '../../shell/app_shell.dart' show staggered;
 import '../../shell/classroom_background.dart';
 import '../../widgets/common.dart';
 
@@ -24,9 +25,9 @@ class ProdScroll extends StatelessWidget {
     return ListView(
       padding: EdgeInsets.fromLTRB(20, mq.padding.top + 12, 20, mq.padding.bottom + 120),
       children: [
-        SizedBox(height: 48, child: header),
+        ...staggered(context, [SizedBox(height: 48, child: header)]),
         SizedBox(height: gap),
-        ...children,
+        ...staggered(context, children, start: 1),
       ],
     );
   }
@@ -119,7 +120,7 @@ class TodoRow extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 14,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                   color: todo.done ? z.muted2 : z.text,
                   decoration: todo.done ? TextDecoration.lineThrough : null,
                 ),

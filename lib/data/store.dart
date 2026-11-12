@@ -1165,6 +1165,43 @@ class AppStore extends ChangeNotifier {
 
   int get balance => txns.fold(0, (s, t) => s + t.amount);
 
+  /// Selisih hari kalender (aman terhadap pergantian jam musim panas).
+  static int _daysBetween(DateTime a, DateTime b) =>
+      DateTime.utc(b.year, b.month, b.day).difference(DateTime.utc(a.year, a.month, a.day)).inDays;
+
+  /// Saldo di akhir tiap hari selama [days] hari terakhir (paling lama dulu, hari ini terakhir).
+  List<int> balanceSeries(int days, [DateTime? now]) {
+    final today = dayOnly(now ?? DateTime.now());
+    // Satu putaran lewat transaksi: jumlah per hari, lalu dijumlahkan dari awal.
+    final perDay = List<int>.filled(days, 0);
+    var before = 0;
+    final first = DateTime(today.year, today.month, today.day - (days - 1));
+    for (final t in txns) {
+      final d = dayOnly(t.at);
+      if (d.isBefore(first)) {
+        before += t.amount;
+      } else if (!d.isAfter(today)) {
+        perDay[_daysBetween(first, d)] += t.amount;
+      }
+    }
+    var run = before;
+    return [for (final v in perDay) run += v];
+  }
+
+  /// Total pengeluaran tiap hari selama [days] hari terakhir (paling lama dulu, hari ini terakhir).
+  List<int> dailyExpense(int days, [DateTime? now]) {
+    final today = dayOnly(now ?? DateTime.now());
+    final first = DateTime(today.year, today.month, today.day - (days - 1));
+    final out = List<int>.filled(days, 0);
+    for (final t in txns) {
+      if (!t.isExpense) continue;
+      final d = dayOnly(t.at);
+      if (d.isBefore(first) || d.isAfter(today)) continue;
+      out[_daysBetween(first, d)] += t.amount.abs();
+    }
+    return out;
+  }
+
   /// Awal periode bulan anggaran yang memuat [ref] (mengikuti tanggal gajian).
   DateTime periodStart([DateTime? ref]) {
     final r = ref ?? DateTime.now();
@@ -1223,7 +1260,9 @@ class AppStore extends ChangeNotifier {
   void addToGoal(String id, int amount) {
     final i = goals.indexWhere((g) => g.id == id);
     if (i < 0) return;
+    final before = goals[i].saved;
     goals[i].saved = (goals[i].saved + amount).clamp(0, maxAmount).toInt();
+    goals[i].addLog(DateTime.now(), goals[i].saved - before);
     _changed();
   }
 
@@ -1232,6 +1271,7 @@ class AppStore extends ChangeNotifier {
     final i = goals.indexWhere((g) => g.id == id);
     if (i < 0 || amount <= 0 || amount > goals[i].saved) return false;
     goals[i].saved -= amount;
+    goals[i].addLog(DateTime.now(), -amount);
     _changed();
     return true;
   }

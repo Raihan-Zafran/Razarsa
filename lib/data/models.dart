@@ -96,8 +96,20 @@ class CustomCategory {
       CustomCategory(j['id'] as String, j['label'] as String, j['income'] == true);
 }
 
+/// Satu kali menabung (positif) atau menarik (negatif) untuk sebuah target.
+class SavingEntry {
+  const SavingEntry(this.at, this.delta);
+
+  final DateTime at;
+  final int delta;
+}
+
 class Goal {
-  Goal({required this.id, required this.name, required this.target, this.saved = 0, this.tone = 'green'});
+  Goal({required this.id, required this.name, required this.target, this.saved = 0, this.tone = 'green', List<SavingEntry>? log})
+      : log = log ?? [];
+
+  /// Catatan tabungan dibatasi supaya data tetap kecil.
+  static const maxLog = 120;
 
   final String id;
   String name;
@@ -105,18 +117,73 @@ class Goal {
   int saved;
   final String tone;
 
+  /// Riwayat menabung (paling lama dulu), dipakai untuk memperkirakan kapan target tercapai.
+  final List<SavingEntry> log;
+
   double get progress => target <= 0 ? 0 : (saved / target).clamp(0, 1).toDouble();
 
-  Map<String, dynamic> toJson() =>
-      {'id': id, 'name': name, 'target': target, 'saved': saved, 'tone': tone};
+  void addLog(DateTime at, int delta) {
+    if (delta == 0) return;
+    log.add(SavingEntry(at, delta));
+    if (log.length > maxLog) log.removeRange(0, log.length - maxLog);
+  }
 
-  factory Goal.fromJson(Map<String, dynamic> j) => Goal(
-        id: j['id'] as String,
-        name: j['name'] as String,
-        target: (j['target'] as num).toInt(),
-        saved: (j['saved'] as num? ?? 0).toInt(),
-        tone: (j['tone'] as String?) ?? 'green',
-      );
+  /// Rata-rata tabungan per bulan dari 90 hari terakhir. null kalau belum ada kebiasaan menabung.
+  int? monthlyRate([DateTime? now]) {
+    final n = now ?? DateTime.now();
+    final from = n.subtract(const Duration(days: 90));
+    final recent = log.where((e) => !e.at.isBefore(from) && !e.at.isAfter(n)).toList();
+    if (recent.isEmpty) return null;
+    final net = recent.fold<int>(0, (s, e) => s + e.delta);
+    if (net <= 0) return null;
+    final span = n.difference(recent.first.at).inDays.clamp(30, 90);
+    final rate = (net * 30 / span).round();
+    return rate > 0 ? rate : null;
+  }
+
+  /// Perkiraan bulan target tercapai. null kalau sudah tercapai atau belum ada perkiraan.
+  DateTime? eta([DateTime? now]) {
+    final n = now ?? DateTime.now();
+    if (target <= 0 || saved >= target) return null;
+    final rate = monthlyRate(n);
+    if (rate == null) return null;
+    final months = ((target - saved) / rate).ceil();
+    if (months > 600) return null;
+    return DateTime(n.year, n.month + months);
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'target': target,
+        'saved': saved,
+        'tone': tone,
+        if (log.isNotEmpty) 'log': [for (final e in log) [e.at.millisecondsSinceEpoch, e.delta]],
+      };
+
+  factory Goal.fromJson(Map<String, dynamic> j) {
+    final log = <SavingEntry>[];
+    final raw = j['log'];
+    if (raw is List) {
+      for (final e in raw.take(maxLog)) {
+        if (e is List && e.length == 2 && e[0] is num && e[1] is num) {
+          final ms = (e[0] as num).toInt();
+          final d = (e[1] as num).toInt();
+          // Catatan yang rusak dilewati, bukan menggagalkan seluruh data.
+          if (ms < 0 || ms > 4102444800000 || d.abs() > 1000000000000) continue;
+          log.add(SavingEntry(DateTime.fromMillisecondsSinceEpoch(ms), d));
+        }
+      }
+    }
+    return Goal(
+      id: j['id'] as String,
+      name: j['name'] as String,
+      target: (j['target'] as num).toInt(),
+      saved: (j['saved'] as num? ?? 0).toInt(),
+      tone: (j['tone'] as String?) ?? 'green',
+      log: log,
+    );
+  }
 }
 
 class QuickItem {

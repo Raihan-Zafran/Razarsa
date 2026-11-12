@@ -84,7 +84,7 @@ class SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: Text(text, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800))),
+        Expanded(child: Text(text, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700))),
         ?trailing,
       ],
     );
@@ -297,7 +297,7 @@ class TxnRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 2),
                   Text(subtitle, style: TextStyle(fontSize: 12, color: z.muted2)),
                 ],
@@ -305,7 +305,11 @@ class TxnRow extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Text(amountText,
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: isIncome ? z.accentText : z.text)),
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                    color: isIncome ? z.accentText : z.text)),
           ],
         ),
       ),

@@ -46,7 +46,7 @@ void main() {
         final s = await newStore();
         await view(t, s, ModeShell(mode: mode));
         final state = t.state(find.byType(ModeShell)) as dynamic;
-        final home = find.text(mode == 'finance' ? 'Total Saldo' : 'Fokus Hari Ini');
+        final home = find.text(mode == 'finance' ? 'Total Saldo' : 'Tambah Cepat');
         expect(home, findsOneWidget);
         state.goTo(2);
         await step(t);

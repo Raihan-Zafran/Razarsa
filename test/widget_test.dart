@@ -179,7 +179,6 @@ void main() {
     final store = AppStore(await SharedPreferences.getInstance(), vault: testVault);
     await tester.pumpWidget(RazarsaApp(store: store));
     await tester.pump(const Duration(milliseconds: 800));
-    expect(find.text('Fokus Hari Ini'), findsOneWidget);
     expect(find.text('Tambah Cepat'), findsOneWidget);
     store.setMode('finance');
     await tester.pump(const Duration(milliseconds: 800));

@@ -63,6 +63,8 @@ String timeLabel(DateTime d) => DateFormat(L.en ? 'h:mm a' : 'HH.mm', L.dateLoca
 
 String monthShort(DateTime d) => DateFormat('MMM', L.dateLocale).format(d);
 
+String monthYear(DateTime d) => DateFormat('MMM y', L.dateLocale).format(d);
+
 String monthLong(DateTime d) => DateFormat('MMMM', L.dateLocale).format(d);
 
 /// Sapaan sesuai jam.

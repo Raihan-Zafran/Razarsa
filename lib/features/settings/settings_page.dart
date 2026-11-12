@@ -631,18 +631,23 @@ class _Row extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 58),
         child: Row(children: [
-          Container(
+          // Ikon polos tanpa ubin warna; hanya baris berbahaya ("Hapus semua data") tetap berubin oranye.
+          SizedBox(
             width: 34,
             height: 34,
-            decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
-            child: Icon(icon, size: 18, color: fg),
+            child: danger
+                ? DecoratedBox(
+                    decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
+                    child: Icon(icon, size: 18, color: fg),
+                  )
+                : Icon(icon, size: 21, color: z.text2),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: danger ? z.warn : z.text)),
+                Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: danger ? z.warn : z.text)),
                 if (sub != null) ...[
                   const SizedBox(height: 2),
                   Text(sub!, style: TextStyle(fontSize: 12, color: z.muted2)),
@@ -680,18 +685,13 @@ class _Switch extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 58),
         child: Row(children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(color: z.toneBg(tone), borderRadius: BorderRadius.circular(10)),
-            child: Icon(icon, size: 18, color: z.toneFg(tone)),
-          ),
+          SizedBox(width: 34, height: 34, child: Icon(icon, size: 21, color: z.text2)),
           const SizedBox(width: 12),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                 if (sub != null) ...[
                   const SizedBox(height: 2),
                   Text(sub!, style: TextStyle(fontSize: 12, color: z.muted2)),

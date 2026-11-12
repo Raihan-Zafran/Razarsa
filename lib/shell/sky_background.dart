@@ -1,442 +1,722 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
-/// Latar bergerak di bagian atas layar.
-/// Siang: matahari, awan, burung, pesawat kertas. Malam: bulan, bintang, awan redup, kunang-kunang.
+/// Latar "Langit": satu dunia (bukit, pohon palem, rumput, dan tokoh pengamat bintang) yang sama di
+/// kelima halaman, dengan benda bergerak yang berbeda per halaman. Siang dan malam punya set sendiri.
+///
+/// Halaman 1: pesawat (siang) / roket (malam). Halaman 2: angin dan daun kering / kunang-kunang.
+/// Halaman 3: awan beraneka bentuk / planet dan bintang. Halaman 4: layang-layang dan anak-anak /
+/// burung malam dan meteor. Halaman 5: gabungan semuanya, ditambah balon udara (siang) atau
+/// lampion, pita galaksi (malam).
+///
+/// Semua koordinat di bawah memakai satuan desain 780 x 600 (dua kali lebar 390 px).
 class SkyBackground extends StatefulWidget {
-  const SkyBackground({super.key, required this.dark, this.tab = 0, this.height = 340});
+  const SkyBackground({super.key, required this.dark, this.tab = 0});
 
   final bool dark;
   final int tab;
-  final double height;
+
+  static double heightFor(double w) => w / 390 * 300;
 
   @override
   State<SkyBackground> createState() => _SkyBackgroundState();
 }
 
-class _SkyBackgroundState extends State<SkyBackground> with TickerProviderStateMixin {
-  final _time = ValueNotifier<double>(20);
+class _SkyBackgroundState extends State<SkyBackground> with SingleTickerProviderStateMixin {
+  final _time = ValueNotifier<double>(0);
+  final _fades = _Fades();
+  final _day = _FxState();
+  final _night = _FxState();
   late final Ticker _ticker;
-  late final AnimationController _level =
-      AnimationController(vsync: this, lowerBound: 0, upperBound: 4, value: widget.tab.toDouble());
-  late final AnimationController _shoot = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100));
-
-  @override
-  void didUpdateWidget(covariant SkyBackground old) {
-    super.didUpdateWidget(old);
-    if (old.tab != widget.tab) {
-      _level.animateTo(widget.tab.toDouble(), duration: const Duration(milliseconds: 700), curve: Curves.easeOut);
-      if (!MediaQuery.of(context).disableAnimations) _shoot.forward(from: 0);
-    }
-  }
+  bool _reduce = false;
 
   @override
   void initState() {
     super.initState();
-    _ticker = createTicker((elapsed) => _time.value = 20 + elapsed.inMicroseconds / 1e6);
+    _fades.snap(widget.tab);
+    _ticker = createTicker((e) {
+      final t = e.inMicroseconds / 1e6;
+      final dt = (t - _time.value).clamp(0.0, 0.1).toDouble();
+      _fades.step(widget.tab, dt);
+      _time.value = t;
+    });
+    _SkyImages.warm();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final reduce = MediaQuery.of(context).disableAnimations;
-    if (reduce && _ticker.isActive) _ticker.stop();
-    if (!reduce && !_ticker.isActive) _ticker.start();
+    _reduce = MediaQuery.disableAnimationsOf(context);
+    if (_reduce) {
+      if (_ticker.isActive) _ticker.stop();
+      _fades.snap(widget.tab);
+    } else if (!_ticker.isActive) {
+      _ticker.start();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant SkyBackground old) {
+    super.didUpdateWidget(old);
+    if (old.tab != widget.tab && _reduce) {
+      _fades.snap(widget.tab);
+      _time.value = _time.value + 1e-6;
+    }
   }
 
   @override
   void dispose() {
     _ticker.dispose();
     _time.dispose();
-    _level.dispose();
-    _shoot.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return IgnorePointer(
-      child: SizedBox(
-        height: widget.height,
-        width: double.infinity,
-        child: ShaderMask(
-          blendMode: BlendMode.dstIn,
-          shaderCallback: (r) => const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.black, Colors.black, Colors.transparent],
-            stops: [0, 0.7, 1],
-          ).createShader(r),
-          child: TweenAnimationBuilder<double>(
-            tween: Tween(end: widget.dark ? 1 : 0),
-            duration: const Duration(milliseconds: 450),
-            curve: Curves.easeInOut,
-            builder: (context, night, _) => RepaintBoundary(
-              child: CustomPaint(painter: _SkyPainter(_time, night, _level, _shoot), size: Size.infinite),
+      child: LayoutBuilder(builder: (context, box) {
+        final w = box.maxWidth;
+        final h = SkyBackground.heightFor(w);
+        return SizedBox(
+          width: w,
+          height: h,
+          child: ShaderMask(
+            blendMode: BlendMode.dstIn,
+            shaderCallback: (r) => const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Colors.black, Colors.black, Colors.transparent],
+              stops: [0, 0.74, 1],
+            ).createShader(r),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 450),
+              child: RepaintBoundary(
+                key: ValueKey(widget.dark),
+                child: CustomPaint(
+                  size: Size(w, h),
+                  painter: _ScenePainter(
+                    dark: widget.dark,
+                    time: _time,
+                    fades: _fades,
+                    fx: widget.dark ? _night : _day,
+                    reduce: _reduce,
+                  ),
+                ),
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      }),
     );
   }
 }
 
-class _SkyPainter extends CustomPainter {
-  _SkyPainter(this.time, this.night, this.level, this.shoot) : super(repaint: Listenable.merge([time, level, shoot]));
+/// Seberapa terlihat efek tiap halaman (0..1), bergerak halus menuju halaman yang sedang dibuka.
+class _Fades {
+  final v = List<double>.filled(5, 0);
 
+  void snap(int page) {
+    for (var i = 0; i < v.length; i++) {
+      v[i] = i == page ? 1 : 0;
+    }
+  }
+
+  void step(int page, double dt) {
+    final k = math.min(1.0, dt * 3.2);
+    for (var i = 0; i < v.length; i++) {
+      v[i] += ((i == page ? 1.0 : 0.0) - v[i]) * k;
+    }
+  }
+}
+
+class _Pt {
+  const _Pt(this.x, this.y, this.t);
+  final double x, y, t;
+}
+
+class _Puff {
+  _Puff(this.x, this.y, this.t0, this.k, this.vx);
+  final double x, y, t0, vx;
+  final int k;
+}
+
+/// Keadaan yang ikut bertahan antar bingkai (jejak pesawat, asap roket).
+class _FxState {
+  final pts = <_Pt>[];
+  final smoke = <_Puff>[];
+  double acc = 0;
+  double last = 0;
+  final rnd = math.Random(5);
+}
+
+/// Pemuat gambar: dimuat sekali, dipakai bersama, dan memicu gambar ulang saat selesai.
+class _SkyImages {
+  static const names = [
+    'S1D', 'S1N', 'S2D', 'S2N', 'S3DL', 'S3DC', 'S3DR', 'S3NL', 'S3NC', 'S3NR', 'S4D', 'S4N',
+    'skyD', 'skyN', 'moon', 'sun', 'plane', 'rocket', 'f1', 'f2', 'f3', 's1', 's2', 's3',
+    'ff', 'leaves', 'w0', 'w1', 'w2', 'w3', 'st', 'pl', 'cl', 'bird', 'kid', 'kite', 'met0', 'met1',
+    'rib0', 'rib1', 'lan', 'balloon',
+  ];
+
+  static final rev = ValueNotifier<int>(0);
+  static final _imgs = <String, ui.Image>{};
+  static bool _warmed = false;
+
+  static ui.Image? get(String n) => _imgs[n];
+
+  static void warm() {
+    if (_warmed) return;
+    _warmed = true;
+    for (final n in names) {
+      final stream = AssetImage('assets/sky/$n.webp').resolve(ImageConfiguration.empty);
+      late ImageStreamListener l;
+      l = ImageStreamListener((info, _) {
+        _imgs[n] = info.image.clone();
+        rev.value++;
+        stream.removeListener(l);
+      }, onError: (_, _) {
+        _warmed = false; // coba lagi pada pemanggilan berikutnya
+        stream.removeListener(l);
+      });
+      stream.addListener(l);
+    }
+  }
+}
+
+class _ScenePainter extends CustomPainter {
+  _ScenePainter({required this.dark, required this.time, required this.fades, required this.fx, required this.reduce})
+      : super(repaint: Listenable.merge([time, _SkyImages.rev]));
+
+  final bool dark;
   final ValueNotifier<double> time;
-  final double night;
-  final Animation<double> level;
-  final Animation<double> shoot;
+  final _Fades fades;
+  final _FxState fx;
+  final bool reduce;
 
-  double _pop(int n) => (level.value - (n - 1)).clamp(0.0, 1.0);
+  String get _th => dark ? 'N' : 'D';
 
-  static const _stars = [
-    [28.0, 64.0, 1.0, 3.2], [74.0, 118.0, 1.5, 4.1], [122.0, 40.0, 1.0, 3.6], [168.0, 92.0, 1.0, 2.9],
-    [214.0, 30.0, 1.5, 4.4], [250.0, 140.0, 1.0, 3.3], [300.0, 52.0, 1.0, 3.9], [352.0, 110.0, 1.5, 3.1],
-    [40.0, 170.0, 1.0, 4.6], [190.0, 190.0, 1.0, 3.4], [330.0, 200.0, 1.0, 4.0], [96.0, 226.0, 1.0, 3.7],
-  ];
-  static const _flies = [
-    [30.0, 250.0, 7.0, 2.2, 0.0], [88.0, 214.0, 9.0, 2.8, 2.0], [140.0, 268.0, 8.0, 1.9, 4.0],
-    [196.0, 232.0, 10.0, 2.5, 1.0], [248.0, 282.0, 7.5, 3.1, 3.0], [300.0, 226.0, 9.5, 2.1, 5.0],
-    [350.0, 262.0, 8.5, 2.6, 2.5], [62.0, 296.0, 10.0, 2.4, 6.0], [226.0, 300.0, 8.0, 2.9, 1.5],
-    [330.0, 190.0, 11.0, 2.3, 3.5],
-  ];
+  static final List<List<double>> _stars = () {
+    // Bintang kecil dasar: posisi tetap (pembangkit acak sederhana agar sama di setiap perangkat).
+    final out = <List<double>>[];
+    var sd = 11;
+    double rnd() {
+      sd = (sd * 16807) % 2147483647;
+      return sd / 2147483647;
+    }
+
+    while (out.length < 78) {
+      final x = rnd() * 780, y = rnd() * 330;
+      if (math.sqrt((x - 640) * (x - 640) + (y - 172) * (y - 172)) < 60) continue;
+      out.add([x, y, 0.8 + rnd() * 1.3, rnd() * 6.3, rnd() < 0.1 ? 1 : 0]);
+    }
+    return out;
+  }();
+
+  // ---------- alat gambar ----------
+  void _put(Canvas c, String n, Rect dst, {Rect? src, double a = 1, bool add = false}) {
+    final im = _SkyImages.get(n);
+    if (im == null || a <= 0) return;
+    final p = Paint()
+      ..filterQuality = FilterQuality.medium
+      ..color = Color.fromRGBO(255, 255, 255, a.clamp(0.0, 1.0));
+    if (add) p.blendMode = BlendMode.plus;
+    c.drawImageRect(im, src ?? Rect.fromLTWH(0, 0, im.width.toDouble(), im.height.toDouble()), dst, p);
+  }
+
+  static double _w(String n) => _SkyImages.get(n)?.width.toDouble() ?? 1;
+  static double _h(String n) => _SkyImages.get(n)?.height.toDouble() ?? 1;
+  bool _ok(String n) => _SkyImages.get(n) != null;
+
+  void _radial(Canvas c, Offset o, double r0, double r1, Color col, double a, {bool add = true}) {
+    final p = Paint()
+      ..shader = ui.Gradient.radial(o, r1, [col.withValues(alpha: a), col.withValues(alpha: 0)], [r0 / r1, 1])
+      ..blendMode = add ? BlendMode.plus : BlendMode.srcOver;
+    c.drawCircle(o, r1, p);
+  }
+
+  static double _clamp01(double v) => v < 0 ? 0 : (v > 1 ? 1 : v);
+
+  /// 0..1..0 bolak-balik dengan perlambatan di ujung (setara ease-in-out alternate di CSS).
+  static double _alt(double t, double period, [double delay = 0]) {
+    var k = ((t + delay) / period) % 2;
+    if (k < 0) k += 2;
+    if (k > 1) k = 2 - k;
+    return k * k * (3 - 2 * k);
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
+    canvas.save();
+    canvas.clipRect(Offset.zero & size);
+    canvas.scale(size.width / 780);
     final t = time.value;
-    final w = size.width;
-    final sx = w / 390;
-    if (night < 1) {
-      canvas.saveLayer(Offset.zero & size, Paint()..color = Colors.white.withValues(alpha: 1 - night));
-      _day(canvas, size, t, sx);
-      canvas.restore();
-    }
-    if (night > 0) {
-      canvas.saveLayer(Offset.zero & size, Paint()..color = Colors.white.withValues(alpha: night));
-      _night(canvas, size, t, sx);
-      canvas.restore();
-    }
-    _extras(canvas, size, t, sx);
-  }
+    final dt = (t - fx.last).clamp(0.0, 0.1).toDouble();
+    fx.last = t;
+    final f = fades.v;
 
-  /// Benda yang bertambah setiap pindah halaman + bintang jatuh.
-  void _extras(Canvas c, Size s, double t, double sx) {
-    final w = s.width;
-    // Level 4: pegunungan di kejauhan (+ aurora saat malam).
-    final p4 = _pop(4);
-    if (p4 > 0) {
-      if (night > 0) {
-        for (final (y, col, ph) in [(150.0, const Color(0xFF4ADE80), 0.0), (170.0, const Color(0xFFA78BFA), 1.5)]) {
-          final path = Path()..moveTo(-20, y);
-          for (var x = 0.0; x <= w + 40; x += 40) {
-            path.lineTo(x, y + 18 * math.sin(x / 70 + t * 0.6 + ph));
-          }
-          c.drawPath(
-              path,
-              Paint()
-                ..style = PaintingStyle.stroke
-                ..strokeWidth = 16
-                ..color = col.withValues(alpha: 0.35 * night * p4)
-                ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10));
-        }
+    _sky(canvas, t);
+    // Efek di belakang bukit.
+    if (!dark && f[1] > 0.02) _wind(canvas, t, f[1], lite: false);
+    if (f[2] > 0.02) dark ? _cosmos(canvas, t, f[2], lite: false) : _clouds(canvas, t, f[2], lite: false);
+    if (dark && f[3] > 0.02) _night4(canvas, t, f[3]);
+    if (f[4] > 0.02) dark ? _finale(canvas, t, dt, f[4]) : _finaleDay(canvas, t, f[4]);
+    if (f[0] > 0.02) {
+      if (dark) {
+        _rocket(canvas, t, dt, f[0], 14);
+      } else {
+        _plane(canvas, t, f[0]);
       }
-      c.save();
-      c.translate(0, s.height - 190 + (1 - p4) * 14);
-      final m = Path()..moveTo(0, 110);
-      const pts = [[0.0, 74.0], [38.0, 40.0], [66.0, 62.0], [112.0, 18.0], [160.0, 66.0], [200.0, 46.0], [248.0, 78.0], [290.0, 30.0], [336.0, 70.0], [366.0, 50.0], [390.0, 64.0]];
-      for (final p in pts) {
-        m.lineTo(p[0] * sx, p[1]);
-      }
-      m
-        ..lineTo(w, 110)
-        ..close();
-      c.drawPath(m, Paint()..color = Color.lerp(const Color(0xFFC4E0D0), const Color(0xFF123524), night)!.withValues(alpha: p4));
-      final snow = Paint()..color = Color.lerp(Colors.white, const Color(0xFF2E5C46), night)!.withValues(alpha: p4);
-      c.drawPath(Path()..moveTo(112 * sx, 18)..lineTo(98 * sx, 34)..lineTo(112 * sx, 30)..lineTo(124 * sx, 38)..close(), snow);
-      c.drawPath(Path()..moveTo(290 * sx, 30)..lineTo(278 * sx, 44)..lineTo(290 * sx, 40)..lineTo(302 * sx, 46)..close(), snow);
-      c.restore();
-    }
-    // Level 1: pesawat jet dengan jejak asap.
-    final p1 = _pop(1);
-    if (p1 > 0) {
-      final k = (t / 14) % 1;
-      final x = -130 + (w + 230) * k;
-      final y = 150 - 90 * k;
-      final a = p1 * (k < 0.08 ? k / 0.08 : (k > 0.92 ? (1 - k) / 0.08 : 1));
-      c.save();
-      c.translate(x, y);
-      c.rotate(-0.12);
-      c.drawLine(const Offset(0, 12), const Offset(72, 12), Paint()
-        ..strokeWidth = 3
-        ..strokeCap = StrokeCap.round
-        ..color = Colors.white.withValues(alpha: 0.7 * a));
-      final jet = Paint()..color = Color.lerp(Colors.white, const Color(0xFFDCEBE1), night)!.withValues(alpha: a);
-      c.drawRRect(RRect.fromLTRBR(72, 6, 118, 18, const Radius.circular(6)), jet);
-      c.drawPath(Path()..moveTo(90, 12)..lineTo(100, 2)..lineTo(105, 2)..lineTo(98, 12)..close(), jet);
-      c.drawPath(Path()..moveTo(78, 9)..lineTo(74, 2)..lineTo(79, 2)..lineTo(84, 9)..close(), jet);
-      c.restore();
-    }
-    // Level 2: balon udara melayang.
-    final p2 = _pop(2);
-    if (p2 > 0) {
-      final k = ((t + 10) / 46) % 1;
-      final x = -60 + (w + 120) * k;
-      final y = 96 + 6 * math.sin(t * 1.4);
-      c.save();
-      c.translate(x, y);
-      final dim = 1 - 0.35 * night;
-      c.drawPath(
-          Path()
-            ..moveTo(20, 2)
-            ..cubicTo(9, 2, 3, 11, 3, 20)
-            ..cubicTo(3, 29, 10, 35, 14, 40)
-            ..lineTo(26, 40)
-            ..cubicTo(30, 35, 37, 29, 37, 20)
-            ..cubicTo(37, 11, 31, 2, 20, 2)
-            ..close(),
-          Paint()..color = Color.fromRGBO((248 * dim).round(), (113 * dim).round(), (113 * dim).round(), p2));
-      c.drawPath(Path()..moveTo(20, 2)..cubicTo(15, 8, 14, 16, 16, 40)..lineTo(24, 40)..cubicTo(26, 16, 25, 8, 20, 2)..close(),
-          Paint()..color = Color.fromRGBO((251 * dim).round(), (191 * dim).round(), (36 * dim).round(), p2));
-      c.drawRRect(RRect.fromLTRBR(15, 48, 25, 56, const Radius.circular(2)), Paint()..color = const Color(0xFFB07A45).withValues(alpha: p2));
-      final line = Paint()
-        ..strokeWidth = 1.2
-        ..color = const Color(0xFF7A5C3A).withValues(alpha: p2);
-      c.drawLine(const Offset(14, 40), const Offset(17, 48), line);
-      c.drawLine(const Offset(26, 40), const Offset(23, 48), line);
-      c.restore();
-    }
-    // Level 3: roket meluncur (+ planet saat malam).
-    final p3 = _pop(3);
-    if (p3 > 0) {
-      if (night > 0) {
-        final pl = Offset(66 * sx, 118);
-        c.drawCircle(pl, 12, Paint()..color = const Color(0xFFA78BFA).withValues(alpha: night * p3));
-        c.save();
-        c.translate(pl.dx, pl.dy);
-        c.rotate(-0.3);
-        c.drawOval(const Rect.fromLTRB(-30, -7, 30, 7), Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 3
-          ..color = const Color(0xFFC4B5FD).withValues(alpha: night * p3));
-        c.restore();
-      }
-      final k = (t / 9) % 1;
-      final e = Curves.easeIn.transform(k);
-      final x = 296 * sx + 50 * e;
-      final y = 200 - 270 * e;
-      final a = p3 * (k < 0.1 ? k / 0.1 : (k > 0.85 ? (1 - k) / 0.15 : 1));
-      c.save();
-      c.translate(x, y);
-      c.rotate(0.21);
-      final flame = 0.8 + 0.3 * math.sin(t * 30);
-      c.drawPath(Path()..moveTo(7, 32)..lineTo(11, 32 + 22 * flame)..lineTo(15, 32)..close(), Paint()..color = const Color(0xFFFBBF24).withValues(alpha: a));
-      c.drawPath(
-          Path()..moveTo(11, 0)..cubicTo(16, 8, 18, 16, 18, 28)..lineTo(4, 28)..cubicTo(4, 16, 6, 8, 11, 0)..close(),
-          Paint()..color = const Color(0xFFF3F4F6).withValues(alpha: a));
-      c.drawCircle(const Offset(11, 16), 3.4, Paint()..color = const Color(0xFF60A5FA).withValues(alpha: a));
-      final fin = Paint()..color = const Color(0xFFEF4444).withValues(alpha: a);
-      c.drawPath(Path()..moveTo(4, 22)..lineTo(0, 34)..lineTo(4, 31)..close(), fin);
-      c.drawPath(Path()..moveTo(18, 22)..lineTo(22, 34)..lineTo(18, 31)..close(), fin);
-      c.restore();
-    }
-    // Bintang jatuh setiap pindah halaman.
-    final v = shoot.value;
-    if (v > 0 && v < 1) {
-      final x = -80 + (w + 160) * v;
-      final y = 40 + 70 * v;
-      final a = v < 0.15 ? v / 0.15 : 1 - v;
-      c.drawLine(Offset(x - 60, y - 6), Offset(x, y), Paint()
-        ..strokeWidth = 2
-        ..strokeCap = StrokeCap.round
-        ..color = Colors.white.withValues(alpha: 0.6 * a));
-      c.drawCircle(Offset(x, y), 3.4, Paint()..color = const Color(0xFFFDE68A).withValues(alpha: a));
-    }
-  }
-
-  void _gradient(Canvas c, Size s, List<Color> colors) {
-    c.drawRect(
-      Offset.zero & s,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: colors,
-          stops: const [0, 0.55, 1],
-        ).createShader(Offset.zero & s),
-    );
-  }
-
-  void _hills(Canvas c, Size s, double sx, Color back, Color front) {
-    final top = s.height - 130;
-    Path hill(List<double> d) {
-      // d: [y0, c1x,c1y, c2x,c2y, x,y, c3x,c3y, c4x,c4y, endY]
-      final p = Path()..moveTo(0, top + d[0]);
-      p.cubicTo(d[1] * sx, top + d[2], d[3] * sx, top + d[4], d[5] * sx, top + d[6]);
-      p.cubicTo(d[7] * sx, top + d[8], d[9] * sx, top + d[10], s.width, top + d[11]);
-      p.lineTo(s.width, s.height);
-      p.lineTo(0, s.height);
-      return p..close();
     }
 
-    c.drawPath(hill([74, 60, 42, 120, 48, 182, 72, 244, 96, 304, 52, 62]), Paint()..color = back);
-    c.drawPath(hill([100, 80, 80, 152, 84, 232, 102, 292, 114, 342, 96, 92]), Paint()..color = front);
-  }
+    // Bukit jauh dan tengah bergeser pelan (parallax).
+    _hill(canvas, 'S1$_th', t, 28, 6);
+    _hill(canvas, 'S2$_th', t, 22, 12);
 
-  void _cloud(Canvas c, double x, double y, double scale, Color color) {
-    final p = Paint()..color = color;
-    c.save();
-    c.translate(x, y);
-    c.scale(scale);
-    c.drawRRect(RRect.fromLTRBR(4, 22, 78, 40, const Radius.circular(12)), p);
-    c.drawCircle(const Offset(22, 26), 14, p);
-    c.drawCircle(const Offset(40, 18), 18, p);
-    c.drawCircle(const Offset(60, 24), 14, p);
-    c.restore();
-  }
-
-  void _clouds(Canvas c, Size s, double t, Color color, double opacity) {
-    const specs = [[26.0, 1.2, 70.0, 20.0], [92.0, 0.9, 95.0, 62.0], [150.0, 1.38, 120.0, 10.0]];
-    final travel = s.width + 170 + 60;
-    for (final sp in specs) {
-      final p = ((t + sp[3]) / sp[2]) % 1;
-      _cloud(c, -170 + p * travel, sp[0], sp[1], color.withValues(alpha: opacity));
+    // Efek di depan bukit.
+    final kf = math.max(f[3], f[4]);
+    if (!dark && kf > 0.02) _kites(canvas, t, kf);
+    final fgA = math.max(f[1], f[4]);
+    if (fgA > 0.02) {
+      final lite = f[4] > f[1];
+      dark ? _fireflies(canvas, t, fgA, lite) : _leaves(canvas, t, fgA, lite);
     }
-  }
 
-  void _day(Canvas c, Size s, double t, double sx) {
-    final w = s.width;
-    _gradient(c, s, const [Color(0xFFD3EEDC), Color(0xFFE6F4EA), Color(0x00F4F7F5)]);
-    // Cahaya + matahari
-    final sun = Offset(w - 61, 95);
-    c.drawCircle(
-      sun,
-      100,
-      Paint()
-        ..shader = const RadialGradient(
-          colors: [Color(0xFFFFF2BF), Color(0x99FFF2BF), Color(0x00FFF2BF)],
-          stops: [0, 0.3, 0.68],
-        ).createShader(Rect.fromCircle(center: sun, radius: 100)),
-    );
-    c.drawCircle(sun, 23, Paint()..color = const Color(0xFFFFE58A));
-    _clouds(c, s, t, Colors.white, 0.92);
-    _birds(c, s, t);
-    _plane(c, s, t);
-    _hills(c, s, sx, const Color(0xFFDDEFE3), const Color(0xFFE8F4EC));
-  }
-
-  void _birds(Canvas c, Size s, double t) {
-    final p = ((t + 6) / 26) % 1;
-    final gx = -90 + p * (s.width + 150);
-    final gy = 124 - p * 44;
-    final paint = Paint()
-      ..color = const Color(0xFF35574A)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8
-      ..strokeCap = StrokeCap.round;
-    const birds = [[0.0, 8.0, 0.0], [26.0, 0.0, 0.15], [30.0, 18.0, 0.3], [54.0, 10.0, 0.1]];
-    for (final b in birds) {
-      final flap = math.cos((t + b[2]) * 2 * math.pi / 0.55); // 1 .. -1
-      final f = 0.25 + 0.75 * (flap + 1) / 2; // tinggi sayap
-      final x = gx + b[0], y = gy + b[1];
-      final path = Path()
-        ..moveTo(x + 1, y + 6)
-        ..quadraticBezierTo(x + 6, y + 6 - 6 * f, x + 11, y + 6)
-        ..quadraticBezierTo(x + 16, y + 6 - 6 * f, x + 21, y + 6);
-      c.drawPath(path, paint);
-    }
-  }
-
-  void _plane(Canvas c, Size s, double t) {
-    // Titik kunci [x, y, sudut] seperti versi desain.
-    const keys = [
-      [-60.0, 46.0, 10.0], [40.0, 12.0, -8.0], [140.0, 40.0, 9.0],
-      [240.0, 8.0, -8.0], [340.0, 34.0, 8.0], [460.0, 6.0, -6.0],
-    ];
-    final p = ((t + 3) / 19) % 1 * (keys.length - 1);
-    final i = p.floor().clamp(0, keys.length - 2);
-    final f = Curves.easeInOut.transform(p - i);
-    double lerp(int k) => keys[i][k] + (keys[i + 1][k] - keys[i][k]) * f;
-    final scaleX = (s.width + 70) / 520;
-    final x = -60 + (lerp(0) + 60) * scaleX;
-    final y = 168 + lerp(1);
-    c.save();
-    c.translate(x, y);
-    c.rotate(lerp(2) * math.pi / 180);
-    final body = Path()
-      ..moveTo(1, 11)
-      ..lineTo(35, 1)
-      ..lineTo(21, 23)
-      ..lineTo(16, 14)
-      ..close();
-    c.drawPath(body, Paint()..color = Colors.white);
-    final line = Paint()
-      ..color = const Color(0xFF6E8F7E)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.3
-      ..strokeJoin = StrokeJoin.round;
-    c.drawPath(body, line);
-    c.drawPath(
-      Path()
-        ..moveTo(16, 14)
-        ..lineTo(35, 1)
-        ..moveTo(16, 14)
-        ..lineTo(13, 21)
-        ..lineTo(21, 23),
-      line,
-    );
-    c.restore();
-  }
-
-  void _night(Canvas c, Size s, double t, double sx) {
-    final w = s.width;
-    _gradient(c, s, const [Color(0xFF0F2D1D), Color(0xFF0C1D14), Color(0x000A100D)]);
-    final moon = Offset(w - 61, 95);
-    c.drawCircle(
-      moon,
-      85,
-      Paint()
-        ..shader = const RadialGradient(colors: [Color(0x38F4EFC6), Color(0x00F4EFC6)], stops: [0, 0.65])
-            .createShader(Rect.fromCircle(center: moon, radius: 85)),
-    );
-    // Bulan sabit
-    c.save();
-    c.translate(moon.dx - 23, moon.dy - 23);
-    final crescent = Path()
-      ..moveTo(30, 4)
-      ..arcToPoint(const Offset(42, 34), radius: const Radius.circular(20), largeArc: true, clockwise: false)
-      ..arcToPoint(const Offset(30, 4), radius: const Radius.circular(17), clockwise: true)
-      ..close();
-    c.drawPath(crescent, Paint()..color = const Color(0xFFF4EFC6));
-    c.restore();
-    // Bintang berkelip
-    for (final st in _stars) {
-      final a = 0.25 + 0.75 * (0.5 + 0.5 * math.sin(t * 2 * math.pi / st[3] + st[0]));
-      c.drawCircle(Offset(st[0] * sx, st[1]), st[2], Paint()..color = const Color(0xFFF4EFC6).withValues(alpha: a));
-    }
-    _clouds(c, s, t, const Color(0xFF2D4A3B), 0.55);
-    _hills(c, s, sx, const Color(0xFF11281C), const Color(0xFF0E1F16));
-    // Kunang-kunang
-    for (final f in _flies) {
-      final ph = (t + f[4]) * 2 * math.pi / f[2];
-      final dx = 14 * math.sin(ph) - 6 * math.sin(2 * ph);
-      final dy = -12 * (1 - math.cos(ph));
-      final glow = 0.15 + 0.85 * (0.5 + 0.5 * math.sin((t + f[4]) * 2 * math.pi / f[3]));
-      final o = Offset(f[0] * sx + dx, f[1] + dy);
-      c.drawCircle(
-        o,
-        9,
-        Paint()
-          ..color = const Color(0xFFBEF264).withValues(alpha: 0.35 * glow)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
-      );
-      c.drawCircle(o, 2.5, Paint()..color = const Color(0xFFE3FF9E).withValues(alpha: glow));
-    }
+    // Tokoh bernapas pelan, lalu rumput yang bergoyang di paling depan.
+    _character(canvas, t);
+    _grass(canvas, t);
+    canvas.restore();
   }
 
   @override
-  bool shouldRepaint(covariant _SkyPainter old) => old.night != night;
+  bool shouldRepaint(covariant _ScenePainter old) => old.dark != dark || old.reduce != reduce;
+
+  // ---------- dasar: langit, bulan/matahari, bukit, tokoh, rumput ----------
+  void _sky(Canvas c, double t) {
+    _put(c, 'sky$_th', const Rect.fromLTWH(0, 0, 780, 600));
+    if (dark) {
+      for (final s in _stars) {
+        final a = reduce ? 0.8 : 0.35 + 0.65 * (0.5 + 0.5 * math.sin(t * 1.5 + s[3]));
+        final p = Paint()..color = Color.fromRGBO(255, 241, 201, a);
+        final x = s[0], y = s[1], r = s[2];
+        if (s[4] == 1) {
+          final l = 5 + r * 2.4;
+          final path = Path()
+            ..moveTo(x, y - l)
+            ..quadraticBezierTo(x, y, x + l, y)
+            ..quadraticBezierTo(x, y, x, y + l)
+            ..quadraticBezierTo(x, y, x - l, y)
+            ..quadraticBezierTo(x, y, x, y - l)
+            ..close();
+          c.drawPath(path, p);
+        } else {
+          c.drawCircle(Offset(x, y), r, p);
+        }
+      }
+      _put(c, 'moon', Rect.fromCenter(center: const Offset(640, 172), width: 150, height: 150));
+    } else {
+      final pu = reduce ? 0.0 : 0.5 + 0.5 * math.sin(t * 0.9);
+      _radial(c, const Offset(640, 175), 20, 120, const Color(0xFFFFE2A0), 0.34 + 0.1 * pu, add: false);
+      _put(c, 'sun', Rect.fromCenter(center: const Offset(640, 175), width: 76, height: 76));
+    }
+  }
+
+  void _hill(Canvas c, String n, double t, double period, double amp) {
+    final dx = reduce ? 0.0 : (-amp + 2 * amp * _alt(t, period));
+    c.save();
+    c.translate(390, 300);
+    c.scale(1.03);
+    c.translate(-390 + dx, -300);
+    _put(c, n, const Rect.fromLTWH(0, 0, 780, 600));
+    c.restore();
+  }
+
+  void _character(Canvas c, double t) {
+    // Tokoh 152 x 202 di (562, 294); bernapas dengan skala vertikal 1 -> 1,012 dari kakinya.
+    final k = reduce ? 0.0 : 0.012 * (0.5 - 0.5 * math.cos(t * 2 * math.pi / 4.2));
+    c.save();
+    c.translate(562 + 76, 294 + 202);
+    c.scale(1, 1 + k);
+    _put(c, 'S4$_th', const Rect.fromLTWH(-76, -202, 152, 202));
+    c.restore();
+  }
+
+  void _grass(Canvas c, double t) {
+    void piece(String n, double x, double w, double from, double to, double period, double delay) {
+      final deg = reduce ? 0.0 : from + (to - from) * _alt(t, period, delay);
+      c.save();
+      c.translate(x + w / 2, 600);
+      c.transform((Matrix4.identity()..setEntry(0, 1, math.tan(deg * math.pi / 180))).storage);
+      _put(c, n, Rect.fromLTWH(-w / 2, -600, w, 600));
+      c.restore();
+    }
+
+    piece('S3${_th}L', 0, 215, -1.6, 1.9, 3.4, 0);
+    piece('S3${_th}C', 215, 355, -0.6, 0.7, 5.2, 0);
+    piece('S3${_th}R', 570, 210, -1.6, 1.9, 4.1, 1.3);
+  }
+
+  // ---------- halaman 1: pesawat dan roket ----------
+  void _plane(Canvas c, double t, double ga) {
+    const w = 130.0, h = 29.0, ang = 0.09;
+    void draw(double px, double py) {
+      c.save();
+      c.translate(px, py);
+      c.rotate(ang);
+      c.scale(-1, 1);
+      _put(c, 'plane', const Rect.fromLTWH(-w / 2, -h / 2, w, h), a: ga);
+      c.restore();
+    }
+
+    if (reduce) {
+      draw(520, 140);
+      return;
+    }
+    const period = 18.0;
+    final k = (t % period) / period;
+    final act = k < 0.72;
+    final u = k / 0.72;
+    final px = 980 - 1180 * u, py = 205 - 150 * u + 5 * math.sin(u * 10);
+    if (act) {
+      const lx = w * 0.46, ly = h * 0.08;
+      fx.pts.add(_Pt(px + lx * math.cos(ang) - ly * math.sin(ang), py + lx * math.sin(ang) + ly * math.cos(ang), t));
+    }
+    while (fx.pts.isNotEmpty && t - fx.pts.first.t > 5.2) {
+      fx.pts.removeAt(0);
+    }
+    final line = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    for (var i = 1; i < fx.pts.length; i++) {
+      final a = fx.pts[i - 1], b = fx.pts[i];
+      if (b.t - a.t > 0.3) continue;
+      final age = t - b.t;
+      final al = 0.72 * math.pow(math.max(0.0, 1 - age / 5.2), 1.4) * ga;
+      final off = 1.2 + age * 0.9;
+      line
+        ..color = Color.fromRGBO(255, 255, 255, al.clamp(0.0, 1.0).toDouble())
+        ..strokeWidth = 2 + age * 1.5;
+      c.drawLine(Offset(a.x, a.y - off), Offset(b.x, b.y - off), line);
+      c.drawLine(Offset(a.x, a.y + off), Offset(b.x, b.y + off), line);
+    }
+    if (act) draw(px, py);
+  }
+
+  void _rocket(Canvas c, double t, double dt, double ga, double period) {
+    if (reduce) return;
+    final kt = t % period;
+    const t0 = 1.5, t1 = 8.0;
+    final fly = kt >= t0 && kt <= t1;
+    final u = _clamp01((kt - t0) / (t1 - t0));
+    final e = math.pow(u, 2.1).toDouble();
+    final rx = 380 + 90 * e, ry = 480 - 640 * e;
+    final th = math.atan2(90, 640) * 0.9;
+    const rw = 48.0, rh = 88.0;
+    final nozX = rx - math.sin(th) * rh * 0.35, nozY = ry + math.cos(th) * rh * 0.35;
+    if (fly) {
+      fx.acc += dt;
+      while (fx.acc > 0.1) {
+        fx.acc -= 0.1;
+        fx.smoke.add(_Puff(nozX + (fx.rnd.nextDouble() - 0.5) * 6, nozY + 8, t, 1 + fx.rnd.nextInt(3), (fx.rnd.nextDouble() - 0.5) * 10 - 5));
+      }
+    }
+    for (var i = fx.smoke.length - 1; i >= 0; i--) {
+      final s = fx.smoke[i];
+      final age = t - s.t0;
+      if (age > 1.6) {
+        fx.smoke.removeAt(i);
+        continue;
+      }
+      final n = 's${s.k}';
+      if (!_ok(n)) continue;
+      final sc = 0.4 + age * 0.5, w = _w(n) * 0.4 * sc, h = _h(n) * 0.4 * sc;
+      _put(c, n, Rect.fromLTWH(s.x + s.vx * age - w / 2, s.y + age * 14 - h / 2, w, h), a: _clamp01(0.62 * (1 - age / 1.6)) * ga);
+    }
+    if (!fly) return;
+    c.save();
+    c.translate(rx, ry);
+    c.rotate(th);
+    final fn = ['f1', 'f2', 'f3', 'f2'][(t * 14).floor() % 4];
+    if (_ok(fn)) {
+      final fw = _w(fn) * 0.4, fh = _h(fn) * 0.4 * (0.85 + 0.35 * math.min(1.0, u * 3));
+      _put(c, fn, Rect.fromLTWH(-fw / 2, rh * 0.35 - 4, fw, fh), a: ga);
+    }
+    _put(c, 'rocket', const Rect.fromLTWH(-rw / 2, -rh / 2, rw, rh), a: ga);
+    c.restore();
+  }
+
+  // ---------- halaman 2: angin, daun, kunang-kunang ----------
+  void _wind(Canvas c, double t, double ga, {required bool lite}) {
+    const defs = [
+      [0.0, 96.0, 0.62, 7.0, 0.0, 20.0],
+      [3.0, 156.0, 0.5, 8.5, 0.28, 300.0],
+      [2.0, 232.0, 0.74, 9.5, 0.55, 470.0],
+      [1.0, 62.0, 0.42, 6.0, 0.8, 120.0],
+    ];
+    final list = lite ? defs.sublist(0, 2) : defs;
+    for (var n = 0; n < list.length; n++) {
+      final d = list[n];
+      final name = 'w${d[0].toInt()}';
+      if (!_ok(name)) continue;
+      final iw = _w(name), ih = _h(name);
+      final sc = d[2], y = d[1], period = d[3], ph = d[4], bx = d[5];
+      final w = iw * sc, h = ih * sc;
+      if (reduce) {
+        if (n < 2) _put(c, name, Rect.fromLTWH(bx, y, w, h), a: 0.55 * ga);
+        continue;
+      }
+      final k = (t / period + ph) % 1;
+      final e = _clamp01(k / 0.5), s0 = _clamp01((k - 0.5) / 0.5);
+      final ee = 1 - math.pow(1 - e, 2).toDouble(), ss = s0 * s0 * (3 - 2 * s0);
+      if (ee - ss < 0.01) continue;
+      final ox = bx + 140 * k, sw = (ee - ss) * iw;
+      final a = 0.82 * math.pow(math.sin(math.pi * _clamp01(k)), 0.5).toDouble() * ga;
+      _put(c, name, Rect.fromLTWH(ox + ss * w, y, sw * sc, h), src: Rect.fromLTWH(ss * iw, 0, sw, ih), a: a);
+    }
+  }
+
+  void _leaves(Canvas c, double t, double ga, bool lite) {
+    if (!_ok('leaves')) return;
+    final tt = reduce ? 0.0 : t;
+    final count = lite ? 6 : 11;
+    for (var n = 0; n < count; n++) {
+      final idx = n % 8;
+      final period = 11 + (n * 1.7) % 5, ph = (n * 0.37) % 1;
+      final k = reduce ? ph : (tt / period + ph) % 1;
+      final px = -50 + 880 * k;
+      final py = 40 + (n * 53) % 230 + 38 * math.sin(k * 9.4 + n) + 70 * k;
+      final rot = k * 6.28 * (1 + (n % 3) * 0.4) * (n % 2 == 1 ? 1 : -1) + math.sin(tt * 2 + n) * 0.5;
+      final sx = 0.28 + 0.72 * math.cos(tt * (1.6 + (n % 3) * 0.5) + n).abs();
+      final size = 40.0 + (n * 11) % 26;
+      final a = math.min(1.0, math.min(k * 8, (1 - k) * 8)) * ga;
+      c.save();
+      c.translate(px, py);
+      c.rotate(rot);
+      c.scale(sx, 1);
+      _put(c, 'leaves', Rect.fromLTWH(-size / 2, -size / 2, size, size),
+          src: Rect.fromLTWH((idx % 4) * 128.0, (idx ~/ 4) * 128.0, 128, 128), a: a);
+      c.restore();
+    }
+  }
+
+  void _fireflies(Canvas c, double t, double ga, bool lite) {
+    if (!_ok('ff')) return;
+    final tt = reduce ? 0.0 : t;
+    final count = lite ? 9 : 15;
+    for (var n = 0; n < count; n++) {
+      final body = n < 6;
+      final b0 = 0.35 + 0.05 * (n % 3), ang = tt * b0 + n * 1.7;
+      final bx = 40 + (n * 137.5) % 700, by = 150 + (n * 83) % 320;
+      final px = bx + 30 * math.sin(ang) + 14 * math.sin(tt * 1.1 + n * 2.3);
+      final py = by + 22 * math.sin(tt * (0.3 + 0.04 * (n % 4)) + n * 2.9) + 8 * math.sin(tt * 0.9 + n);
+      final g = reduce ? 0.7 : 0.25 + 0.75 * math.pow(math.max(0.0, math.sin(tt * (0.9 + 0.15 * (n % 4)) + n * 1.3)), 1.5).toDouble();
+      if (body) {
+        final dirR = math.cos(ang) >= 0;
+        final fr = reduce ? 0 : [0, 1, 2, 1][(tt * (12 + (n % 3) * 2)).floor() % 4];
+        final kk = (30 + (n % 3) * 5) / 100;
+        c.save();
+        c.translate(px, py);
+        c.scale(dirR ? -1 : 1, 1);
+        _put(c, 'ff', Rect.fromLTWH(-92 * kk, -78 * kk, 160 * kk, 128 * kk), src: Rect.fromLTWH(fr * 160.0, 0, 160, 128), a: ga);
+        c.restore();
+      }
+      final sz = body ? 34 + g * 32 : 9 + (n % 4) * 3 + g * 6;
+      final oi = 1 + (n % 3);
+      _put(c, 'ff', Rect.fromLTWH(px - sz / 2, py - sz / 2, sz, sz),
+          src: Rect.fromLTWH(oi * 160.0 + 32, 128, 96, 96), a: (body ? 0.35 + 0.65 * g : 0.2 + 0.55 * g) * ga, add: true);
+    }
+  }
+
+  // ---------- halaman 3: awan, planet, bintang ----------
+  void _clouds(Canvas c, double t, double ga, {required bool lite}) {
+    if (!_ok('cl')) return;
+    const defs = [
+      [2.0, 62.0, 0.55, 95.0, 0.1, 0.72], [6.0, 106.0, 0.6, 110.0, 0.55, 0.72], [4.0, 28.0, 0.7, 100.0, 0.8, 0.72],
+      [3.0, 80.0, 0.85, 70.0, 0.3, 0.9], [8.0, 120.0, 0.8, 75.0, 0.7, 0.9], [9.0, 42.0, 0.9, 65.0, 0.05, 0.9],
+      [0.0, 96.0, 0.95, 48.0, 0.45, 1.0], [5.0, 128.0, 1.0, 55.0, 0.9, 1.0], [7.0, 66.0, 1.05, 44.0, 0.2, 1.0],
+      [1.0, 22.0, 0.9, 60.0, 0.65, 0.9],
+    ];
+    for (var i = 0; i < defs.length; i++) {
+      if (lite && i % 2 != 0) continue;
+      final d = defs[i];
+      final idx = d[0].toInt();
+      final w = 256 * d[2], h = 176 * d[2];
+      final k = reduce ? d[4] : (t / d[3] + d[4]) % 1;
+      final px = -w + (780 + w * 2) * k;
+      _put(c, 'cl', Rect.fromLTWH(px, d[1] - h / 2, w, h),
+          src: Rect.fromLTWH((idx % 5) * 256.0, (idx ~/ 5) * 176.0, 256, 176), a: d[5] * ga);
+    }
+  }
+
+  void _cosmos(Canvas c, double t, double ga, {required bool lite}) {
+    final tt = reduce ? 0.0 : t;
+    if (_ok('st')) {
+      for (var n = 0; n < (lite ? 14 : 28); n++) {
+        final row = n % 3, col = (n ~/ 3) % 4;
+        final sx = (n * 97.3) % 760 + 10, sy = (n * 61.7) % 230 + 6;
+        final a = reduce ? 0.8 : 0.35 + 0.65 * (0.5 + 0.5 * math.sin(tt * (0.8 + 0.2 * (n % 5)) + n * 1.9));
+        final sc = reduce ? 1.0 : 0.88 + 0.22 * math.sin(tt * (0.7 + 0.15 * (n % 4)) + n);
+        final sz = [34.0, 26.0, 20.0, 14.0][col] * (row == 2 ? 0.8 : 1) * sc;
+        c.save();
+        c.translate(sx, sy);
+        if (row == 0 && !reduce) c.rotate(0.12 * math.sin(tt * 0.5 + n));
+        _put(c, 'st', Rect.fromLTWH(-sz / 2, -sz / 2, sz, sz), src: Rect.fromLTWH(col * 96.0, row * 96.0, 96, 96), a: a * ga, add: true);
+        c.restore();
+      }
+    }
+    if (!_ok('pl')) return;
+    const planets = [
+      [0, 335.0, 70.0, 0xFFB08CFF], [1, 485.0, 52.0, 0xFFFFAA50], [2, 580.0, 108.0, 0xFFA0B4E6],
+      [3, 420.0, 112.0, 0xFFF06E46], [4, 700.0, 58.0, 0xFF46DCFF], [5, 255.0, 36.0, 0xFFFFE196],
+    ];
+    final list = lite ? [planets[0], planets[4], planets[5]] : planets;
+    for (var n = 0; n < list.length; n++) {
+      final p = list[n];
+      final idx = p[0] as int;
+      final px = (p[1] as double) + (reduce ? 0 : 9 * math.sin(tt * 0.2 + n * 1.3));
+      final py = (p[2] as double) + (reduce ? 0 : 7 * math.sin(tt * 0.27 + n * 2.1));
+      final rot = reduce ? 0.0 : 0.07 * math.sin(tt * 0.22 + n);
+      _radial(c, Offset(px, py), 8, 56, Color(p[3] as int), 0.22 * ga);
+      c.save();
+      c.translate(px, py);
+      c.rotate(rot);
+      _put(c, 'pl', Rect.fromLTWH(-45, -45, 90, 90), src: Rect.fromLTWH((idx % 3) * 160.0, (idx ~/ 3) * 160.0, 160, 160), a: ga);
+      c.restore();
+    }
+  }
+
+  // ---------- halaman 4: burung, meteor, layang-layang ----------
+  void _night4(Canvas c, double t, double ga) {
+    final tt = reduce ? 0.0 : t;
+    if (_ok('bird')) {
+      void bird(double px, double py, double ks, int fi) =>
+          _put(c, 'bird', Rect.fromLTWH(px - 128 * ks, py - 88 * ks, 256 * ks, 176 * ks), src: Rect.fromLTWH(fi * 256.0, 0, 256, 176), a: ga);
+      const lead = [[0.0, 0.0], [-42.0, 15.0], [-74.0, -13.0], [-100.0, 24.0], [-136.0, 5.0], [-158.0, -21.0]];
+      const period = 30.0;
+      final k = reduce ? 0.42 : (tt / period) % 1;
+      final lx = -40 + 960 * k, ly = 92 + 16 * math.sin(k * 14);
+      for (var n = 0; n < lead.length; n++) {
+        final fi = reduce ? 1 : [0, 1, 2, 1][(tt * 3.6 + n * 0.37).floor() % 4];
+        final px = lx + lead[n][0], py = ly + lead[n][1] + 3 * math.sin(tt * 1.7 + n);
+        if (px > -80 && px < 860) bird(px, py, 0.27 - n * 0.01, fi);
+      }
+      const lone = [[56.0, 40.0, 0.19, 0.3], [150.0, 36.0, 0.22, 0.72]];
+      for (var n = 0; n < lone.length; n++) {
+        final d = lone[n];
+        final k2 = reduce ? d[3] : (tt / d[1] + d[3]) % 1;
+        bird(-40 + 900 * k2, d[0] + 10 * math.sin(k2 * 11 + n), d[2], reduce ? 1 : [0, 1, 2, 1][(tt * 4 + n).floor() % 4]);
+      }
+    }
+    if (reduce) return;
+    const cy = 7.0;
+    final n = (tt / cy).floor();
+    final u = (tt % cy) / 1.0;
+    if (u > 1) return;
+    final name = 'met${n % 2}';
+    if (!_ok(name)) return;
+    final right = n % 2 == 0;
+    final a = right ? 0.38 : math.pi - 0.38;
+    final sx = 120 + (n * 211) % 440, sy = 14 + (n * 37) % 80, d = 430 * u;
+    const w = 230.0;
+    final h = w * _h(name) / _w(name);
+    c.save();
+    c.translate(sx + math.cos(a) * d, sy + math.sin(a) * d);
+    c.rotate(a);
+    _put(c, name, Rect.fromLTWH(-w + 8, -h / 2, w, h), a: math.pow(math.sin(math.pi * u), 0.6).toDouble() * ga, add: true);
+    c.restore();
+  }
+
+  void _kites(Canvas c, double t, double ga) {
+    if (!_ok('kite') || !_ok('kid')) return;
+    final tt = reduce ? 0.0 : t;
+    const km = [[52.0, 5.0, 75.0, 200.0], [52.0, 5.0, 75.0, 197.0], [55.0, 5.0, 69.0, 193.0], [26.0, 5.0, 127.0, 194.0], [62.0, 5.0, 55.0, 198.0]];
+    const cm = [[129.6, 13.7], [128.9, 14.0], [122.5, 37.4], [146.6, 11.4]];
+    const cx = [135.0, 290.0, 450.0, 615.0];
+    const fy = 468.0, kd = 0.52;
+    final hands = <Offset>[];
+    for (var i = 0; i < cm.length; i++) {
+      _put(c, 'kid', Rect.fromLTWH(cx[i] - 80 * kd, fy - 156 * kd, 160 * kd, 160 * kd), src: Rect.fromLTWH(i * 160.0, 0, 160, 160), a: ga);
+      hands.add(Offset(cx[i] - 80 * kd + cm[i][0] * kd, fy - 156 * kd + cm[i][1] * kd));
+    }
+    const ks = [
+      [0, 0, 130.0, 46.0, 0.52], [1, 1, 290.0, 42.0, 0.5], [2, 2, 470.0, 58.0, 0.52], [4, 3, 610.0, 48.0, 0.5], [3, -1, 385.0, 30.0, 0.34],
+    ];
+    final line = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 1.2
+      ..color = Color.fromRGBO(255, 255, 255, 0.8 * ga);
+    for (var i = 0; i < ks.length; i++) {
+      final d = ks[i];
+      final ki = d[0] as int, ci = d[1] as int;
+      final bx = d[2] as double, by = d[3] as double, s = d[4] as double;
+      final kx = bx + 18 * math.sin(tt * 0.42 + i * 1.7), ky = by + 7 * math.sin(tt * 0.55 + i * 2.3);
+      final rot = 0.1 * math.sin(tt * 0.5 + i), sk = 0.08 * math.sin(tt * 0.9 + i);
+      final m = km[ki];
+      final ax = m[0] + m[2] / 2, ay = m[1] + m[3] * 0.24;
+      if (ci >= 0) {
+        final h = hands[ci];
+        final mx = (h.dx + kx) / 2 + 12 * math.sin(tt * 0.8 + i), my = (h.dy + ky) / 2 + 14 + 6 * math.sin(tt * 0.6 + i);
+        final p = Path()
+          ..moveTo(h.dx, h.dy)
+          ..quadraticBezierTo(mx, my, kx, ky);
+        c.drawPath(p, line);
+      }
+      c.save();
+      c.translate(kx, ky);
+      c.rotate(rot);
+      c.transform((Matrix4.identity()..setEntry(0, 1, sk)).storage);
+      _put(c, 'kite', Rect.fromLTWH(-ax * s, -ay * s, 180 * s, 210 * s), src: Rect.fromLTWH(ki * 180.0, 0, 180, 210), a: ga);
+      c.restore();
+    }
+  }
+
+  // ---------- halaman 5: gabungan ----------
+  void _finale(Canvas c, double t, double dt, double ga) {
+    final tt = reduce ? 0.0 : t;
+    if (_ok('rib0') && _ok('rib1')) {
+      const w = 700.0;
+      final h = w * _h('rib0') / _w('rib0');
+      final cx = 420 + (reduce ? 0 : 10 * math.sin(tt * 0.12)), cy = 175 + (reduce ? 0 : 6 * math.sin(tt * 0.17));
+      final m = reduce ? 0.5 : 0.5 + 0.5 * math.sin(tt * 0.35);
+      final r = Rect.fromLTWH(cx - w / 2, cy - h / 2, w, h);
+      _put(c, 'rib0', r, a: 0.5 * (0.4 + 0.6 * (1 - m)) * ga, add: true);
+      _put(c, 'rib1', r, a: ga * 0.5 * (0.4 + 0.6 * m), add: true);
+    }
+    _cosmos(c, t, ga, lite: true);
+    _night4(c, t, ga);
+    if (_ok('lan')) {
+      for (var n = 0; n < 7; n++) {
+        final period = 50 + (n * 9) % 30;
+        final k = reduce ? (n * 0.15) % 1 : (tt / period + n * 0.143) % 1;
+        final ci = n % 3, sc = 0.3 + 0.08 * ((n * 7) % 3);
+        final px = 90 + (n * 109) % 600 + 16 * math.sin(tt * 0.4 + n * 1.7), py = 520 - 600 * k;
+        final fl = reduce ? 1.0 : 0.88 + 0.12 * math.sin(tt * 3 + n * 2);
+        final a = math.min(1.0, math.min(k * 8, (1 - k) * 5)) * fl * ga;
+        _put(c, 'lan', Rect.fromLTWH(px - 80 * sc, py - 80 * sc, 160 * sc, 160 * sc), src: Rect.fromLTWH(ci * 160.0, 0, 160, 160), a: a);
+      }
+    }
+    if (!reduce) _rocket(c, t, dt, ga, 26);
+  }
+
+  void _finaleDay(Canvas c, double t, double ga) {
+    final tt = reduce ? 0.0 : t;
+    _clouds(c, t, ga, lite: true);
+    if (_ok('balloon')) {
+      const period = 80.0;
+      final k = reduce ? 0.35 : (tt / period + 0.2) % 1;
+      final px = -60 + 900 * k, py = 178.0 + (reduce ? 0.0 : 8 * math.sin(tt * 0.5));
+      const h = 86.0;
+      final w = h * _w('balloon') / _h('balloon');
+      c.save();
+      c.translate(px, py);
+      c.rotate(reduce ? 0.0 : 0.04 * math.sin(tt * 0.4));
+      _put(c, 'balloon', Rect.fromLTWH(-w / 2, -h / 2, w, h), a: ga);
+      c.restore();
+    }
+    _plane(c, t, ga);
+    _wind(c, t, ga, lite: true);
+  }
 }

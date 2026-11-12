@@ -48,18 +48,7 @@ class _ReportPageState extends State<ReportPage> {
     final byCat = store.spentByCategory(from, to).entries.toList()..sort((a, b) => b.value.compareTo(a.value));
     final total = byCat.fold<int>(0, (s, e) => s + e.value);
 
-    final months = store.lastMonths(6);
-    final last = months[4].value, cur = months[5].value;
-    String trend;
-    Color trendColor;
-    if (last == 0) {
-      trend = tr('Belum ada data bulan lalu');
-      trendColor = z.muted2;
-    } else {
-      final d = (cur - last) / last * 100;
-      trend = trf(d <= 0 ? 'Turun {0}% dari {1}' : 'Naik {0}% dari {1}', [L.en ? d.abs().toStringAsFixed(1) : d.abs().toStringAsFixed(1).replaceAll('.', ','), monthLong(months[4].key)]);
-      trendColor = d <= 0 ? z.accentText : z.warn;
-    }
+    final daily = store.dailyExpense(14);
 
     return PageScroll(children: [
       PageTitle(tr('Laporan')),
@@ -126,11 +115,12 @@ class _ReportPageState extends State<ReportPage> {
             child: ZCard(
               padding: const EdgeInsets.all(14),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(tr('Tren'), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 2),
-                Text(trend, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: trendColor, height: 1.35)),
-                const SizedBox(height: 10),
-                SizedBox(height: scaledHeight(context, 124), child: _Bars(months: months)),
+                Text(tr('14 hari terakhir'), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text(trf('rata-rata {0}', [rpShort(daily.fold<int>(0, (a, b) => a + b) / 14)]),
+                    style: TextStyle(fontSize: 11, color: z.muted2, fontFeatures: const [FontFeature.tabularFigures()])),
+                const SizedBox(height: 22),
+                SizedBox(height: scaledHeight(context, 104), child: _DailyBars(values: daily)),
               ]),
             ),
           ),
@@ -199,11 +189,12 @@ class _ReportPageState extends State<ReportPage> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(store.category(byCat[i].key).label,
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                   ),
                   Text('${(byCat[i].value / total * 100).round()}%  ',
-                      style: TextStyle(fontSize: 12, color: z.muted2, fontWeight: FontWeight.w600)),
-                  Text(rp(byCat[i].value), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
+                      style: TextStyle(fontSize: 12, color: z.muted2, fontWeight: FontWeight.w400)),
+                  Text(rp(byCat[i].value),
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, fontFeatures: [FontFeature.tabularFigures()])),
                 ]),
               ),
           ]),
@@ -252,44 +243,53 @@ class _BudgetMood extends StatelessWidget {
   }
 }
 
-class _Bars extends StatelessWidget {
-  const _Bars({required this.months});
+/// Batang pengeluaran harian untuk 14 hari terakhir; hari ini berwarna hijau.
+class _DailyBars extends StatelessWidget {
+  const _DailyBars({required this.values});
 
-  final List<MapEntry<DateTime, int>> months;
+  final List<int> values;
 
   @override
   Widget build(BuildContext context) {
     final z = ZColors.of(context);
-    final maxV = months.map((e) => e.value).fold<int>(0, math.max);
-    return Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-      for (var i = 0; i < months.length; i++)
-        Expanded(
-          child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
-            TweenAnimationBuilder<double>(
-              tween: Tween(end: maxV == 0 ? 0 : months[i].value / maxV),
-              duration: Duration(milliseconds: 500 + i * 60),
-              curve: Curves.easeOutCubic,
-              builder: (_, v, _) => Container(
-                width: 14,
-                height: math.max(6, 98 * v),
-                decoration: BoxDecoration(
-                  color: i == months.length - 1 ? z.primary : z['barMuted'],
-                  borderRadius: BorderRadius.circular(6),
-                ),
-              ),
+    final maxV = values.fold<int>(0, math.max);
+    final reduce = MediaQuery.disableAnimationsOf(context);
+    final now = DateTime.now();
+    final first = DateTime(now.year, now.month, now.day - (values.length - 1));
+    return Column(children: [
+      Expanded(
+        child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          for (var i = 0; i < values.length; i++) ...[
+            if (i > 0) const SizedBox(width: 3),
+            Expanded(
+              child: LayoutBuilder(builder: (_, c) {
+                final v = values[i];
+                final full = v == 0 ? 4.0 : math.max(6.0, (v / maxV * (c.maxHeight - 16)).roundToDouble());
+                return Align(
+                  alignment: Alignment.bottomCenter,
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(begin: reduce ? 1 : 0, end: 1),
+                    duration: reduce ? Duration.zero : Duration(milliseconds: 500 + i * 30),
+                    curve: const Cubic(0.22, 0.8, 0.3, 1),
+                    builder: (_, k, _) => Container(
+                      height: full * k,
+                      decoration: BoxDecoration(
+                        color: i == values.length - 1 ? z.primary : (v > 0 ? z['chipBorder'] : z.track),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+                );
+              }),
             ),
-            const SizedBox(height: 5),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(monthShort(months[i].key),
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: i == months.length - 1 ? FontWeight.w800 : FontWeight.w500,
-                    color: i == months.length - 1 ? z.accentText : z.muted2,
-                  )),
-            ),
-          ]),
-        ),
+          ],
+        ]),
+      ),
+      const SizedBox(height: 8),
+      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        Text('${first.day} ${monthShort(first)}', style: TextStyle(fontSize: 10, color: z.muted2)),
+        Text(tr('Hari ini'), style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: z.accentText)),
+      ]),
     ]);
   }
 }

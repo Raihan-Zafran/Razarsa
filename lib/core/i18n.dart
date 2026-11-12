@@ -25,6 +25,17 @@ String trf(String id, List<Object?> args) {
 
 const _en = <String, String>{
   'Level {0} · {1} XP': 'Level {0} · {1} XP',
+  // Desain v1.1: grafik saldo, 14 hari terakhir, perkiraan target, fokus, tombol mode
+  'Sekitar {0} jika menabung {1}/bulan': 'About {0} if you save {1}/month',
+  '14 hari terakhir': 'Last 14 days',
+  'rata-rata {0}': 'avg. {0}',
+  'Saldo 12 hari terakhir': 'Balance, last 12 days',
+  'tugas tersisa hari ini': 'tasks left today',
+  'tugas hari ini selesai': "today's tasks are done",
+  'terlambat': 'overdue',
+  'Mode aplikasi': 'App mode',
+  'Mode Keuangan': 'Finance mode',
+  'Mode Produktif': 'Productive mode',
   // Profil: avatar, bingkai, cover, lencana (v2)
   'Naga ceria': 'Cheerful dragon',
   'Naga daun': 'Leaf dragon',

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../core/i18n.dart';
 import '../core/theme.dart';
 import '../data/store.dart';
-import 'common.dart';
 
 /// Tombol terang/gelap: satu tombol bulat berisi matahari (terang) atau bulan (gelap).
 class ThemeToggle extends StatelessWidget {
@@ -69,122 +68,150 @@ class ModeReveal {
   static Offset? origin;
 }
 
-/// Tombol di kiri atas: logo + nama mode. Diketuk untuk ganti mode.
-class ModeButton extends StatelessWidget {
-  const ModeButton({super.key});
+/// Tombol mode di kiri atas: dua ikon (dompet = Keuangan, centang = Produktif) dalam satu pil.
+/// Satu ketukan langsung ganti mode, tanpa lembar pilihan dan tanpa teks.
+class ModeSwitch extends StatelessWidget {
+  const ModeSwitch({super.key});
 
   @override
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
     final z = ZColors.of(context);
-    final m = kModes.firstWhere((m) => m.id == store.mode, orElse: () => kModes.first);
     return Semantics(
-      button: true,
-      label: trf('Mode {0}. Ketuk untuk ganti mode', [m.name]),
-      child: Material(
-        color: z.card,
-        shape: StadiumBorder(side: BorderSide(color: z.border)),
-        child: InkWell(
-          customBorder: const StadiumBorder(),
-          onTap: () {
-            final box = context.findRenderObject();
-            if (box is RenderBox && box.hasSize) ModeReveal.origin = box.localToGlobal(box.size.center(Offset.zero));
-            showModeSheet(context);
-          },
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(8, 7, 12, 7),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              const AppLogo(size: 26),
-              const SizedBox(width: 6),
-              Text(m.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-              const SizedBox(width: 2),
-              Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: z.text),
-            ]),
-          ),
+      container: true,
+      label: tr('Mode aplikasi'),
+      child: Container(
+        height: 44,
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+          color: z.card,
+          borderRadius: BorderRadius.circular(99),
+          border: Border.all(color: z.border),
         ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          _ModeSegment(id: 'finance', wallet: true, label: tr('Mode Keuangan'), tip: tr('Keuangan'), active: store.mode == 'finance'),
+          const SizedBox(width: 4),
+          _ModeSegment(id: 'productive', wallet: false, label: tr('Mode Produktif'), tip: tr('Produktif'), active: store.mode == 'productive'),
+        ]),
       ),
     );
   }
 }
 
-Future<void> showModeSheet(BuildContext context) {
-  final store = StoreScope.read(context);
-  return showModalBottomSheet<void>(
-    context: context,
-    builder: (ctx) {
-      final z = ZColors.of(ctx);
-      return SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(tr('Pilih mode'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 4),
-            Text(tr('Pengaturan dan profil sama untuk semua mode.'), style: TextStyle(fontSize: 12.5, color: z.muted2)),
-            const SizedBox(height: 14),
-            for (final m in kModes) ...[
-              _ModeTile(
-                mode: m,
-                active: m.id == store.mode,
-                onTap: () {
-                  if (!m.ready) {
-                    showZToast(ctx, tr('Mode ini segera hadir'));
-                    return;
-                  }
-                  Navigator.of(ctx).pop();
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                  store.setMode(m.id);
-                },
-              ),
-              const SizedBox(height: 10),
-            ],
-          ]),
-        ),
-      );
-    },
-  );
-}
+class _ModeSegment extends StatelessWidget {
+  const _ModeSegment({required this.id, required this.wallet, required this.label, required this.tip, required this.active});
 
-class _ModeTile extends StatelessWidget {
-  const _ModeTile({required this.mode, required this.active, required this.onTap});
-
-  final AppMode mode;
+  final String id;
+  final bool wallet;
+  final String label;
+  final String tip;
   final bool active;
-  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final z = ZColors.of(context);
-    return Opacity(
-      opacity: mode.ready ? 1 : 0.6,
-      child: Material(
-        color: active ? z['tipBg'] : Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-          side: BorderSide(color: active ? z.primary : z.border, width: 2),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(18),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(children: [
-              IconTile(icon: mode.icon, tone: mode.tone, size: 44),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(mode.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 2),
-                  Text(mode.desc, style: TextStyle(fontSize: 12, color: z.muted2)),
-                ]),
+    final fg = active ? z.onPrimary : z.muted;
+    return Semantics(
+      button: true,
+      selected: active,
+      label: label,
+      excludeSemantics: true,
+      child: Tooltip(
+        message: tip,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            if (active) return;
+            final box = context.findRenderObject();
+            if (box is RenderBox && box.hasSize) ModeReveal.origin = box.localToGlobal(box.size.center(Offset.zero));
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            StoreScope.read(context).setMode(id);
+          },
+          // Area ketuk 52x44 (minimal 44 px), tampilannya 52x36.
+          child: SizedBox(
+            width: 52,
+            height: 44,
+            child: Center(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOut,
+                width: 52,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: active ? z.primary : Colors.transparent, borderRadius: BorderRadius.circular(99)),
+                child: TweenAnimationBuilder<Color?>(
+                  tween: ColorTween(end: fg),
+                  duration: const Duration(milliseconds: 200),
+                  builder: (_, c, _) => CustomPaint(
+                    size: const Size.square(24),
+                    painter: ModeIconPainter(wallet: wallet, color: c ?? fg, dot: z.card),
+                  ),
+                ),
               ),
-              Text(
-                active ? tr('Aktif') : (mode.ready ? '' : tr('Segera hadir')),
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: active ? z.accentText : z.muted2),
-              ),
-            ]),
+            ),
           ),
         ),
       ),
     );
   }
+}
+
+/// Ikon mode: dompet (Keuangan) dan centang dalam lingkaran (Produktif), keduanya dengan percikan.
+/// Digambar dari bentuk yang sama dengan desain (kotak 48 x 48, garis 4,5, ujung bulat).
+class ModeIconPainter extends CustomPainter {
+  ModeIconPainter({required this.wallet, required this.color, required this.dot});
+
+  final bool wallet;
+  final Color color;
+  final Color dot;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final s = size.width / 48;
+    canvas.save();
+    canvas.scale(s);
+    final line = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4.5
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    final fill = Paint()..color = color;
+    final spark = Path();
+    if (wallet) {
+      canvas.drawLine(const Offset(10, 14.5), const Offset(26, 8.5), line);
+      canvas.drawRRect(RRect.fromLTRBR(4, 14, 40, 39, const Radius.circular(7)), line);
+      canvas.drawRRect(RRect.fromLTRBR(26, 22.5, 40.5, 32, const Radius.circular(4.75)), fill);
+      canvas.drawCircle(const Offset(31.5, 27.25), 1.9, Paint()..color = dot);
+      spark
+        ..moveTo(40, 2.5)
+        ..quadraticBezierTo(40.7, 6.8, 44.5, 8)
+        ..quadraticBezierTo(40.7, 9.2, 40, 13.5)
+        ..quadraticBezierTo(39.3, 9.2, 35.5, 8)
+        ..quadraticBezierTo(39.3, 6.8, 40, 2.5)
+        ..close();
+    } else {
+      final ring = Path()
+        ..moveTo(37.5, 21.9)
+        ..arcToPoint(const Offset(26.1, 10.5), radius: const Radius.circular(16), largeArc: true, clockwise: true);
+      canvas.drawPath(ring, line);
+      final tick = Path()
+        ..moveTo(15, 26)
+        ..lineTo(20.5, 31.5)
+        ..lineTo(30, 20.5);
+      canvas.drawPath(tick, line);
+      spark
+        ..moveTo(38, 3.5)
+        ..quadraticBezierTo(38.8, 8.6, 43.5, 10)
+        ..quadraticBezierTo(38.8, 11.4, 38, 16.5)
+        ..quadraticBezierTo(37.2, 11.4, 32.5, 10)
+        ..quadraticBezierTo(37.2, 8.6, 38, 3.5)
+        ..close();
+    }
+    canvas.drawPath(spark, fill);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant ModeIconPainter old) => old.wallet != wallet || old.color != color || old.dot != dot;
 }

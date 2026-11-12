@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/format.dart';
 import '../../core/i18n.dart';
 import '../../core/theme.dart';
+import '../../data/productive_models.dart';
 import '../../data/store.dart';
 import '../../shell/app_shell.dart';
 import '../../widgets/common.dart';
@@ -21,16 +22,16 @@ class ProdHomePage extends StatelessWidget {
     final store = StoreScope.of(context);
     final z = ZColors.of(context);
     final today = store.todayTodos;
-    final done = today.where((t) => t.done).length;
-    final pct = today.isEmpty ? 0.0 : done / today.length;
+    // Fokus hari ini: tugas yang belum selesai (yang terlambat di atas), maksimal 3.
+    final remaining = today.where((t) => !t.done).toList()
+      ..sort((a, b) => (b.isOverdue() ? 1 : 0) - (a.isOverdue() ? 1 : 0));
     final agenda = store.agendaOn(DateTime.now());
     final next = store.sortedTodos.where((t) => !t.done).take(3).toList();
     final pinned = store.sortedNotes.where((n) => n.pinned).toList();
 
     return ProdScroll(
       header: Row(children: [
-        // Tombol mode mengecil (bukan overflow) di layar sempit / font besar.
-        const Expanded(child: Align(alignment: Alignment.centerLeft, child: FittedBox(fit: BoxFit.scaleDown, child: ModeButton()))),
+        const Expanded(child: Align(alignment: Alignment.centerLeft, child: ModeSwitch())),
         const ThemeToggle(),
         const SizedBox(width: 8),
         RoundIconButton(
@@ -41,57 +42,32 @@ class ProdHomePage extends StatelessWidget {
         ),
       ]),
       children: [
-        // Fokus hari ini
+        // Fokus hari ini: jumlah tugas tersisa + daftar yang bisa langsung diselesaikan.
         Container(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
           decoration: BoxDecoration(
             color: z.hero,
             borderRadius: BorderRadius.circular(24),
             border: Border.all(color: z.heroBorder),
           ),
-          child: Row(children: [
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(tr('Fokus Hari Ini'), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: z.heroMuted)),
-                const SizedBox(height: 6),
-                Text(
-                  today.isEmpty ? tr('Belum ada tugas') : trf('{0} dari {1} selesai', [done, today.length]),
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.4),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
+              Text('${remaining.length}',
+                  style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.4)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  remaining.isNotEmpty
+                      ? tr('tugas tersisa hari ini')
+                      : (today.isEmpty ? tr('Belum ada tugas') : tr('tugas hari ini selesai')),
+                  style: TextStyle(fontSize: 14, color: z.heroMuted),
                 ),
-                const SizedBox(height: 10),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(99),
-                  child: LinearProgressIndicator(
-                    value: pct,
-                    minHeight: 8,
-                    backgroundColor: z.heroInner,
-                    valueColor: const AlwaysStoppedAnimation(Color(0xFF86EFAC)),
-                  ),
-                ),
-              ]),
-            ),
-            const SizedBox(width: 16),
-            SizedBox(
-              width: 66,
-              height: 66,
-              child: Stack(alignment: Alignment.center, children: [
-                SizedBox.expand(
-                  child: TweenAnimationBuilder<double>(
-                    tween: Tween(end: pct),
-                    duration: const Duration(milliseconds: 500),
-                    builder: (_, v, _) => CircularProgressIndicator(
-                      value: v,
-                      strokeWidth: 8,
-                      strokeCap: StrokeCap.round,
-                      backgroundColor: z.heroInner,
-                      valueColor: const AlwaysStoppedAnimation(Color(0xFF86EFAC)),
-                    ),
-                  ),
-                ),
-                Text('${(pct * 100).round()}%',
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white)),
-              ]),
-            ),
+              ),
+            ]),
+            if (remaining.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              for (final t in remaining.take(3)) _FocusRow(todo: t),
+            ],
           ]),
         ),
         const SizedBox(height: 14),
@@ -144,6 +120,56 @@ class ProdHomePage extends StatelessWidget {
       ],
     );
   }
+}
+
+class _FocusRow extends StatelessWidget {
+  const _FocusRow({required this.todo});
+
+  final Todo todo;
+
+  @override
+  Widget build(BuildContext context) {
+    final z = ZColors.of(context);
+    final late = todo.isOverdue();
+    final due = todo.due;
+    final time = due != null && !(due.hour == 0 && due.minute == 0) ? timeLabel(due) : '';
+    return Row(children: [
+      Semantics(
+        container: true,
+        button: true,
+        label: trf('Tandai selesai: {0}', [todo.title]),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => StoreScope.read(context).toggleTodo(todo.id),
+          // Area ketuk 44 px; lingkarannya 18 px.
+          child: const SizedBox(
+            width: 44,
+            height: 40,
+            child: Center(child: _FocusCircle()),
+          ),
+        ),
+      ),
+      Expanded(
+        child: Text(todo.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13.5, color: Colors.white)),
+      ),
+      if (late || time.isNotEmpty) ...[
+        const SizedBox(width: 8),
+        Text(late ? tr('terlambat') : time,
+            style: TextStyle(fontSize: 12, color: late ? const Color(0xFFFDBA74) : z.heroMuted)),
+      ],
+    ]);
+  }
+}
+
+class _FocusCircle extends StatelessWidget {
+  const _FocusCircle();
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 18,
+        height: 18,
+        decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: const Color(0xFF86EFAC), width: 2)),
+      );
 }
 
 class _QuickAdd extends StatefulWidget {

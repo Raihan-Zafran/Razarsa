@@ -142,7 +142,7 @@ class _GoalCard extends StatelessWidget {
       onLongPress: () => _more(context, store),
       child: ZCard(
         radius: 18,
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        padding: const EdgeInsets.all(16),
         child: Column(children: [
           Row(children: [
             IconTile(icon: icon, tone: goal.tone, size: 40, radius: 13),
@@ -151,27 +151,42 @@ class _GoalCard extends StatelessWidget {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(goal.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 2),
-                Text('${rp(goal.saved)} / ${rp(goal.target)}', style: TextStyle(fontSize: 12, color: z.muted2)),
-                Text(goal.saved >= goal.target ? tr('Target tercapai!') : trf('Kurang {0}', [rp(goal.target - goal.saved)]),
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: z.accentText)),
+                Text(trf('{0} dari {1}', [rp(goal.saved), rp(goal.target)]),
+                    style: TextStyle(fontSize: 12, color: z.muted2, fontFeatures: const [FontFeature.tabularFigures()])),
               ]),
             ),
-            Text(_pct(goal.progress),
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: z.accentText)),
+            Text(_pct(goal.progress), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: z.accentText)),
           ]),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
+          // Bar tipis (5 px); perkiraan selesai ada di baris bawahnya.
           ClipRRect(
             borderRadius: BorderRadius.circular(99),
             child: TweenAnimationBuilder<double>(
               tween: Tween(end: goal.progress),
               duration: const Duration(milliseconds: 600),
-              curve: Curves.easeOutCubic,
-              builder: (_, v, _) => LinearProgressIndicator(value: v, minHeight: 8, backgroundColor: z.track, color: z.primary),
+              curve: Curves.easeOut,
+              builder: (_, v, _) => LinearProgressIndicator(value: v, minHeight: 5, backgroundColor: z.track, color: z.primary),
             ),
           ),
+          const SizedBox(height: 10),
+          Row(children: [
+            Icon(done ? Icons.check_circle_outline_rounded : Icons.schedule_rounded, size: 16, color: z.accentText),
+            const SizedBox(width: 6),
+            Expanded(child: Text(_etaText(), style: TextStyle(fontSize: 12, color: z.text2, height: 1.3))),
+          ]),
         ]),
       ),
     );
+  }
+
+  bool get done => goal.saved >= goal.target;
+
+  /// "Target tercapai", atau perkiraan dari kebiasaan menabung 90 hari terakhir, atau sisa yang kurang.
+  String _etaText() {
+    if (done) return tr('Target tercapai');
+    final eta = goal.eta(), rate = goal.monthlyRate();
+    if (eta == null || rate == null) return trf('Kurang {0}', [rp(goal.target - goal.saved)]);
+    return trf('Sekitar {0} jika menabung {1}/bulan', [monthYear(eta), rpShort(rate)]);
   }
 
   /// Ketuk: tambah atau kurangi tabungan. Kurangi tidak boleh melebihi yang sudah ditabung.
