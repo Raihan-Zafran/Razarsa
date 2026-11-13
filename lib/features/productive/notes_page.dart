@@ -150,8 +150,8 @@ class _NotesPageState extends State<NotesPage> {
                 fillColor: z.card,
                 isDense: true,
                 contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: z.border)),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: z.border)),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: z.border)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: z.border)),
               ),
             ),
             const SizedBox(height: 12),
@@ -304,9 +304,9 @@ class NoteCard extends StatelessWidget {
         final hidden = !NoteLock.isOpen(note);
         return Material(
           color: z.toneBg(note.tone),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(12),
           child: InkWell(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(12),
             onTap: () => _open(context),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(14, 12, 2, 12),
@@ -467,7 +467,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
           const SizedBox(height: 14),
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: z.toneBg(n.tone), borderRadius: BorderRadius.circular(22)),
+            decoration: BoxDecoration(color: z.toneBg(n.tone), borderRadius: BorderRadius.circular(13)),
             child: Column(children: [
               TextField(
                 controller: _title,

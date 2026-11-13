@@ -42,7 +42,7 @@ class ProfilePage extends StatelessWidget {
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: z.card,
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: z.cardBorder),
             boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: dark ? 0.35 : 0.07), blurRadius: 24, offset: const Offset(0, 8))],
           ),
@@ -294,7 +294,7 @@ class _Badge extends StatelessWidget {
       child: GestureDetector(
         onTap: () => showZToast(context, on ? trf('{0} sudah kamu dapatkan', [def.label]) : tr(hint ?? def.label)),
         child: ZCard(
-          radius: 18,
+          radius: 11,
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
           child: Column(children: [
             Stack(alignment: Alignment.center, children: [
@@ -324,12 +324,12 @@ class _ModeSummary extends StatelessWidget {
       opacity: mode.ready ? 1 : 0.65,
       child: Container(
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: z.toneBg(mode.tone), borderRadius: BorderRadius.circular(20)),
+        decoration: BoxDecoration(color: z.toneBg(mode.tone), borderRadius: BorderRadius.circular(12)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Container(
             width: 36,
             height: 36,
-            decoration: BoxDecoration(color: z.card, borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: z.card, borderRadius: BorderRadius.circular(8)),
             child: Icon(mode.icon, size: 19, color: z.toneFg(mode.tone)),
           ),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

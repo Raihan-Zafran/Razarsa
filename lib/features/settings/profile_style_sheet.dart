@@ -112,7 +112,7 @@ class _ProfileStyleSheetState extends State<ProfileStyleSheet> {
                         height: 64,
                         clipBehavior: Clip.antiAlias,
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(9),
                           border: Border.all(color: store.cover == c.id ? z.primary : z.cardBorder, width: store.cover == c.id ? 3 : 1),
                         ),
                         child: Image.asset(dark ? c.nightAsset : c.dayAsset, fit: BoxFit.cover, width: double.infinity),

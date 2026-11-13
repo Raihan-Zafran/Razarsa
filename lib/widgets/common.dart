@@ -33,20 +33,32 @@ class GlassPane extends StatelessWidget {
     super.key,
     required this.color,
     required this.child,
-    this.radius = 20,
+    this.radius = 12,
     this.border,
     this.padding,
     this.hero = false,
     this.circle = false,
+    this.color2,
   });
 
   final Color color;
+
+  /// Warna kedua: kalau diisi, permukaan berupa gradasi diagonal dari [color] ke [color2].
+  final Color? color2;
   final Widget child;
   final double radius;
   final BoxBorder? border;
   final EdgeInsetsGeometry? padding;
   final bool hero;
   final bool circle;
+
+  Gradient? _gradient(double alpha) => color2 == null
+      ? null
+      : LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [color.withValues(alpha: color.a * alpha), color2!.withValues(alpha: color2!.a * alpha)],
+        );
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +68,7 @@ class GlassPane extends StatelessWidget {
     if (level == 0) {
       return Container(
         padding: padding,
-        decoration: BoxDecoration(color: color, shape: shape, borderRadius: br, border: border),
+        decoration: BoxDecoration(color: color2 == null ? color : null, gradient: _gradient(1), shape: shape, borderRadius: br, border: border),
         child: child,
       );
     }
@@ -64,7 +76,13 @@ class GlassPane extends StatelessWidget {
     final sigma = level == 1 ? 5.0 : 10.0;
     final inner = Container(
       padding: padding,
-      decoration: BoxDecoration(color: color.withValues(alpha: color.a * alpha), shape: shape, borderRadius: br, border: border),
+      decoration: BoxDecoration(
+        color: color2 == null ? color.withValues(alpha: color.a * alpha) : null,
+        gradient: _gradient(alpha),
+        shape: shape,
+        borderRadius: br,
+        border: border,
+      ),
       child: child,
     );
     final blur = BackdropFilter(filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma), child: inner);
@@ -74,7 +92,7 @@ class GlassPane extends StatelessWidget {
 
 /// Kartu dasar: putih di mode terang, hijau gelap bergaris di mode gelap.
 class ZCard extends StatelessWidget {
-  const ZCard({super.key, required this.child, this.padding = const EdgeInsets.all(16), this.radius = 20});
+  const ZCard({super.key, required this.child, this.padding = const EdgeInsets.all(16), this.radius = 12});
 
   final Widget child;
   final EdgeInsetsGeometry padding;
@@ -95,7 +113,7 @@ class ZCard extends StatelessWidget {
 
 /// Kotak ikon berwarna untuk kategori.
 class IconTile extends StatelessWidget {
-  const IconTile({super.key, required this.icon, required this.tone, this.size = 42, this.radius = 14});
+  const IconTile({super.key, required this.icon, required this.tone, this.size = 42, this.radius = 9});
 
   final IconData icon;
   final String tone;
@@ -122,7 +140,7 @@ class CategoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      IconTile(icon: category.icon, tone: category.tone, size: size, radius: size / 3);
+      IconTile(icon: category.icon, tone: category.tone, size: size, radius: size * 0.21);
 }
 
 class SectionTitle extends StatelessWidget {
@@ -223,7 +241,7 @@ class Segmented<T> extends StatelessWidget {
     final z = ZColors.of(context);
     return GlassPane(
       color: z.track,
-      radius: 14,
+      radius: 9,
       padding: const EdgeInsets.all(4),
       child: Row(
         children: [
@@ -238,7 +256,7 @@ class Segmented<T> extends StatelessWidget {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: v == value ? z.primary : Colors.transparent,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(7),
                   ),
                   child: Text(
                     label,

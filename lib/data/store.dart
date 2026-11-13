@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/crypto.dart';
+import '../core/palettes.dart';
 import '../core/format.dart';
 import '../core/i18n.dart';
 import 'backup.dart';
@@ -37,6 +38,9 @@ class BackupInspection {
 }
 
 /// Semua data aplikasi. Disimpan di HP (shared_preferences), belum ada server.
+/// Hasil menambah atau mengganti nama sumber saldo.
+enum WalletResult { ok, full, duplicate, invalid }
+
 class AppStore extends ChangeNotifier {
   // ignore: prefer_initializing_formals
   AppStore(this._prefs, {required KeyVault vault}) : _vault = vault {
@@ -56,6 +60,15 @@ class AppStore extends ChangeNotifier {
 
   // ---------- Data keuangan ----------
   List<Txn> txns = [];
+
+  /// Sumber saldo (bank, e-wallet, tunai). Selalu ada minimal satu.
+  List<Wallet> wallets = [];
+
+  /// Sumber yang terakhir dipakai mencatat transaksi: pilihan awal di Tambah Transaksi dan dipakai Catat Cepat.
+  String lastWallet = '';
+
+  /// Palet warna (indeks di [kPalettes]).
+  int palette = kDefaultPalette;
   List<Goal> goals = [];
   List<CustomCategory> customCats = [];
   int monthlyBudget = 5000000;
@@ -142,7 +155,7 @@ class AppStore extends ChangeNotifier {
   /// Versi format data di HP. Naikkan kalau bentuk data berubah, lalu tulis
   /// langkah migrasinya di [_migrate].
   ///  v1: format awal. v2: catatan terkunci dienkripsi, PIN punya panjang & penghitung salah.
-  static const dataVersion = 2;
+  static const dataVersion = 3;
 
   /// Data ditulis aplikasi yang lebih baru: jangan diubah sama sekali.
   bool _readOnly = false;
@@ -193,6 +206,9 @@ class AppStore extends ChangeNotifier {
     L.lang = lang;
     L.currency = currency;
     txns = _readList('txns', Txn.fromJson);
+    wallets = _readList('wallets', Wallet.fromJson);
+    lastWallet = _get('lastWallet', '');
+    palette = clampPalette(_get<Object?>('palette', kDefaultPalette));
     goals = _readList('goals', Goal.fromJson);
     customCats = _readList('customCats', CustomCategory.fromJson);
     todos = _readList('todos', Todo.fromJson);
@@ -226,11 +242,12 @@ class AppStore extends ChangeNotifier {
     switches['pin'] = pinHash.isNotEmpty;
     if (pinHash.isEmpty) switches['bio'] = false;
     _migrate(fromVersion);
+    final walletsFixed = _ensureWallets();
     postRecurring();
     _markActive();
     _sortTxns();
     _autoSnapshot();
-    if (fromVersion < dataVersion || _needsSeal) _save();
+    if (fromVersion < dataVersion || _needsSeal || walletsFixed) _save();
   }
 
   /// Ada catatan terkunci yang masih tersimpan polos (data versi lama) dan perlu dienkripsi.
@@ -244,6 +261,8 @@ class AppStore extends ChangeNotifier {
     // v0/v1 -> v2: catatan terkunci yang masih polos akan dienkripsi oleh penyimpanan pertama
     // ([_needsSeal]). Cadangan otomatis lama juga memuatnya dalam bentuk polos, jadi isinya
     // dienkripsi di tempat. Cadangannya sendiri tidak dibuang: bisa jadi satu-satunya salinan yang bagus.
+    // v2 -> v3: sumber saldo. Data lama dipindahkan ke sumber bawaan "Tunai" (saldo awal 0), jadi total tidak berubah.
+    if (from == 2 && loadProblems.isEmpty && _hasAnyData) unawaited(_writeSafetyCopy());
     if (from < 2) {
       if (notes.any((n) => n.locked)) _needsSeal = true;
       // Salinan kondisi SEBELUM migrasi (catatan terkunci sudah terenkripsi di dalamnya). Dilewati
@@ -251,6 +270,33 @@ class AppStore extends ChangeNotifier {
       if (loadProblems.isEmpty && _hasAnyData) unawaited(_writeSafetyCopy());
       _sealOldAutoBackup();
     }
+  }
+
+  /// Memastikan ada minimal satu sumber dan setiap transaksi menunjuk sumber yang ada
+  /// (yang tidak, dipindahkan ke sumber pertama). true kalau ada yang diperbaiki.
+  bool _ensureWallets() {
+    var changed = false;
+    final seen = <String>{};
+    final before = wallets.length;
+    wallets.removeWhere((w) => !seen.add(w.id));
+    if (wallets.length != before) changed = true;
+    if (wallets.isEmpty) {
+      wallets.add(Wallet(id: kDefaultWalletId, name: 'Tunai', type: 'cash'));
+      changed = true;
+    }
+    final ids = wallets.map((w) => w.id).toSet();
+    final fallback = wallets.first.id;
+    for (var i = 0; i < txns.length; i++) {
+      if (!ids.contains(txns[i].wallet)) {
+        txns[i] = txns[i].withWallet(fallback);
+        changed = true;
+      }
+    }
+    if (lastWallet.isNotEmpty && !ids.contains(lastWallet)) {
+      lastWallet = '';
+      changed = true;
+    }
+    return changed;
   }
 
   void _sealOldAutoBackup() {
@@ -339,6 +385,8 @@ class AppStore extends ChangeNotifier {
 
   bool get _hasAnyData =>
       txns.isNotEmpty ||
+      wallets.length > 1 ||
+      wallets.any((w) => w.opening != 0) ||
       goals.isNotEmpty ||
       todos.isNotEmpty ||
       agenda.isNotEmpty ||
@@ -430,6 +478,9 @@ class AppStore extends ChangeNotifier {
     await _put('catBudgets', jsonEncode(catBudgets));
     await _put('catAlertSent', jsonEncode(catAlertSent));
     await _put('txns', list(txns, (e) => e.toJson()));
+    await _put('wallets', list(wallets, (e) => e.toJson()));
+    await _put('lastWallet', lastWallet);
+    await _put('palette', palette);
     await _put('goals', list(goals, (e) => e.toJson()));
     await _put('customCats', list(customCats, (e) => e.toJson()));
     await _put('switches', jsonEncode(switches));
@@ -453,7 +504,11 @@ class AppStore extends ChangeNotifier {
     lastSaveError = null;
   }
 
+  /// Naik setiap data berubah; dipakai tampilan berat (mis. graph Saldo) untuk tahu kapan perlu dihitung ulang.
+  int revision = 0;
+
   void _changed() {
+    revision++;
     notifyListeners();
     unawaited(_save());
   }
@@ -717,6 +772,8 @@ class AppStore extends ChangeNotifier {
 
   /// Batas wajar satu nominal uang (1 triliun) supaya hitungan tidak meluap.
   static const maxAmount = 1000000000000;
+  static const maxWallets = 10;
+  static const maxWalletName = 24;
 
   bool get hasLockedNotes => notes.any((n) => n.locked);
 
@@ -735,6 +792,7 @@ class AppStore extends ChangeNotifier {
           'lang': lang,
           'financeBg': financeBg,
           'glassLevel': glassLevel,
+          'palette': palette,
           'themeMode': themeMode.index,
           'mode': this.mode, // 'mode' sendiri adalah parameter jenis ekspor
         },
@@ -748,6 +806,7 @@ class AppStore extends ChangeNotifier {
           // Nama dan email hanya di backup berkata sandi / salinan di HP, tidak di backup polos.
           if (mode != _Export.withoutLocked) ...{'name': userName, 'email': email},
         },
+        'wallets': wallets.map((e) => e.toJson()).toList(),
         'txns': txns.map((e) => e.toJson()).toList(),
         'goals': goals.map((e) => e.toJson()).toList(),
         'customCats': customCats.map((e) => e.toJson()).toList(),
@@ -868,6 +927,13 @@ class AppStore extends ChangeNotifier {
       }
 
       final newTxns = _dedupe(items('txns', Txn.fromJson, required: true), (t) => t.id);
+      final newWallets = _dedupe(items('wallets', Wallet.fromJson), (w) => w.id);
+      check(newWallets.length <= maxWallets, 'jumlah sumber saldo');
+      final walletNames = <String>{};
+      for (final w in newWallets) {
+        check(w.opening.abs() <= maxAmount, 'saldo awal sumber');
+        check(walletNames.add(w.name.toLowerCase()), 'nama sumber ganda');
+      }
       final newGoals = _dedupe(items('goals', Goal.fromJson, required: true), (g) => g.id);
       final newCats = _dedupe(items('customCats', CustomCategory.fromJson, required: true), (c) => c.id);
       final newTodos = _dedupe(items('todos', Todo.fromJson), (t) => t.id);
@@ -910,6 +976,7 @@ class AppStore extends ChangeNotifier {
       final newEmail = pe is String && (pe.isEmpty || (pe.length <= 120 && emailOk.hasMatch(pe))) && pn is String ? pe : email;
       final newBg = st['financeBg'] is String ? normalizeFinanceBg(st['financeBg']) : financeBg;
       final newGlass = st['glassLevel'] is num ? (st['glassLevel'] as num).toInt().clamp(0, 2) : glassLevel;
+      final newPalette = st['palette'] is int ? clampPalette(st['palette']) : palette;
       final newBio = pf['bio'] is String && (pf['bio'] as String).length <= 1000 ? pf['bio'] as String : bio;
       final newJoined = pf['joinedAt'] is String && dayRe.hasMatch(pf['joinedAt'] as String) ? pf['joinedAt'] as String : joinedAt;
       final newAvatar = pf['avatar'] is String && isValidAvatar(pf['avatar'] as String) ? pf['avatar'] as String : avatar;
@@ -923,6 +990,9 @@ class AppStore extends ChangeNotifier {
       final oldAgenda = agenda;
       final oldBills = recurring.map((r) => r.notifId).toList();
       txns = newTxns;
+      wallets = newWallets;
+      lastWallet = '';
+      _ensureWallets();
       goals = newGoals;
       customCats = newCats;
       todos = newTodos;
@@ -942,6 +1012,7 @@ class AppStore extends ChangeNotifier {
       L.lang = newLang;
       financeBg = newBg;
       glassLevel = newGlass;
+      palette = newPalette;
       themeMode = newTheme;
       mode = newAppMode;
       userName = newName;
@@ -983,13 +1054,14 @@ class AppStore extends ChangeNotifier {
   }
 
   String exportCsv() {
-    final b = StringBuffer('tanggal,jenis,kategori,catatan,jumlah\n');
+    final b = StringBuffer('tanggal,jenis,kategori,catatan,sumber,jumlah\n');
     for (final t in txns) {
       b.writeln([
         t.at.toIso8601String().substring(0, 16).replaceAll('T', ' '),
         t.isExpense ? 'pengeluaran' : 'pemasukan',
         _csvText(category(t.cat).label),
         _csvText(t.name),
+        _csvText(walletName(t.wallet)),
         t.amount,
       ].join(','));
     }
@@ -1013,6 +1085,9 @@ class AppStore extends ChangeNotifier {
     }
     final oldBills = recurring.map((r) => r.notifId).toList();
     txns = [];
+    wallets = [];
+    lastWallet = '';
+    _ensureWallets();
     goals = [];
     customCats = [];
     monthlyBudget = 5000000;
@@ -1124,7 +1199,7 @@ class AppStore extends ChangeNotifier {
     final moved = categoryUsage(id);
     for (var k = 0; k < txns.length; k++) {
       final t = txns[k];
-      if (t.cat == id) txns[k] = Txn(id: t.id, name: t.name, cat: fallback, amount: t.amount, at: t.at);
+      if (t.cat == id) txns[k] = Txn(id: t.id, name: t.name, cat: fallback, amount: t.amount, at: t.at, wallet: t.wallet);
     }
     for (final r in recurring) {
       if (r.cat == id) r.cat = fallback;
@@ -1155,13 +1230,16 @@ class AppStore extends ChangeNotifier {
   }
 
   // ---------- Transaksi ----------
-  Txn addTxn({required String name, required String cat, required int amount, DateTime? at}) {
+  Txn addTxn({required String name, required String cat, required int amount, DateTime? at, String? wallet}) {
+    final w = walletById(wallet ?? '') ?? defaultWallet;
+    if (wallet != null) lastWallet = w.id;
     final t = Txn(
       id: newId(),
       name: name.length > 200 ? name.substring(0, 200) : name,
       cat: cat,
       amount: amount.clamp(-maxAmount, maxAmount).toInt(),
       at: at ?? DateTime.now(),
+      wallet: w.id,
     );
     txns.add(t);
     _sortTxns();
@@ -1175,7 +1253,98 @@ class AppStore extends ChangeNotifier {
     _changed();
   }
 
-  int get balance => txns.fold(0, (s, t) => s + t.amount);
+  /// Total saldo = jumlah saldo semua sumber.
+  int get balance => wallets.fold(0, (s, w) => s + w.opening) + txns.fold(0, (s, t) => s + t.amount);
+
+  // ---------- Sumber saldo ----------
+  Wallet? walletById(String id) {
+    for (final w in wallets) {
+      if (w.id == id) return w;
+    }
+    return null;
+  }
+
+  /// Sumber yang dipakai kalau tidak dipilih: yang terakhir dipakai, atau yang pertama.
+  Wallet get defaultWallet => walletById(lastWallet) ?? wallets.first;
+
+  int walletTxnSum(String id) => txns.fold(0, (s, t) => t.wallet == id ? s + t.amount : s);
+  int walletTxnCount(String id) => txns.where((t) => t.wallet == id).length;
+  int walletBalance(String id) => (walletById(id)?.opening ?? 0) + walletTxnSum(id);
+  String walletName(String id) => (walletById(id) ?? defaultWallet).name;
+
+  /// Nama sumber dibersihkan: spasi ganda dirapikan dan dipotong 24 huruf. Kosong berarti tidak valid.
+  static String cleanWalletName(String raw) {
+    final t = raw.replaceAll(RegExp(r'\s+'), ' ').trim();
+    return t.length > maxWalletName ? t.substring(0, maxWalletName).trim() : t;
+  }
+
+  bool _walletNameTaken(String name, {String? except}) =>
+      wallets.any((w) => w.id != except && w.name.toLowerCase() == name.toLowerCase());
+
+  WalletResult addWallet({required String name, required String type, int opening = 0}) {
+    final n = cleanWalletName(name);
+    if (n.isEmpty || !kWalletTypes.contains(type)) return WalletResult.invalid;
+    if (wallets.length >= maxWallets) return WalletResult.full;
+    if (_walletNameTaken(n)) return WalletResult.duplicate;
+    wallets.add(Wallet(id: newId(), name: n, type: type, opening: opening.clamp(-maxAmount, maxAmount).toInt()));
+    _changed();
+    return WalletResult.ok;
+  }
+
+  WalletResult renameWallet(String id, String name) {
+    final w = walletById(id);
+    final n = cleanWalletName(name);
+    if (w == null || n.isEmpty) return WalletResult.invalid;
+    if (_walletNameTaken(n, except: id)) return WalletResult.duplicate;
+    w.name = n;
+    _changed();
+    return WalletResult.ok;
+  }
+
+  /// Menyamakan saldo sumber dengan [target] dengan mengubah saldo awalnya. false kalau di luar batas.
+  bool setWalletBalance(String id, int target) {
+    final w = walletById(id);
+    if (w == null || target.abs() > maxAmount) return false;
+    final opening = target - walletTxnSum(id);
+    if (opening.abs() > maxAmount) return false;
+    w.opening = opening;
+    _changed();
+    return true;
+  }
+
+  /// Sumber yang menerima transaksi dan saldo awal saat [id] dihapus.
+  Wallet? walletReceiving(String id) {
+    for (final w in wallets) {
+      if (w.id != id) return w;
+    }
+    return null;
+  }
+
+  /// Menghapus sumber. Transaksi dan saldo awalnya dipindahkan ke [walletReceiving]. false kalau tinggal satu.
+  bool deleteWallet(String id) {
+    final w = walletById(id);
+    final to = walletReceiving(id);
+    if (w == null || to == null) return false;
+    for (var i = 0; i < txns.length; i++) {
+      if (txns[i].wallet == id) txns[i] = txns[i].withWallet(to.id);
+    }
+    to.opening = (to.opening + w.opening).clamp(-maxAmount, maxAmount).toInt();
+    wallets.remove(w);
+    if (lastWallet == id) lastWallet = '';
+    _changed();
+    return true;
+  }
+
+  void setLastWallet(String id) {
+    if (walletById(id) == null || lastWallet == id) return;
+    lastWallet = id;
+    _changed();
+  }
+
+  void setPalette(int v) {
+    palette = clampPalette(v);
+    _changed();
+  }
 
   /// Selisih hari kalender (aman terhadap pergantian jam musim panas).
   static int _daysBetween(DateTime a, DateTime b) =>
@@ -1377,7 +1546,7 @@ class AppStore extends ChangeNotifier {
       if (m.isBefore(earliest)) m = earliest;
       for (; !m.isAfter(thisMonth); m = DateTime(m.year, m.month + 1)) {
         if (m == thisMonth && now.day < r.day) break; // belum jatuh tempo bulan ini
-        txns.add(Txn(id: newId(), name: r.name, cat: r.cat, amount: r.amount, at: DateTime(m.year, m.month, r.day, 8)));
+        txns.add(Txn(id: newId(), name: r.name, cat: r.cat, amount: r.amount, at: DateTime(m.year, m.month, r.day, 8), wallet: defaultWallet.id));
         r.lastPosted = _monthKey(m);
         if (r.amount < 0) expensePosted = true;
         n++;

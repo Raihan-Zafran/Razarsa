@@ -109,9 +109,9 @@ class _GoalSummary extends StatelessWidget {
     Widget pill(IconData icon, String text) => Expanded(
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            decoration: BoxDecoration(color: z.heroInner, borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: z.heroInner, borderRadius: BorderRadius.circular(8)),
             child: Row(children: [
-              Icon(icon, size: 15, color: const Color(0xFF86EFAC)),
+              Icon(icon, size: 15, color: z.hi),
               const SizedBox(width: 5),
               Expanded(child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: z.heroMuted))),
             ]),
@@ -123,7 +123,7 @@ class _GoalSummary extends StatelessWidget {
       child: GlassPane(
         hero: true,
         color: z.hero,
-        radius: 24,
+        radius: 14,
         border: Border.all(color: z.heroBorder),
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
         child: Column(children: [
@@ -222,7 +222,7 @@ class _GoalCard extends StatelessWidget {
       onTap: () => _addSaving(context, store),
       onLongPress: () => _more(context, store),
       child: ZCard(
-        radius: 18,
+        radius: 11,
         padding: const EdgeInsets.all(16),
         child: Column(children: [
           Row(children: [

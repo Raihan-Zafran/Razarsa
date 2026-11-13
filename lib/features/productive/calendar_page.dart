@@ -74,7 +74,7 @@ class _CalendarPageState extends State<CalendarPage> {
         const SizedBox(height: 12),
         ZCard(
           padding: const EdgeInsets.fromLTRB(8, 6, 8, 10),
-          radius: 24,
+          radius: 14,
           child: Column(children: [
             Row(children: [
               IconButton(onPressed: () => _shift(-1), icon: const Icon(Icons.chevron_left_rounded), tooltip: tr('Sebelumnya')),
@@ -160,7 +160,7 @@ class _DayCell extends StatelessWidget {
           margin: const EdgeInsets.all(2),
           decoration: BoxDecoration(
             color: selected ? z.primary : Colors.transparent,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(9),
             border: today && !selected ? Border.all(color: z.primary, width: 2) : null,
           ),
           child: FittedBox(fit: BoxFit.scaleDown, child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [

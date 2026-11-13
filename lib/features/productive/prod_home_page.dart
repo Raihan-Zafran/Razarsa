@@ -46,7 +46,7 @@ class ProdHomePage extends StatelessWidget {
         GlassPane(
           hero: true,
           color: z.hero,
-          radius: 24,
+          radius: 14,
           border: Border.all(color: z.heroBorder),
           padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -220,8 +220,8 @@ class _QuickAddState extends State<_QuickAdd> {
                 fillColor: z.bg,
                 isDense: true,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: z.border)),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: z.border)),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: z.border)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: z.border)),
               ),
             ),
           ),
@@ -231,9 +231,9 @@ class _QuickAddState extends State<_QuickAdd> {
             label: tr('Tambah tugas'),
             child: Material(
               color: z.primary,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(10),
               child: InkWell(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(10),
                 onTap: _add,
                 child: SizedBox(width: 48, height: 48, child: Icon(Icons.add_rounded, color: z.onPrimary)),
               ),

@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/palettes.dart';
+
 import '../../core/format.dart';
 import '../../core/notifications.dart';
 import '../../core/theme.dart';
@@ -46,9 +48,9 @@ class SettingsPage extends StatelessWidget {
       }),
       Material(
         color: z.card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: z.cardBorder)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: z.cardBorder)),
         child: InkWell(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(12),
           onTap: () => pushPage(context, const ProfilePage()),
           child: Padding(
             padding: const EdgeInsets.all(14),
@@ -78,6 +80,8 @@ class SettingsPage extends StatelessWidget {
             sub: tr('Kartu tembus pandang di atas latar'),
             onTap: () => _pick(context, tr('Efek kaca'), [('0', tr('Mati')), ('1', tr('Halus')), ('2', tr('Kuat'))],
                 '${store.glassLevel}', (v) => store.setGlassLevel(int.parse(v)))),
+        _Row(icon: Icons.palette_outlined, tone: 'pink', label: tr('Palet warna'), value: tr(kPalettes[store.palette].name),
+            onTap: () => _pickPalette(context, store)),
         _Row(icon: Icons.language_rounded, tone: 'blue', label: tr('Bahasa'), value: store.lang == 'en' ? 'English' : 'Indonesia',
             onTap: () => _pick(context, tr('Bahasa'), [('id', 'Indonesia'), ('en', 'English')], store.lang, store.setLang)),
         _Row(icon: Icons.calendar_month_outlined, tone: 'green', label: tr('Awal bulan anggaran'), value: trf('Tanggal {0}', [store.monthStartDay]),
@@ -126,8 +130,6 @@ class SettingsPage extends StatelessWidget {
               store.setSwitch('bill', v);
               await Notif.syncBills(store);
             }),
-        _Row(icon: Icons.notifications_active_outlined, tone: 'purple', label: tr('Tes notifikasi'),
-            sub: tr('Tampil sekarang, lalu satu lagi 1 menit kemudian'), onTap: () => _testNotifications(context)),
       ]),
       _Group(tr('Keamanan & Privasi'), [
         _Switch(store, 'pin', Icons.lock_outline_rounded, 'blue', tr('Kunci aplikasi (PIN)'), null, onChanged: (v) => _togglePin(context, store, v)),
@@ -192,6 +194,38 @@ class SettingsPage extends StatelessWidget {
     }
   }
 
+  Future<void> _pickPalette(BuildContext context, AppStore store) async {
+    final v = await showModalBottomSheet<int>(
+      context: context,
+      builder: (c) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(tr('Palet warna'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          for (var i = 0; i < kPalettes.length; i++)
+            ListTile(
+              title: Text(tr(kPalettes[i].name), style: const TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Row(children: [
+                  for (final s in kPalettes[i].swatches)
+                    Container(
+                      width: 22,
+                      height: 22,
+                      margin: const EdgeInsets.only(right: 6),
+                      decoration: BoxDecoration(color: s, shape: BoxShape.circle, border: Border.all(color: Colors.black12)),
+                    ),
+                ]),
+              ),
+              trailing: i == store.palette ? const Icon(Icons.check_rounded) : null,
+              onTap: () => Navigator.pop(c, i),
+            ),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
+    if (v != null && v != store.palette) store.setPalette(v);
+  }
+
   Future<void> _pickMonthStart(BuildContext context, AppStore store) async {
     final z = ZColors.of(context);
     final day = await showDialog<int>(
@@ -208,13 +242,13 @@ class SettingsPage extends StatelessWidget {
             children: [
               for (var d = 1; d <= 28; d++)
                 InkWell(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(7),
                   onTap: () => Navigator.pop(c, d),
                   child: Container(
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: d == store.monthStartDay ? z.primary : z.track,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(7),
                     ),
                     child: Text('$d',
                         style: TextStyle(fontWeight: FontWeight.w700, color: d == store.monthStartDay ? z.onPrimary : z.text)),
@@ -253,22 +287,6 @@ class SettingsPage extends StatelessWidget {
     if (ok != true || !context.mounted) return;
     final done = store.updateProfile(name: name.text, email: mail.text);
     showZToast(context, done ? tr('Profil diperbarui') : tr('Isi nama panggilan dan email yang benar (email boleh kosong).'));
-  }
-
-  Future<void> _testNotifications(BuildContext context) async {
-    if (!await _allowNotifications(context)) return;
-    final r = await Notif.selfTest();
-    if (!context.mounted) return;
-    showZToast(
-      context,
-      r == 'ok'
-          ? tr('Tes dikirim. Satu notifikasi lagi akan muncul sekitar 1 menit.')
-          : r == 'notready'
-              ? tr('Notifikasi gagal disiapkan di HP ini.')
-              : r == 'denied'
-                  ? tr('Notifikasi diblokir di Pengaturan HP.')
-                  : trf('Penjadwalan gagal: {0}', [r.length > 120 ? r.substring(0, 120) : r]),
-    );
   }
 
   /// Meminta izin notifikasi. Kalau ditolak/diblokir, saklar tidak dinyalakan dan pengguna diberi tahu caranya.
@@ -604,7 +622,7 @@ class _Group extends StatelessWidget {
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.6, color: z.muted)),
         ),
         ZCard(
-          radius: 18,
+          radius: 11,
           padding: const EdgeInsets.symmetric(horizontal: 14),
           child: Column(children: [
             for (var i = 0; i < rows.length; i++) ...[
@@ -645,7 +663,7 @@ class _Row extends StatelessWidget {
             height: 34,
             child: danger
                 ? DecoratedBox(
-                    decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
+                    decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(7)),
                     child: Icon(icon, size: 18, color: fg),
                   )
                 : Icon(icon, size: 21, color: z.text2),
@@ -663,7 +681,11 @@ class _Row extends StatelessWidget {
               ]),
             ),
           ),
-          if (value != null) Text(value!, style: TextStyle(fontSize: 13, color: z.muted2)),
+          if (value != null)
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 140),
+              child: Text(value!, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.end, style: TextStyle(fontSize: 13, color: z.muted2)),
+            ),
           if (!danger) Icon(Icons.chevron_right_rounded, color: z.muted2, size: 20),
         ]),
       ),

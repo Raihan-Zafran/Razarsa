@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'palettes.dart';
+
 /// Semua warna Razarsa untuk mode terang dan gelap.
 /// Disimpan sebagai ThemeExtension supaya pergantian mode bisa beranimasi halus.
 class ZColors extends ThemeExtension<ZColors> {
@@ -26,6 +28,7 @@ class ZColors extends ThemeExtension<ZColors> {
     'disabledFg': Color(0xFF4B5563),
     'hero': Color(0xFF0B5D33),
     'heroBorder': Color(0x000B5D33),
+    'hero2': Color(0xFF0B5D33),
     'heroInner': Color(0xFF13703F),
     'heroMuted': Color(0xFFCDE9D6),
     'barMuted': Color(0xFFBBE5C8),
@@ -44,6 +47,9 @@ class ZColors extends ThemeExtension<ZColors> {
     'dockMuted': Color(0xFFA3B1A9),
     'ball': Color(0xFF4ADE80),
     'ballFg': Color(0xFF052E16),
+    'ballGlow': Color(0x4D4ADE80),
+    'hi': Color(0xFF86EFAC),
+    'pos': Color(0xFF15803D),
     'toastBg': Color(0xFF17211C),
     'toastFg': Color(0xFFFFFFFF),
     'toastAccent': Color(0xFF4ADE80),
@@ -93,6 +99,7 @@ class ZColors extends ThemeExtension<ZColors> {
     'disabledFg': Color(0xFF9AABA1),
     'hero': Color(0xFF0D3F26),
     'heroBorder': Color(0xFF1B6A41),
+    'hero2': Color(0xFF0D3F26),
     'heroInner': Color(0xFF145234),
     'heroMuted': Color(0xFFB9DCC6),
     'barMuted': Color(0xFF1F4630),
@@ -111,6 +118,9 @@ class ZColors extends ThemeExtension<ZColors> {
     'dockMuted': Color(0xFF9AA8A0),
     'ball': Color(0xFF4ADE80),
     'ballFg': Color(0xFF052E16),
+    'ballGlow': Color(0x4D4ADE80),
+    'hi': Color(0xFF86EFAC),
+    'pos': Color(0xFF4ADE80),
     'toastBg': Color(0xFFE8F2EC),
     'toastFg': Color(0xFF0A100D),
     'toastAccent': Color(0xFF15803D),
@@ -163,6 +173,9 @@ class ZColors extends ThemeExtension<ZColors> {
   Color get heroBorder => this['heroBorder'];
   Color get heroInner => this['heroInner'];
   Color get heroMuted => this['heroMuted'];
+  Color get hero2 => this['hero2'];
+  Color get hi => this['hi'];
+  Color get pos => this['pos'];
   Color get warn => this['warn'];
 
   /// Latar dan warna ikon untuk satu nada warna (green, orange, blue, ...).
@@ -184,8 +197,17 @@ class ZColors extends ThemeExtension<ZColors> {
 
 const kFont = 'PlusJakartaSans';
 
-ThemeData buildTheme(Brightness brightness) {
-  final z = brightness == Brightness.dark ? ZColors.dark : ZColors.light;
+/// Warna untuk satu mode dan palet: warna dasar, lalu ditimpa oleh palet yang dipilih.
+ZColors zColorsFor(Brightness brightness, int palette) {
+  final base = brightness == Brightness.dark ? ZColors.dark : ZColors.light;
+  final p = kPalettes[clampPalette(palette)];
+  final over = brightness == Brightness.dark ? p.dark : p.light;
+  if (over.isEmpty) return base;
+  return ZColors({...base.c, for (final e in over.entries) if (base.c.containsKey(e.key)) e.key: e.value});
+}
+
+ThemeData buildTheme(Brightness brightness, {int palette = kDefaultPalette}) {
+  final z = zColorsFor(brightness, palette);
   final base = ThemeData(
     useMaterial3: true,
     brightness: brightness,
@@ -211,11 +233,11 @@ ThemeData buildTheme(Brightness brightness) {
       ),
       actionTextColor: z['toastAccent'],
       behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: z.card,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
     ),
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: z.card,

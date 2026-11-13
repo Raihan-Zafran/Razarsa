@@ -9,6 +9,7 @@ import '../../data/store.dart';
 import '../../shell/app_shell.dart';
 import '../../widgets/common.dart';
 import '../settings/profile_page.dart';
+import '../saldo/saldo_page.dart';
 import 'add_transaction_page.dart';
 import '../../widgets/mode_widgets.dart';
 import '../../core/i18n.dart';
@@ -100,7 +101,7 @@ class HomePage extends StatelessWidget {
               TxnRow(
                 category: store.category(recent[i].cat),
                 title: recent[i].name,
-                subtitle: '${dayLabel(recent[i].at)}, ${timeLabel(recent[i].at)}',
+                subtitle: '${dayLabel(recent[i].at)}, ${timeLabel(recent[i].at)}${store.wallets.length > 1 ? ' · ${store.walletName(recent[i].wallet)}' : ''}',
                 amountText: rpSigned(recent[i].amount),
                 isIncome: !recent[i].isExpense,
                 showDivider: i < recent.length - 1,
@@ -119,10 +120,18 @@ class _BalanceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final z = ZColors.of(context);
-    return GlassPane(
+    return Semantics(
+      button: true,
+      label: tr('Total Saldo'),
+      hint: tr('Buka saldo per sumber'),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => pushPage(context, const SaldoPage()),
+        child: GlassPane(
       hero: true,
       color: z.hero,
-      radius: 24,
+      color2: z.hero2,
+      radius: 14,
       border: Border.all(color: z.heroBorder),
       padding: const EdgeInsets.all(20),
       child: Column(children: [
@@ -150,6 +159,8 @@ class _BalanceCard extends StatelessWidget {
           Expanded(child: _MiniStat(label: tr('Pengeluaran'), value: rp(store.monthExpense()), up: true)),
         ]),
       ]),
+        ),
+      ),
     );
   }
 }
@@ -166,11 +177,11 @@ class _MiniStat extends StatelessWidget {
     final z = ZColors.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(color: z.heroInner, borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(color: z.heroInner, borderRadius: BorderRadius.circular(10)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Icon(up ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
-              size: 14, color: up ? const Color(0xFFFDBA74) : const Color(0xFF86EFAC)),
+              size: 14, color: up ? const Color(0xFFFDBA74) : z.hi),
           const SizedBox(width: 4),
           Flexible(
             child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: z.heroMuted)),
@@ -352,11 +363,11 @@ class _AddButton extends StatelessWidget {
     return Material(
       color: filled ? z.primary : z.card,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(10),
         side: filled ? BorderSide.none : BorderSide(color: z.primary, width: 2),
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(10),
         onTap: onTap,
         child: SizedBox(
           height: 52,
@@ -389,12 +400,13 @@ class _QuickChip extends StatelessWidget {
     final cat = store.category(item.cat);
     return Material(
       color: z.card,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: z.cardBorder)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: z.cardBorder)),
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(10),
         onTap: () {
           final t = store.addTxn(name: item.name, cat: item.cat, amount: -item.amount);
-          showZToast(context, trf('{0} {1} dicatat', [tr(item.name), rp(item.amount)]),
+          final where = store.wallets.length > 1 ? trf(' di {0}', [store.walletName(t.wallet)]) : '';
+          showZToast(context, trf('{0} {1} dicatat', [tr(item.name), rp(item.amount)]) + where,
               actionLabel: tr('Batalkan'), onAction: () => store.removeTxn(t.id));
         },
         child: Padding(

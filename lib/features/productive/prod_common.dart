@@ -169,7 +169,7 @@ class AgendaRow extends StatelessWidget {
               opacity: dim ? 0.55 : 1,
               child: Container(
                 padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-                decoration: BoxDecoration(color: z.toneBg(item.tone), borderRadius: BorderRadius.circular(16)),
+                decoration: BoxDecoration(color: z.toneBg(item.tone), borderRadius: BorderRadius.circular(10)),
                 child: Row(children: [
                   Icon(item.reminder ? Icons.notifications_none_rounded : Icons.event_outlined, size: 19, color: z.toneFg(item.tone)),
                   const SizedBox(width: 10),
@@ -207,9 +207,9 @@ InputDecoration _field(BuildContext context, String hint) {
     filled: true,
     fillColor: z.bg,
     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: z.border)),
-    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: z.border)),
-    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: z.primary, width: 2)),
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: z.border)),
+    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: z.border)),
+    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: z.primary, width: 2)),
   );
 }
 
@@ -236,7 +236,7 @@ Widget _sheetFrame(BuildContext context, String title, List<Widget> children, Vo
             style: FilledButton.styleFrom(
               backgroundColor: z.primary,
               foregroundColor: z.onPrimary,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             child: Text(tr('Simpan'), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
           ),

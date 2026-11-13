@@ -1,12 +1,15 @@
 import java.util.Properties
 
 // Kunci rilis dibaca dari android/key.properties (dibuat oleh workflow dari GitHub Secrets).
-// Kalau file itu tidak ada, APK rilis memakai kunci debug.
+// Build RILIS tanpa file itu GAGAL, supaya APK berkunci debug tidak keluar tanpa sengaja.
+// Untuk build uji tanpa kunci (fork/PR yang tidak punya secret), nyalakan dengan sengaja:
+//   -PallowDebugSigning=true   (atau env ORG_GRADLE_PROJECT_allowDebugSigning=true)
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
 if (keystorePropertiesFile.exists()) {
     keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
 }
+val allowDebugSigning = (findProperty("allowDebugSigning") as String?) == "true"
 
 plugins {
     id("com.android.application")
@@ -54,12 +57,29 @@ android {
     buildTypes {
         release {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // Tanpa key.properties, hanya sampai di sini kalau build rilis diizinkan memakai kunci debug
+            // (lihat pengaman di bawah); tugas lain, mis. build debug, tidak terpengaruh.
             signingConfig = if (keystorePropertiesFile.exists()) {
                 signingConfigs.getByName("release")
             } else {
                 signingConfigs.getByName("debug")
             }
         }
+    }
+}
+
+// Pengaman: build rilis tanpa kunci rilis dan tanpa izin eksplisit dibatalkan dengan pesan yang jelas.
+gradle.taskGraph.whenReady {
+    val releaseBuild = allTasks.any {
+        val n = it.name
+        (n.startsWith("assemble") || n.startsWith("bundle") || n.startsWith("package") || n.startsWith("sign")) &&
+            n.endsWith("Release")
+    }
+    if (releaseBuild && !keystorePropertiesFile.exists() && !allowDebugSigning) {
+        throw GradleException(
+            "Build rilis dibatalkan: android/key.properties tidak ada, jadi APK akan memakai kunci debug. " +
+                "Pasang kunci rilis, atau untuk build uji sengaja tambahkan -PallowDebugSigning=true."
+        )
     }
 }
 

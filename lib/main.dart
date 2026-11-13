@@ -49,8 +49,8 @@ class RazarsaApp extends StatelessWidget {
         builder: (context, _) => MaterialApp(
           title: 'Razarsa',
           debugShowCheckedModeBanner: false,
-          theme: buildTheme(Brightness.light),
-          darkTheme: buildTheme(Brightness.dark),
+          theme: buildTheme(Brightness.light, palette: store.palette),
+          darkTheme: buildTheme(Brightness.dark, palette: store.palette),
           themeMode: store.themeMode,
           themeAnimationDuration: const Duration(milliseconds: 300),
           locale: store.lang == 'en' ? const Locale('en', 'US') : const Locale('id', 'ID'),

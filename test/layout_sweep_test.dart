@@ -11,6 +11,7 @@ import 'package:razarsa/features/finance/home_page.dart';
 import 'package:razarsa/features/finance/report_page.dart';
 import 'package:razarsa/features/finance/transactions_page.dart';
 import 'package:razarsa/features/productive/calendar_page.dart';
+import 'package:razarsa/features/saldo/saldo_page.dart';
 import 'package:razarsa/features/productive/notes_page.dart';
 import 'package:razarsa/features/productive/prod_home_page.dart';
 import 'package:razarsa/features/productive/todo_page.dart';
@@ -42,6 +43,7 @@ void main() {
     'Tugas': () => const TodoPage(),
     'Kalender': () => const CalendarPage(),
     'Catatan': () => const NotesPage(),
+    'Saldo per sumber': () => const SaldoPage(),
     'Pengaturan': () => const SettingsPage(),
     'Profil': () => const ProfilePage(),
     'Tentang': () => const AboutPage(),
@@ -68,6 +70,9 @@ void main() {
     s.setPin('123456');
     s.addTxn(name: 'Makan siang nasi padang pakai ayam bakar dan es teh manis', cat: 'food', amount: -35000);
     s.addTxn(name: 'Gaji', cat: 'salary', amount: 12500000);
+    s.addWallet(name: 'Bank Sinarmas Syariah nama panjang', type: 'bank', opening: -1234567890);
+    s.addWallet(name: 'ShopeePay', type: 'ewallet', opening: 250000);
+    s.addTxn(name: 'Bakso', cat: 'food', amount: -20000, wallet: s.wallets.last.id);
     s.addGoal('Laptop baru untuk kuliah dan kerja freelance', 15000000);
     s.addTodo('Mengerjakan tugas besar kuliah', cat: 'Kuliah', tone: 'purple', due: DateTime.now());
     s.addAgenda('Rapat dengan dosen pembimbing skripsi', DateTime.now(), reminder: true);

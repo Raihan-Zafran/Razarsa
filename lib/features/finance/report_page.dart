@@ -64,7 +64,7 @@ class _ReportPageState extends State<ReportPage> {
       GlassPane(
         hero: true,
         color: z.hero,
-        radius: 24,
+        radius: 14,
         border: Border.all(color: z.heroBorder),
         padding: const EdgeInsets.all(20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -98,7 +98,7 @@ class _ReportPageState extends State<ReportPage> {
                 value: v,
                 minHeight: 10,
                 backgroundColor: z.heroInner,
-                color: pct >= 0.9 ? const Color(0xFFFDBA74) : const Color(0xFF86EFAC),
+                color: pct >= 0.9 ? const Color(0xFFFDBA74) : z.hi,
               ),
             ),
           ),
@@ -228,7 +228,7 @@ class _BudgetMood extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(8, 10, 16, 10),
       decoration: BoxDecoration(
         color: warn ? z['warnBg'] : z['tipBg'],
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: warn ? z['warnBorder'] : z['tipBorder']),
       ),
       child: Row(children: [

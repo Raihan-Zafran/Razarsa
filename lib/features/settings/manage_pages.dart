@@ -9,7 +9,7 @@ import '../../data/store.dart';
 import '../../shell/app_shell.dart';
 import '../../widgets/common.dart';
 
-const kAppVersion = '1.2.0';
+const kAppVersion = '1.3.0';
 
 InputDecoration _input(BuildContext context, String hint, {String? prefix}) {
   final z = ZColors.of(context);
@@ -19,9 +19,9 @@ InputDecoration _input(BuildContext context, String hint, {String? prefix}) {
     filled: true,
     fillColor: z.bg,
     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: z.border)),
-    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: z.border)),
-    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: z.primary, width: 2)),
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: z.border)),
+    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: z.border)),
+    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: z.primary, width: 2)),
   );
 }
 
@@ -40,7 +40,7 @@ Widget _saveButton(BuildContext context, VoidCallback onTap) {
       style: FilledButton.styleFrom(
         backgroundColor: z.primary,
         foregroundColor: z.onPrimary,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
       child: Text(tr('Simpan'), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
     ),

@@ -27,6 +27,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
   bool _expanded = false;
   bool _showNewCat = false;
   DateTime _date = DateTime.now();
+  String? _wallet;
 
   int get _value => int.tryParse(_amount.text.replaceAll(RegExp(r'\D'), '')) ?? 0;
   bool get _canSave => _value > 0 && _cat != null;
@@ -44,11 +45,18 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
     final now = DateTime.now();
     final at = DateTime(_date.year, _date.month, _date.day, now.hour, now.minute, now.second);
     final note = _note.text.trim();
-    store.addTxn(
+    final t = store.addTxn(
       name: note.isEmpty ? store.category(_cat!).label : note,
       cat: _cat!,
       amount: _income ? _value : -_value,
       at: at,
+      wallet: _wallet ?? store.defaultWallet.id,
+    );
+    showZToast(
+      context,
+      trf('{0} {1} dicatat di {2}', [_income ? tr('Pemasukan') : tr('Pengeluaran'), rp(_value), store.walletName(t.wallet)]),
+      actionLabel: tr('Batalkan'),
+      onAction: () => store.removeTxn(t.id),
     );
     Navigator.of(context).pop();
   }
@@ -107,6 +115,13 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
               ),
             ]),
           ]),
+        ),
+        const SizedBox(height: 14),
+        _WalletPicker(
+          label: _income ? tr('Masuk ke') : tr('Bayar dari'),
+          store: store,
+          selected: _wallet ?? store.defaultWallet.id,
+          onChanged: (id) => setState(() => _wallet = id),
         ),
         const SizedBox(height: 18),
         SectionTitle(tr('Kategori'),
@@ -230,7 +245,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
               foregroundColor: z.onPrimary,
               disabledBackgroundColor: z['disabledBg'],
               disabledForegroundColor: z['disabledFg'],
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             child: Text(_canSave ? trf('Simpan {0}', [rp(_value)]) : tr('Simpan Transaksi'),
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
@@ -245,9 +260,38 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
         filled: true,
         fillColor: z.card,
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: z.chipBorder)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: z.primary, width: 2)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(9), borderSide: BorderSide(color: z.chipBorder)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(9), borderSide: BorderSide(color: z.primary, width: 2)),
       );
+}
+
+/// Pilihan sumber saldo (bank, e-wallet, tunai) beserta saldonya, yang tinggal diketuk.
+class _WalletPicker extends StatelessWidget {
+  const _WalletPicker({required this.label, required this.store, required this.selected, required this.onChanged});
+
+  final String label;
+  final AppStore store;
+  final String selected;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final z = ZColors.of(context);
+    final cur = store.walletById(selected) ?? store.defaultWallet;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      SectionTitle(
+        label,
+        trailing: Text(
+          store.hideBalance ? rpHidden : trf('Saldo {0}', [rpNeg(store.walletBalance(cur.id))]),
+          style: TextStyle(fontSize: 12, color: z.muted2),
+        ),
+      ),
+      const SizedBox(height: 10),
+      Wrap(spacing: 8, runSpacing: 8, children: [
+        for (final w in store.wallets) ZChip(label: w.name, selected: w.id == cur.id, onTap: () => onChanged(w.id)),
+      ]),
+    ]);
+  }
 }
 
 class _CatButton extends StatelessWidget {
@@ -270,7 +314,7 @@ class _CatButton extends StatelessWidget {
           duration: const Duration(milliseconds: 180),
           decoration: BoxDecoration(
             color: z.card,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(10),
             border: Border.all(color: selected ? z.primary : z.cardBorder, width: 2),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 2),
@@ -300,7 +344,7 @@ class _DashedTile extends StatelessWidget {
       width: 38,
       height: 38,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: z.chipBorder, width: 1.5),
       ),
       child: Icon(icon, size: 19, color: z.muted),

@@ -22,6 +22,9 @@ String dots(num n) {
 /// 25000 -> "Rp 25.000" atau "$25,000"
 String rp(num n) => _usd ? '\$${dots(n)}' : 'Rp ${dots(n)}';
 
+/// Nominal dengan tanda minus kalau negatif: -250000 -> "-Rp 250.000".
+String rpNeg(num n) => '${n < 0 ? '-' : ''}${rp(n)}';
+
 /// Tanda + atau - di depan nominal.
 String rpSigned(num n) => '${n < 0 ? '-' : '+'}${rp(n)}';
 

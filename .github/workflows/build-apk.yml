@@ -121,6 +121,9 @@ jobs:
       - name: Build APK
         env:
           RUN_NUMBER: ${{ github.run_number }}
+          # Tanpa kunci rilis (fork/PR tanpa secret) build uji tetap boleh jalan, tapi sengaja dan diberi nama -DEBUGKEY.
+          # Dengan kunci rilis, nilainya false: build rilis tidak pernah diam-diam memakai kunci debug.
+          ORG_GRADLE_PROJECT_allowDebugSigning: ${{ steps.sign.outputs.signed == 'true' && 'false' || 'true' }}
         run: |
           set -euo pipefail
           BUILD=$((VERSION_CODE_OFFSET + RUN_NUMBER))

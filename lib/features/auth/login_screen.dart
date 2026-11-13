@@ -503,7 +503,7 @@ class _Field extends StatelessWidget {
         padding: EdgeInsets.only(left: 18, right: suffix == null ? 18 : 4),
         decoration: BoxDecoration(
           color: c.field,
-          borderRadius: BorderRadius.circular(26),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: focus.hasFocus ? c.focus : c.line, width: 2),
         ),
         child: Row(children: [

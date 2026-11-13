@@ -51,6 +51,7 @@ class Txn {
     required this.cat,
     required this.amount,
     required this.at,
+    this.wallet = '',
   });
 
   final String id;
@@ -61,7 +62,12 @@ class Txn {
   final int amount;
   final DateTime at;
 
+  /// Id sumber saldo (bank, e-wallet, tunai). Kosong hanya untuk data lama sebelum dipindahkan ke sumber bawaan.
+  final String wallet;
+
   bool get isExpense => amount < 0;
+
+  Txn withWallet(String w) => Txn(id: id, name: name, cat: cat, amount: amount, at: at, wallet: w);
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -69,6 +75,7 @@ class Txn {
         'cat': cat,
         'amount': amount,
         'at': at.toIso8601String(),
+        if (wallet.isNotEmpty) 'w': wallet,
       };
 
   factory Txn.fromJson(Map<String, dynamic> j) => Txn(
@@ -77,6 +84,7 @@ class Txn {
         cat: j['cat'] as String,
         amount: (j['amount'] as num).toInt(),
         at: DateTime.parse(j['at'] as String),
+        wallet: j['w'] is String ? j['w'] as String : '',
       );
 }
 
@@ -249,4 +257,39 @@ class Recurring {
         day: (j['day'] as num? ?? 1).toInt().clamp(1, 28),
         lastPosted: j['lastPosted'] as String? ?? '',
       );
+}
+
+/// Jenis sumber saldo.
+const kWalletTypes = ['bank', 'ewallet', 'cash'];
+
+/// Id sumber bawaan ("Tunai") yang dibuat otomatis untuk data lama dan pengguna baru.
+const kDefaultWalletId = 'cash';
+
+/// Satu sumber saldo: bank, e-wallet, atau tunai. Saldo = [opening] + jumlah transaksinya.
+class Wallet {
+  Wallet({required this.id, required this.name, required this.type, this.opening = 0});
+
+  final String id;
+  String name;
+  final String type;
+
+  /// Saldo awal (boleh minus, mis. kartu kredit). Saldo sekarang dihitung di store.
+  int opening;
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'type': type, 'opening': opening};
+
+  factory Wallet.fromJson(Map<String, dynamic> j) {
+    final id = j['id'];
+    final name = j['name'];
+    if (id is! String || id.isEmpty || id.length > 64) throw const FormatException('id sumber tidak valid');
+    if (name is! String || name.trim().isEmpty) throw const FormatException('nama sumber kosong');
+    final t = j['type'];
+    final op = j['opening'] is num ? (j['opening'] as num).toInt() : 0;
+    return Wallet(
+      id: id,
+      name: name.trim().length > 24 ? name.trim().substring(0, 24) : name.trim(),
+      type: t is String && kWalletTypes.contains(t) ? t : 'bank',
+      opening: op.clamp(-1000000000000, 1000000000000).toInt(),
+    );
+  }
 }

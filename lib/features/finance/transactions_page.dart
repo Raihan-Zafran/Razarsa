@@ -75,7 +75,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
               TxnRow(
                 category: store.category(e.value[i].cat),
                 title: e.value[i].name,
-                subtitle: '${store.category(e.value[i].cat).label} · ${timeLabel(e.value[i].at)}',
+                subtitle: '${store.category(e.value[i].cat).label} · ${timeLabel(e.value[i].at)}${store.wallets.length > 1 ? ' · ${store.walletName(e.value[i].wallet)}' : ''}',
                 amountText: rpSigned(e.value[i].amount),
                 isIncome: !e.value[i].isExpense,
                 showDivider: i < e.value.length - 1,

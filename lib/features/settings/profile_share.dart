@@ -47,9 +47,9 @@ class ProfileShareCard extends StatelessWidget {
         width: width,
         height: height,
         child: DecoratedBox(
-          decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(28)),
+          decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(16)),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: BorderRadius.circular(16),
             child: Stack(children: [
               Positioned(top: 0, left: 0, right: 0, height: 130, child: Image.asset(dark ? cover.nightAsset : cover.dayAsset, fit: BoxFit.cover)),
               Positioned(

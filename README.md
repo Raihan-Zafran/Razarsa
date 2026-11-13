@@ -16,6 +16,7 @@ Aplikasi Android (Flutter) dengan dua mode: **Keuangan** dan **Produktif**. Semu
 - Catat pemasukan dan pengeluaran, Catat Cepat sekali tap
 - Laporan, anggaran bulanan dan per kategori, target tabungan
 - Transaksi berulang dan pengingat tagihan
+- Saldo per sumber (bank, e-wallet, tunai) dengan graph bulat per kuartal
 
 **✅ Produktif**
 - Tugas, kalender dengan pengingat
@@ -23,7 +24,7 @@ Aplikasi Android (Flutter) dengan dua mode: **Keuangan** dan **Produktif**. Semu
 
 **Umum**
 - Terang/gelap, Indonesia/English
-- Latar bergerak Langit atau Gurun Senja (dipilih di Pengaturan), dengan efek kaca yang bisa diatur
+- Latar bergerak Langit atau Gurun Senja (dipilih di Pengaturan), dengan efek kaca dan palet warna yang bisa diatur
 - Kunci PIN dan sidik jari
 - Backup berkata sandi, pulihkan, ekspor CSV
 - Profil dengan level, avatar, bingkai, dan lencana
