@@ -1,7 +1,10 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 
 import '../core/theme.dart';
 import '../data/models.dart';
+import '../data/store.dart';
 import '../core/i18n.dart';
 
 class Assets {
@@ -9,14 +12,64 @@ class Assets {
   static const mascotThinking = 'assets/images/mascot_thinking.webp';
   static const mascotWorried = 'assets/images/mascot_worried.webp';
   static const mascotWallet = 'assets/images/mascot_wallet.webp';
-  static const mountainDay = 'assets/images/mountain_day.webp';
-  static const mountainNight = 'assets/images/mountain_night.webp';
   static const sceneDay = 'assets/images/scene_day.webp';
   static const sceneNight = 'assets/images/scene_night.webp';
   static const dragonHappy = 'assets/images/dragon_happy.webp';
   static const dragonWin = 'assets/images/dragon_win.webp';
   static const dragonCurious = 'assets/images/dragon_curious.webp';
   static const logo = 'assets/images/logo.png';
+}
+
+/// Tingkat efek kaca dari pengaturan (0 mati, 1 halus, 2 kuat). Tanpa store (misalnya di tes) dianggap mati.
+int glassLevelOf(BuildContext context) =>
+    context.dependOnInheritedWidgetOfExactType<StoreScope>()?.notifier?.glassLevel ?? 0;
+
+/// Permukaan kartu: warna biasa, atau kaca (tembus pandang + buram) kalau efek kaca menyala,
+/// supaya latar bergerak di belakangnya tetap terlihat.
+///
+/// [hero] dipakai untuk kartu hijau tua (lebih pekat agar teks putih tetap terbaca).
+class GlassPane extends StatelessWidget {
+  const GlassPane({
+    super.key,
+    required this.color,
+    required this.child,
+    this.radius = 20,
+    this.border,
+    this.padding,
+    this.hero = false,
+    this.circle = false,
+  });
+
+  final Color color;
+  final Widget child;
+  final double radius;
+  final BoxBorder? border;
+  final EdgeInsetsGeometry? padding;
+  final bool hero;
+  final bool circle;
+
+  @override
+  Widget build(BuildContext context) {
+    final level = glassLevelOf(context);
+    final shape = circle ? BoxShape.circle : BoxShape.rectangle;
+    final br = circle ? null : BorderRadius.circular(radius);
+    if (level == 0) {
+      return Container(
+        padding: padding,
+        decoration: BoxDecoration(color: color, shape: shape, borderRadius: br, border: border),
+        child: child,
+      );
+    }
+    final alpha = hero ? (level == 1 ? 0.82 : 0.58) : (level == 1 ? 0.80 : 0.52);
+    final sigma = level == 1 ? 5.0 : 10.0;
+    final inner = Container(
+      padding: padding,
+      decoration: BoxDecoration(color: color.withValues(alpha: color.a * alpha), shape: shape, borderRadius: br, border: border),
+      child: child,
+    );
+    final blur = BackdropFilter(filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma), child: inner);
+    return circle ? ClipOval(child: blur) : ClipRRect(borderRadius: br!, child: blur);
+  }
 }
 
 /// Kartu dasar: putih di mode terang, hijau gelap bergaris di mode gelap.
@@ -30,13 +83,11 @@ class ZCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final z = ZColors.of(context);
-    return Container(
+    return GlassPane(
+      color: z.card,
+      radius: radius,
+      border: Border.all(color: z.cardBorder),
       padding: padding,
-      decoration: BoxDecoration(
-        color: z.card,
-        borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: z.cardBorder),
-      ),
       child: child,
     );
   }
@@ -140,13 +191,18 @@ class RoundIconButton extends StatelessWidget {
     final z = ZColors.of(context);
     return Tooltip(
       message: tooltip,
-      child: Material(
+      child: GlassPane(
         color: filled ? z.track : z.card,
-        shape: CircleBorder(side: BorderSide(color: filled ? Colors.transparent : z.border)),
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onTap,
-          child: SizedBox(width: 44, height: 44, child: Icon(icon, size: 21, color: filled ? z.muted : z.text)),
+        circle: true,
+        border: Border.all(color: filled ? Colors.transparent : z.border),
+        child: Material(
+          type: MaterialType.transparency,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onTap,
+            child: SizedBox(width: 44, height: 44, child: Icon(icon, size: 21, color: filled ? z.muted : z.text)),
+          ),
         ),
       ),
     );
@@ -165,9 +221,10 @@ class Segmented<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final z = ZColors.of(context);
-    return Container(
+    return GlassPane(
+      color: z.track,
+      radius: 14,
       padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(color: z.track, borderRadius: BorderRadius.circular(14)),
       child: Row(
         children: [
           for (final (v, label) in items)
@@ -212,19 +269,24 @@ class ZChip extends StatelessWidget {
     final z = ZColors.of(context);
     return GestureDetector(
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-        decoration: BoxDecoration(
-          color: selected ? z.primary : z.card,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: selected ? z.primary : z.chipBorder),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: selected ? z.onPrimary : z.text2),
-        ),
-      ),
+      child: selected
+          ? AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+              decoration: BoxDecoration(
+                color: z.primary,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: z.primary),
+              ),
+              child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: z.onPrimary)),
+            )
+          : GlassPane(
+              color: z.card,
+              radius: 999,
+              border: Border.all(color: z.chipBorder),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+              child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: z.text2)),
+            ),
     );
   }
 }

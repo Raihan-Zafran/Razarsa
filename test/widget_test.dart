@@ -210,7 +210,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     final a = AppStore(prefs, vault: testVault);
-    expect(a.financeBg, 'desert');
+    expect(a.financeBg, 'sky');
     expect(a.quickItems, isNotEmpty);
     final today = DateTime.now().day.clamp(1, 28);
     a.addRecurring(name: 'Netflix', cat: 'fun', amount: -54000, day: today);

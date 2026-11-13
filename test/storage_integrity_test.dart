@@ -313,7 +313,7 @@ void main() {
       expect(s.monthStartDay, inInclusiveRange(1, 28));
       expect(s.currency, 'IDR');
       expect(s.lang, 'id');
-      expect(s.financeBg, 'desert');
+      expect(s.financeBg, 'sky'); // nilai tidak dikenal -> latar bawaan
       expect(s.activeDays.where((d) => d == 'sampah'), isEmpty);
     });
 

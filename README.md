@@ -23,7 +23,7 @@ Aplikasi Android (Flutter) dengan dua mode: **Keuangan** dan **Produktif**. Semu
 
 **Umum**
 - Terang/gelap, Indonesia/English
-- Latar bergerak Gurun atau Langit (dipilih di Pengaturan)
+- Latar bergerak Langit atau Gurun Senja (dipilih di Pengaturan), dengan efek kaca yang bisa diatur
 - Kunci PIN dan sidik jari
 - Backup berkata sandi, pulihkan, ekspor CSV
 - Profil dengan level, avatar, bingkai, dan lencana

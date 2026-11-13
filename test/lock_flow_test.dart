@@ -50,8 +50,13 @@ void main() {
     ));
     expect(find.text('ISI-APLIKASI'), findsNothing);
     await digits(t, '000000');
+    expect(find.text('PIN salah'), findsOneWidget);
     expect(find.text('ISI-APLIKASI'), findsNothing);
+    await t.pump(const Duration(milliseconds: 300)); // titik merah kosong lagi
     await digits(t, '123456');
+    expect(find.text('Terbuka'), findsOneWidget); // titik hijau sebelum layar kunci menghilang
+    await t.pump(const Duration(milliseconds: 600));
+    await t.pumpAndSettle();
     expect(find.text('ISI-APLIKASI'), findsOneWidget);
   });
 

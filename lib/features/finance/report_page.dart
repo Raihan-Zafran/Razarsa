@@ -61,9 +61,12 @@ class _ReportPageState extends State<ReportPage> {
       ),
       const SizedBox(height: 16),
       // Kartu anggaran bulan ini
-      Container(
+      GlassPane(
+        hero: true,
+        color: z.hero,
+        radius: 24,
+        border: Border.all(color: z.heroBorder),
         padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(color: z.hero, borderRadius: BorderRadius.circular(24), border: Border.all(color: z.heroBorder)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
             Expanded(

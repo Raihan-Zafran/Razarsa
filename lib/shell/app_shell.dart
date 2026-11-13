@@ -15,7 +15,7 @@ import '../features/settings/settings_page.dart';
 import '../data/store.dart';
 import 'classroom_background.dart';
 import 'dock.dart';
-import 'desert_background.dart';
+import 'dusk_background.dart';
 import 'sky_background.dart';
 import '../core/i18n.dart';
 import '../widgets/mode_widgets.dart' show ModeReveal;
@@ -155,9 +155,9 @@ class _ModeShellState extends State<ModeShell> {
             right: 0,
             child: _prod
                 ? ClassroomBackground(dark: dark, tab: _tab, name: StoreScope.of(context).userName)
-                : (StoreScope.of(context).financeBg == 'sky'
-                    ? SkyBackground(dark: dark, tab: _tab)
-                    : DesertBackground(dark: dark, tab: _tab)),
+                : (StoreScope.of(context).financeBg == 'dusk'
+                    ? DuskBackground(dark: dark, tab: _tab)
+                    : SkyBackground(dark: dark, tab: _tab)),
           ),
           // Pindah tab: halaman baru muncul seketika, lalu elemen-elemennya naik satu per satu
           // (lihat [PageStagger]). Dock dan latar tidak ikut bergerak.

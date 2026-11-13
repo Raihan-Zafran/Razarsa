@@ -43,13 +43,12 @@ class ProdHomePage extends StatelessWidget {
       ]),
       children: [
         // Fokus hari ini: jumlah tugas tersisa + daftar yang bisa langsung diselesaikan.
-        Container(
+        GlassPane(
+          hero: true,
+          color: z.hero,
+          radius: 24,
+          border: Border.all(color: z.heroBorder),
           padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-          decoration: BoxDecoration(
-            color: z.hero,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: z.heroBorder),
-          ),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
               Text('${remaining.length}',

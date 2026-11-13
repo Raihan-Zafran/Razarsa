@@ -119,13 +119,12 @@ class _BalanceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final z = ZColors.of(context);
-    return Container(
+    return GlassPane(
+      hero: true,
+      color: z.hero,
+      radius: 24,
+      border: Border.all(color: z.heroBorder),
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: z.hero,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: z.heroBorder),
-      ),
       child: Column(children: [
         Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
           Expanded(

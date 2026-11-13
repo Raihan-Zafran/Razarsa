@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -30,46 +32,13 @@ class GoalsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
     final z = ZColors.of(context);
-    final dark = Theme.of(context).brightness == Brightness.dark;
 
     return PageScroll(children: [
       PageTitle(tr('Target Keuangan'), actions: [
         RoundIconButton(icon: Icons.add_rounded, tooltip: tr('Tambah target'), onTap: () => _addGoal(context, store)),
       ]),
       const SizedBox(height: 12),
-      ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: SizedBox(
-          height: scaledHeight(context, 150),
-          child: Stack(fit: StackFit.expand, children: [
-            Container(color: z.hero),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 450),
-              child: Image.asset(
-                dark ? Assets.mountainNight : Assets.mountainDay,
-                key: ValueKey(dark),
-                fit: BoxFit.cover,
-                alignment: Alignment.centerRight,
-                width: double.infinity,
-                height: scaledHeight(context, 150),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(tr('Bangun Masa Depanmu'),
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.4)),
-                const SizedBox(height: 6),
-                SizedBox(
-                  width: 190,
-                  child: Text(tr('Buat target, pantau progres, dan wujudkan.'),
-                      style: TextStyle(fontSize: 13, color: z.heroMuted, height: 1.45)),
-                ),
-              ]),
-            ),
-          ]),
-        ),
-      ),
+      _GoalSummary(goals: store.goals),
       const SizedBox(height: 14),
       if (store.goals.isEmpty)
         ZCard(
@@ -119,6 +88,118 @@ class GoalsPage extends StatelessWidget {
     final target = int.tryParse(amount.text) ?? 0;
     if (ok == true && name.text.trim().isNotEmpty && target > 0) store.addGoal(name.text, target);
   }
+}
+
+/// Ringkasan semua target di bagian atas: total tabungan, cincin progres, dan dua info singkat.
+class _GoalSummary extends StatelessWidget {
+  const _GoalSummary({required this.goals});
+
+  final List<Goal> goals;
+
+  @override
+  Widget build(BuildContext context) {
+    final z = ZColors.of(context);
+    final saved = goals.fold<int>(0, (t, g) => t + g.saved);
+    final target = goals.fold<int>(0, (t, g) => t + g.target);
+    final counted = goals.fold<int>(0, (t, g) => t + math.min(g.saved, g.target));
+    final progress = target <= 0 ? 0.0 : (counted / target).clamp(0.0, 1.0);
+    final done = goals.where((g) => g.saved >= g.target).length;
+    final left = target - counted;
+    final pct = '${(progress * 100).round()}%';
+    Widget pill(IconData icon, String text) => Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(color: z.heroInner, borderRadius: BorderRadius.circular(12)),
+            child: Row(children: [
+              Icon(icon, size: 15, color: const Color(0xFF86EFAC)),
+              const SizedBox(width: 5),
+              Expanded(child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: z.heroMuted))),
+            ]),
+          ),
+        );
+    return Semantics(
+      container: true,
+      label: '${tr('Total tabungan')} ${rp(saved)}, ${tr('Progres semua target')} $pct',
+      child: GlassPane(
+        hero: true,
+        color: z.hero,
+        radius: 24,
+        border: Border.all(color: z.heroBorder),
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+        child: Column(children: [
+          Row(children: [
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(tr('Total tabungan'), style: TextStyle(fontSize: 14, color: z.heroMuted)),
+                const SizedBox(height: 4),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(rp(saved),
+                      style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.5, fontFeatures: [FontFeature.tabularFigures()])),
+                ),
+                const SizedBox(height: 2),
+                Text(trf('dari {0}', [rp(target)]),
+                    style: TextStyle(fontSize: 12.5, color: z.heroMuted, fontFeatures: const [FontFeature.tabularFigures()])),
+              ]),
+            ),
+            const SizedBox(width: 12),
+            SizedBox(
+              width: 68,
+              height: 68,
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(end: progress),
+                duration: const Duration(milliseconds: 600),
+                curve: Curves.easeOut,
+                builder: (_, v, _) => CustomPaint(
+                  painter: _RingPainter(v),
+                  child: Center(child: Text(pct, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white))),
+                ),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 14),
+          Row(children: [
+            pill(Icons.check_circle_rounded, trf('{0} dari {1} tercapai', [done, goals.length])),
+            const SizedBox(width: 8),
+            pill(Icons.flag_rounded,
+                goals.isEmpty ? tr('Belum ada target') : (left > 0 ? trf('Kurang {0}', [rpShort(left)]) : tr('Semua tercapai'))),
+          ]),
+        ]),
+      ),
+    );
+  }
+}
+
+class _RingPainter extends CustomPainter {
+  _RingPainter(this.value);
+
+  final double value;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const stroke = 7.0;
+    final rect = Offset.zero & size;
+    final arc = rect.deflate(stroke / 2);
+    final base = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..color = const Color(0x2EFFFFFF);
+    canvas.drawArc(arc, 0, math.pi * 2, false, base);
+    if (value <= 0) return;
+    canvas.drawArc(
+      arc,
+      -math.pi / 2,
+      math.pi * 2 * value,
+      false,
+      base
+        ..strokeCap = StrokeCap.round
+        ..color = const Color(0xFF86EFAC),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _RingPainter old) => old.value != value;
 }
 
 /// 0.3333 -> "33,3%", 0.4 -> "40%"

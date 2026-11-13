@@ -16,7 +16,7 @@ import '../security/lock.dart';
 import 'manage_pages.dart';
 import 'profile_page.dart';
 import '../../shell/classroom_background.dart';
-import '../../shell/desert_background.dart';
+import '../../shell/sky_background.dart';
 import '../../core/i18n.dart';
 
 /// Pengaturan dipakai bersama untuk semua mode Razarsa.
@@ -41,7 +41,7 @@ class SettingsPage extends StatelessWidget {
         final mq = MediaQuery.of(context);
         final scene = store.mode == 'productive'
             ? ClassroomBackground.heightFor(mq.size.width) - 4
-            : DesertBackground.heightFor(mq.size.width) * 0.76;
+            : SkyBackground.heightFor(mq.size.width) * 0.76;
         return SizedBox(height: (scene - mq.padding.top - 12 - 48).clamp(12.0, 400.0));
       }),
       Material(
@@ -71,8 +71,13 @@ class SettingsPage extends StatelessWidget {
       ),
       _Group(tr('Umum'), [
         _Row(icon: Icons.dark_mode_outlined, tone: 'purple', label: tr('Tampilan'), value: themeLabel, onTap: () => _pickTheme(context, store)),
-        _Row(icon: Icons.landscape_outlined, tone: 'amber', label: tr('Latar Keuangan'), value: store.financeBg == 'sky' ? tr('Langit') : tr('Gurun'),
-            onTap: () => _pick(context, tr('Latar Keuangan'), [('desert', tr('Gurun')), ('sky', tr('Langit'))], store.financeBg, store.setFinanceBg)),
+        _Row(icon: Icons.landscape_outlined, tone: 'amber', label: tr('Latar Keuangan'), value: store.financeBg == 'dusk' ? tr('Gurun Senja') : tr('Langit'),
+            onTap: () => _pick(context, tr('Latar Keuangan'), [('sky', tr('Langit')), ('dusk', tr('Gurun Senja'))], store.financeBg, store.setFinanceBg)),
+        _Row(icon: Icons.blur_on_rounded, tone: 'teal', label: tr('Efek kaca'),
+            value: const ['Mati', 'Halus', 'Kuat'].map(tr).toList()[store.glassLevel],
+            sub: tr('Kartu tembus pandang di atas latar'),
+            onTap: () => _pick(context, tr('Efek kaca'), [('0', tr('Mati')), ('1', tr('Halus')), ('2', tr('Kuat'))],
+                '${store.glassLevel}', (v) => store.setGlassLevel(int.parse(v)))),
         _Row(icon: Icons.language_rounded, tone: 'blue', label: tr('Bahasa'), value: store.lang == 'en' ? 'English' : 'Indonesia',
             onTap: () => _pick(context, tr('Bahasa'), [('id', 'Indonesia'), ('en', 'English')], store.lang, store.setLang)),
         _Row(icon: Icons.calendar_month_outlined, tone: 'green', label: tr('Awal bulan anggaran'), value: trf('Tanggal {0}', [store.monthStartDay]),
@@ -130,6 +135,9 @@ class SettingsPage extends StatelessWidget {
           _Row(icon: Icons.password_rounded, tone: 'blue', label: tr('Ganti PIN'), value: trf('{0} digit', [store.pinLength]),
               sub: store.pinLength < AppStore.pinNewLength ? tr('Disarankan 6 digit untuk keamanan lebih baik') : null,
               onTap: () => _changePin(context, store)),
+        if (store.pinEnabled)
+          _Row(icon: Icons.lock_clock_rounded, tone: 'blue', label: tr('Kunci sekarang'), sub: tr('Lihat layar kunci tanpa menutup aplikasi'),
+              onTap: store.requestLock),
         _Switch(store, 'bio', Icons.fingerprint_rounded, 'green', tr('Buka dengan sidik jari'), null, onChanged: (v) => _toggleBio(context, store, v)),
         _Switch(store, 'secure', Icons.screenshot_monitor_rounded, 'purple', tr('Cegah tangkapan layar'),
             tr('Isi aplikasi disembunyikan dari tangkapan layar dan daftar aplikasi terbaru saat PIN aktif')),

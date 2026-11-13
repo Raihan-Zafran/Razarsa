@@ -70,8 +70,15 @@ class AppStore extends ChangeNotifier {
   /// Mode aktif: 'finance' atau 'productive'.
   String mode = 'finance';
 
-  /// Latar mode Keuangan: 'desert' (bawaan) atau 'sky'.
-  String financeBg = 'desert';
+  /// Latar mode Keuangan: 'sky' (Langit, bawaan) atau 'dusk' (Gurun Senja).
+  /// Nilai lama 'desert' (Gurun, sudah dihapus) otomatis menjadi 'sky'.
+  String financeBg = 'sky';
+
+  /// Efek kaca pada kartu: 0 mati, 1 halus (bawaan), 2 kuat.
+  int glassLevel = 1;
+
+  /// Naik setiap kali pengguna meminta aplikasi dikunci sekarang (lihat [requestLock]).
+  int lockTick = 0;
 
   List<QuickEntry> quickItems = [];
   List<Recurring> recurring = [];
@@ -193,7 +200,8 @@ class AppStore extends ChangeNotifier {
     notes = _readList('notes', _noteFromStorage);
     noteFolders = _getStrings('noteFolders');
     mode = _get('mode', 'finance') == 'productive' ? 'productive' : 'finance';
-    financeBg = _get('financeBg', 'desert') == 'sky' ? 'sky' : 'desert';
+    financeBg = normalizeFinanceBg(_get<Object?>('financeBg', 'sky'));
+    glassLevel = _get<int>('glassLevel', 1).clamp(0, 2);
     recurring = _readList('recurring', Recurring.fromJson);
     quickItems = _rawString('quickItems') == null ? _defaultQuickItems() : _readList('quickItems', QuickEntry.fromJson);
     bio = _get('bio', '');
@@ -431,6 +439,7 @@ class AppStore extends ChangeNotifier {
     await _put('noteFolders', noteFolders);
     await _put('mode', mode);
     await _put('financeBg', financeBg);
+    await _put('glassLevel', glassLevel);
     await _put('recurring', list(recurring, (e) => e.toJson()));
     await _put('quickItems', list(quickItems, (e) => e.toJson()));
     await _put('bio', bio);
@@ -725,6 +734,7 @@ class AppStore extends ChangeNotifier {
           'currency': currency,
           'lang': lang,
           'financeBg': financeBg,
+          'glassLevel': glassLevel,
           'themeMode': themeMode.index,
           'mode': this.mode, // 'mode' sendiri adalah parameter jenis ekspor
         },
@@ -898,7 +908,8 @@ class AppStore extends ChangeNotifier {
       final emailOk = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
       final newName = pn is String && pn.trim().isNotEmpty && pn.trim().length <= 30 ? pn.trim() : userName;
       final newEmail = pe is String && (pe.isEmpty || (pe.length <= 120 && emailOk.hasMatch(pe))) && pn is String ? pe : email;
-      final newBg = st['financeBg'] == 'sky' || st['financeBg'] == 'desert' ? st['financeBg'] as String : financeBg;
+      final newBg = st['financeBg'] is String ? normalizeFinanceBg(st['financeBg']) : financeBg;
+      final newGlass = st['glassLevel'] is num ? (st['glassLevel'] as num).toInt().clamp(0, 2) : glassLevel;
       final newBio = pf['bio'] is String && (pf['bio'] as String).length <= 1000 ? pf['bio'] as String : bio;
       final newJoined = pf['joinedAt'] is String && dayRe.hasMatch(pf['joinedAt'] as String) ? pf['joinedAt'] as String : joinedAt;
       final newAvatar = pf['avatar'] is String && isValidAvatar(pf['avatar'] as String) ? pf['avatar'] as String : avatar;
@@ -930,6 +941,7 @@ class AppStore extends ChangeNotifier {
       L.currency = newCurrency;
       L.lang = newLang;
       financeBg = newBg;
+      glassLevel = newGlass;
       themeMode = newTheme;
       mode = newAppMode;
       userName = newName;
@@ -1295,8 +1307,23 @@ class AppStore extends ChangeNotifier {
   }
 
   // ---------- Latar, Catat Cepat, transaksi berulang ----------
+  /// Hanya 'sky' dan 'dusk' yang dikenal; nilai lain (termasuk 'desert' versi lama) menjadi 'sky'.
+  static String normalizeFinanceBg(Object? v) => v == 'dusk' ? 'dusk' : 'sky';
+
   void setFinanceBg(String v) {
-    financeBg = v;
+    financeBg = normalizeFinanceBg(v);
+    _changed();
+  }
+
+  void setGlassLevel(int v) {
+    glassLevel = v.clamp(0, 2);
+    _changed();
+  }
+
+  /// Minta aplikasi dikunci sekarang (hanya berlaku kalau PIN aktif).
+  void requestLock() {
+    if (!pinEnabled) return;
+    lockTick++;
     _changed();
   }
 
