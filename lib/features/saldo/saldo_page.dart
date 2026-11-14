@@ -289,7 +289,8 @@ class _Legend extends StatelessWidget {
   Widget build(BuildContext context) {
     final z = ZColors.of(context);
     return Row(mainAxisSize: MainAxisSize.min, children: [
-      Container(width: size, height: size, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+      // Garis tipis supaya titik krem tetap terlihat di tema terang.
+      Container(width: size, height: size, decoration: BoxDecoration(color: color, shape: BoxShape.circle, border: Border.all(color: z.muted2.withValues(alpha: 0.5), width: 0.6))),
       const SizedBox(width: 6),
       Text(label, style: TextStyle(fontSize: 11.5, color: z.muted)),
     ]);

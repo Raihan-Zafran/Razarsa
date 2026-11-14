@@ -288,6 +288,7 @@ class _BalanceSparkState extends State<_BalanceSpark> with TickerProviderStateMi
                   draw: Interval(0.083, 1, curve: const Cubic(0.22, 0.8, 0.3, 1)).transform(_draw.value),
                   pulse: _pulse.isAnimating ? _pulse.value : null,
                   hover: hv,
+                  color: ZColors.of(context).hi,
                 ),
               ),
             ),
@@ -313,14 +314,15 @@ class _BalanceSparkState extends State<_BalanceSpark> with TickerProviderStateMi
 }
 
 class _SparkPainter extends CustomPainter {
-  const _SparkPainter({required this.pts, required this.draw, required this.pulse, required this.hover});
+  const _SparkPainter({required this.pts, required this.draw, required this.pulse, required this.hover, required this.color});
 
   final List<Offset> pts;
   final double draw;
   final double? pulse;
   final int? hover;
 
-  static const _green = Color(0xFF86EFAC);
+  /// Warna garis: aksen kartu hero pada palet yang dipakai.
+  final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -329,7 +331,7 @@ class _SparkPainter extends CustomPainter {
       path.lineTo(o.dx, o.dy);
     }
     final paint = Paint()
-      ..color = _green
+      ..color = color
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round
@@ -339,15 +341,15 @@ class _SparkPainter extends CustomPainter {
     }
     final end = pts.last;
     if (pulse != null) {
-      canvas.drawCircle(end, 4 * (1 + 2 * pulse!), Paint()..color = _green.withValues(alpha: 0.55 * (1 - pulse!)));
+      canvas.drawCircle(end, 4 * (1 + 2 * pulse!), Paint()..color = color.withValues(alpha: 0.55 * (1 - pulse!)));
     }
-    canvas.drawCircle(end, 4, Paint()..color = _green);
+    canvas.drawCircle(end, 4, Paint()..color = color);
     if (hover != null) canvas.drawCircle(pts[hover!], 3.5, Paint()..color = Colors.white);
   }
 
   @override
   bool shouldRepaint(covariant _SparkPainter old) =>
-      old.draw != draw || old.pulse != pulse || old.hover != hover || old.pts != pts;
+      old.draw != draw || old.pulse != pulse || old.hover != hover || old.pts != pts || old.color != color;
 }
 
 class _AddButton extends StatelessWidget {

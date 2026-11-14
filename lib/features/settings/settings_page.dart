@@ -683,7 +683,7 @@ class _Row extends StatelessWidget {
           ),
           if (value != null)
             ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 140),
+              constraints: const BoxConstraints(maxWidth: 170),
               child: Text(value!, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.end, style: TextStyle(fontSize: 13, color: z.muted2)),
             ),
           if (!danger) Icon(Icons.chevron_right_rounded, color: z.muted2, size: 20),

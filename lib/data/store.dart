@@ -845,6 +845,22 @@ class AppStore extends ChangeNotifier {
   /// Membuka dan memeriksa file backup (polos atau terenkripsi) TANPA mengubah data di HP.
   /// Untuk pratinjau; lanjutkan dengan [restoreFrom].
   Future<BackupInspection> inspectBackup(String raw, {String? password}) async {
+    try {
+      return await _inspectBackup(raw, password: password);
+    } catch (e) {
+      // File yang isinya bertipe salah (mis. versi berupa teks) ditolak dengan rapi, bukan menjatuhkan aplikasi.
+      debugPrint('Razarsa: backup tidak bisa dibaca: $e');
+      return BackupInspection(BackupResult.invalid);
+    }
+  }
+
+  /// Nomor versi di file backup; selain angka dianggap 1.
+  static int _versionOf(Map<String, dynamic> m) {
+    final v = m['version'];
+    return v is num ? v.toInt() : 1;
+  }
+
+  Future<BackupInspection> _inspectBackup(String raw, {String? password}) async {
     if (raw.length > maxBackupChars) return BackupInspection(BackupResult.invalid);
     Map<String, dynamic> m;
     try {
@@ -865,7 +881,7 @@ class AppStore extends ChangeNotifier {
       }
       if (m['app'] != 'razarsa') return BackupInspection(BackupResult.invalid, encrypted: true);
     }
-    if (((m['version'] as num?)?.toInt() ?? 1) > backupVersion) {
+    if (_versionOf(m) > backupVersion) {
       return BackupInspection(BackupResult.tooNew, encrypted: encrypted);
     }
     return BackupInspection(BackupResult.ok, data: m, encrypted: encrypted);
@@ -893,7 +909,7 @@ class AppStore extends ChangeNotifier {
       final m = jsonDecode(raw) as Map<String, dynamic>;
       if (m['app'] != 'razarsa' && m['app'] != 'zevra') return false;
       if (BackupEnvelope.isEncrypted(m)) return false;
-      if (((m['version'] as num?)?.toInt() ?? 1) > backupVersion) return false;
+      if (_versionOf(m) > backupVersion) return false;
       return _applyBackup(m, keepSafetyCopy: keepSafetyCopy);
     } catch (e) {
       debugPrint('Razarsa: impor backup gagal: $e');

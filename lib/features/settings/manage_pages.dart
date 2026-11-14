@@ -9,7 +9,7 @@ import '../../data/store.dart';
 import '../../shell/app_shell.dart';
 import '../../widgets/common.dart';
 
-const kAppVersion = '1.3.0';
+const kAppVersion = '1.3.1';
 
 InputDecoration _input(BuildContext context, String hint, {String? prefix}) {
   final z = ZColors.of(context);
