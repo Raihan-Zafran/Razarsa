@@ -158,7 +158,7 @@ class GoalsPage extends StatelessWidget {
           TextField(
             controller: amount,
             keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly, ThousandsFormatter()],
             decoration: InputDecoration(labelText: tr('Jumlah yang dibutuhkan'), prefixText: '$currencySymbol '),
           ),
         ]),
@@ -168,8 +168,14 @@ class GoalsPage extends StatelessWidget {
         ],
       ),
     );
-    final target = int.tryParse(amount.text) ?? 0;
-    if (ok == true && name.text.trim().isNotEmpty && target > 0) store.addGoal(name.text, target);
+    if (ok != true || !context.mounted) return;
+    final target = parseAmount(amount.text) ?? 0;
+    if (name.text.trim().isEmpty || target <= 0) {
+      showZToast(context, tr('Nama dan jumlah target harus diisi'));
+      return;
+    }
+    store.addGoal(name.text, target);
+    showZToast(context, trf('Target "{0}" dibuat', [name.text.trim()]));
   }
 }
 
@@ -308,38 +314,70 @@ class _GoalCard extends StatelessWidget {
     return trf('Sekitar {0} jika menabung {1}/bulan', [monthYear(eta), rpShort(rate)]);
   }
 
-  /// Ketuk: tambah atau kurangi tabungan. Kurangi tidak boleh melebihi yang sudah ditabung.
+  /// Ketuk / "Setor": tambah atau kurangi tabungan. Kurangi tidak boleh melebihi yang sudah ditabung.
+  /// Nominal diketik dengan titik ribuan, Enter = Tambah, ada pilihan cepat; kalau kosong ada pesannya
+  /// (dulu tombol Tambah diam saja tanpa nominal, dan petunjuk "100000" terlihat seperti isian).
   Future<void> _addSaving(BuildContext context, AppStore store) async {
     final ctrl = TextEditingController();
-    // Positif = tambah, negatif = kurangi, null = batal / kosong.
+    final left = goal.target - goal.saved;
+    // Positif = tambah, negatif = kurangi, null = batal.
     final v = await showZDialog<int>(
       context: context,
-      builder: (c) => AlertDialog(
-        title: Text(trf('Tabung untuk {0}', [goal.name])),
-        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(trf('Tabungan saat ini: {0}', [rp(goal.saved)]), style: const TextStyle(fontSize: 13)),
-          const SizedBox(height: 8),
-          TextField(
-            controller: ctrl,
-            autofocus: true,
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: InputDecoration(prefixText: '$currencySymbol ', hintText: '100000'),
-          ),
-        ]),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Batal'))),
-          if (goal.saved > 0)
-            TextButton(
-              onPressed: () {
-                final n = int.tryParse(ctrl.text);
-                Navigator.pop(c, n == null || n <= 0 ? null : -n);
-              },
-              child: Text(tr('Kurangi')),
+      builder: (c) {
+        String? error;
+        return StatefulBuilder(builder: (c, set) {
+          final z = ZColors.of(c);
+          void submit(bool add) {
+            final n = parseAmount(ctrl.text);
+            if (n == null || n <= 0) {
+              set(() => error = tr('Isi nominal dulu'));
+              return;
+            }
+            Navigator.pop(c, add ? n : -n);
+          }
+
+          void quick(int n) {
+            final now = parseAmount(ctrl.text) ?? 0;
+            final text = dots(now + n);
+            ctrl.value = TextEditingValue(text: text, selection: TextSelection.collapsed(offset: text.length));
+            set(() => error = null);
+          }
+
+          return AlertDialog(
+            title: Text(trf('Setor ke {0}', [goal.name])),
+            content: SizedBox(
+              width: 380,
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(trf('Tabungan saat ini {0} · kurang {1}', [rp(goal.saved), rp(left < 0 ? 0 : left)]), style: TextStyle(fontSize: 13, color: z.muted)),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: ctrl,
+                  autofocus: true,
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.done,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly, ThousandsFormatter()],
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                  onChanged: (_) {
+                    if (error != null) set(() => error = null);
+                  },
+                  onSubmitted: (_) => submit(true),
+                  decoration: InputDecoration(prefixText: '$currencySymbol ', hintText: '0', errorText: error),
+                ),
+                const SizedBox(height: 10),
+                Wrap(spacing: 8, runSpacing: 4, children: [
+                  for (final n in const [50000, 100000, 500000, 1000000])
+                    ZChip(label: '+${rpShort(n)}', selected: false, onTap: () => quick(n)),
+                ]),
+              ]),
             ),
-          FilledButton(onPressed: () => Navigator.pop(c, int.tryParse(ctrl.text)), child: Text(tr('Tambah'))),
-        ],
-      ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Batal'))),
+              if (goal.saved > 0) TextButton(onPressed: () => submit(false), child: Text(tr('Kurangi'))),
+              FilledButton(onPressed: () => submit(true), child: Text(tr('Tambah'))),
+            ],
+          );
+        });
+      },
     );
     if (v == null || v == 0 || !context.mounted) return;
     if (v > 0) {
@@ -383,7 +421,7 @@ class _GoalCard extends StatelessWidget {
 
   Future<void> _edit(BuildContext context, AppStore store) async {
     final name = TextEditingController(text: goal.name);
-    final amount = TextEditingController(text: '${goal.target}');
+    final amount = TextEditingController(text: dots(goal.target));
     final ok = await showZDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
@@ -394,7 +432,7 @@ class _GoalCard extends StatelessWidget {
           TextField(
             controller: amount,
             keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly, ThousandsFormatter()],
             decoration: InputDecoration(labelText: tr('Jumlah yang dibutuhkan'), prefixText: '$currencySymbol '),
           ),
         ]),
@@ -405,7 +443,7 @@ class _GoalCard extends StatelessWidget {
       ),
     );
     if (ok != true || !context.mounted) return;
-    final target = int.tryParse(amount.text);
+    final target = parseAmount(amount.text);
     // Isian kosong bukan "tidak berubah": keduanya wajib diisi.
     final done = target != null && store.editGoal(goal.id, name: name.text, target: target);
     showZToast(context, done ? tr('Target diperbarui') : tr('Nama dan jumlah target harus diisi'));

@@ -54,8 +54,8 @@ class DesktopPage extends StatelessWidget {
   }
 }
 
-/// Isi halaman keluar sebelum pindah halaman (prototipe `.pgin.leave`): pudar, naik 10 px, mengecil 0,992 dalam 170 ms.
-/// Blur 2,5 px di prototipe sengaja tidak dipakai: berat untuk GPU laptop dan membuat animasi patah.
+/// Isi halaman keluar sebelum pindah halaman (prototipe `.pgin.leave`): pudar dan naik 10 px dalam 170 ms.
+/// Blur dan skala di prototipe sengaja tidak dipakai: berat untuk GPU laptop dan membuat animasi patah.
 class _Leave extends StatelessWidget {
   const _Leave({required this.animation, required this.child});
 
@@ -69,16 +69,11 @@ class _Leave extends StatelessWidget {
       child: RepaintBoundary(child: child),
       builder: (context, child) {
         final t = Curves.ease.transform(animation.value);
-        final k = 1 - 0.008 * t;
         return IgnorePointer(
           ignoring: t > 0,
           child: Opacity(
             opacity: 1 - t,
-            child: Transform(
-              alignment: Alignment.topCenter,
-              transform: Matrix4.translationValues(0, -10 * t, 0)..scaleByDouble(k, k, 1, 1),
-              child: child,
-            ),
+            child: Transform.translate(offset: Offset(0, -10 * t), child: child),
           ),
         );
       },

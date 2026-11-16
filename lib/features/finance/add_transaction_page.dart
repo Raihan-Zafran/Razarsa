@@ -134,7 +134,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                   controller: _amount,
                   autofocus: true,
                   keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly, _ThousandsFormatter()],
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly, ThousandsFormatter()],
                   onChanged: (_) => setState(() {}),
                   style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: z.text, letterSpacing: -0.8),
                   decoration: InputDecoration(
@@ -391,13 +391,3 @@ class _DashedTile extends StatelessWidget {
   }
 }
 
-/// Menambahkan titik ribuan saat mengetik: 25000 -> 25.000
-class _ThousandsFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
-    var digits = newValue.text.replaceAll(RegExp(r'\D'), '').replaceFirst(RegExp(r'^0+'), '');
-    if (digits.length > 12) digits = digits.substring(0, 12);
-    final text = digits.isEmpty ? '' : dots(int.parse(digits));
-    return TextEditingValue(text: text, selection: TextSelection.collapsed(offset: text.length));
-  }
-}

@@ -574,7 +574,7 @@ class SettingsPage extends StatelessWidget {
       context: context,
       builder: (c) => AlertDialog(
         title: Text(tr('Hapus semua data?')),
-        content: Text(tr('Semua data (transaksi, target, kategori, transaksi berulang, tugas, agenda, catatan, Catat Cepat, dan bio) akan dihapus dari HP ini. Pilih "Hapus, simpan cadangan" untuk menyimpan satu salinan yang masih bisa dipulihkan lewat Backup & Pulihkan, atau "Hapus permanen" untuk menghapus salinan itu juga.')),
+        content: Text(tr('Semua data (transaksi, target, kategori, transaksi berulang, tugas, agenda, catatan, Catat Cepat, dan bio) akan dihapus dari perangkat ini. Pilih "Hapus, simpan cadangan" untuk menyimpan satu salinan yang masih bisa dipulihkan lewat Backup & Pulihkan, atau "Hapus permanen" untuk menghapus salinan itu, profil, dan PIN juga, lalu mulai lagi dari buat profil.')),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Batal'))),
           TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Hapus permanen'))),
@@ -584,7 +584,10 @@ class SettingsPage extends StatelessWidget {
     );
     if (keep == null) return;
     await store.clearAll(keepSafetyCopy: keep);
-    if (context.mounted) showZToast(context, tr('Semua data sudah dihapus'));
+    if (!context.mounted) return;
+    // Hapus permanen kembali ke layar buat profil: tutup halaman lain yang mungkin masih terbuka di atasnya.
+    if (!keep) Navigator.of(context).popUntil((r) => r.isFirst);
+    showZToast(context, tr('Semua data sudah dihapus'));
   }
 }
 

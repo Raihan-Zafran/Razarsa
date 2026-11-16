@@ -318,7 +318,8 @@ ThemeData buildTheme(Brightness brightness) {
     highlightColor: z.primary.withValues(alpha: 0.05),
     splashColor: z.primary.withValues(alpha: 0.08),
     focusColor: z.primary.withValues(alpha: 0.10),
-    textTheme: base.textTheme.apply(bodyColor: z.text, displayColor: z.text),
+    // Windows menggambar huruf tanpa subpiksel: teks biasa 400 terlihat tipis dan buram, jadi dinaikkan ke 500.
+    textTheme: _desktopWeight(base.textTheme.apply(bodyColor: z.text, displayColor: z.text), desk),
     // Saklar seperti prototipe: 52x32, tombol kecil abu saat mati, tombol besar krem saat hidup.
     switchTheme: SwitchThemeData(
       thumbColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.selected) ? z.onPrimary : z.muted2),
@@ -340,6 +341,9 @@ ThemeData buildTheme(Brightness brightness) {
     dialogTheme: DialogThemeData(
       backgroundColor: z.card,
       surfaceTintColor: Colors.transparent,
+      // Judul dialog tebal seperti judul kartu (bawaan Material tipis dan besar, tidak serasi).
+      titleTextStyle: TextStyle(fontFamily: kFont, fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.2, color: z.text),
+      contentTextStyle: TextStyle(fontFamily: kFont, fontSize: 14, height: 1.45, fontWeight: desk ? FontWeight.w500 : FontWeight.w400, color: z.text2),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(desk ? 18 : 16)),
     ),
     bottomSheetTheme: BottomSheetThemeData(
@@ -394,5 +398,17 @@ ThemeData buildTheme(Brightness brightness) {
       hintStyle: TextStyle(color: z.muted2),
       floatingLabelStyle: TextStyle(color: z.accentText),
     ),
+  );
+}
+
+TextTheme _desktopWeight(TextTheme t, bool desk) {
+  if (!desk) return t;
+  TextStyle? w(TextStyle? s) => s?.copyWith(fontWeight: FontWeight.w500);
+  return t.copyWith(
+    bodyLarge: w(t.bodyLarge),
+    bodyMedium: w(t.bodyMedium),
+    bodySmall: w(t.bodySmall),
+    titleMedium: t.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+    labelLarge: t.labelLarge?.copyWith(fontWeight: FontWeight.w600),
   );
 }

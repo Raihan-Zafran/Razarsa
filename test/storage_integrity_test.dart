@@ -181,6 +181,19 @@ void main() {
       }
     });
 
+    test('hapus permanen: profil, PIN, dan login ikut terhapus (kembali ke layar buat profil)', () async {
+      final s = await richStore();
+      s.login(name: 'Raihan');
+      s.setPin('123456');
+      await s.clearAll(keepSafetyCopy: false);
+      expect((s.loggedIn, s.userName, s.pinEnabled, s.switches['bio']), (false, '', false, false));
+      // Hapus biasa (dengan cadangan) tetap menyimpan akun.
+      final t = await richStore();
+      t.login(name: 'Raihan');
+      await t.clearAll();
+      expect((t.loggedIn, t.userName), (true, 'Raihan'));
+    });
+
     test('hapus biasa menyimpan satu salinan (sengaja, bisa dipulihkan) - bukan hapus total', () async {
       final s = await richStore();
       await s.clearAll();

@@ -1102,7 +1102,8 @@ class AppStore extends ChangeNotifier {
     noteFolders = [];
     recurring = [];
     quickItems = _defaultQuickItems();
-    // Profil dan kemajuan (XP, hari aktif) juga data pengguna. Akun (nama, email) dan pengaturan tampilan tetap.
+    // Profil dan kemajuan (XP, hari aktif) juga data pengguna. Pengaturan tampilan tetap; akun ikut terhapus
+    // hanya pada hapus permanen (lihat di bawah).
     bio = '';
     PhotoService.delete(photoPath);
     PhotoService.delete(coverPhotoPath);
@@ -1121,6 +1122,20 @@ class AppStore extends ChangeNotifier {
       await _prefs.remove(k);
     }
     loadProblems.clear();
+    if (!keepSafetyCopy) {
+      // Hapus permanen = mulai dari nol seperti baru dipasang: profil (nama, email), PIN, dan
+      // sidik jari / Windows Hello ikut dihapus, sehingga aplikasi kembali ke layar buat profil.
+      userName = '';
+      email = '';
+      loggedIn = false;
+      pinHash = '';
+      pinLength = 4;
+      pinFails = 0;
+      pinLockUntilMs = 0;
+      switches['pin'] = false;
+      switches['bio'] = false;
+      sessionUnlocked = false;
+    }
     _changed();
     await flush();
     onRecurringChanged?.call(cancelIds: oldBills);

@@ -1,7 +1,10 @@
 import 'dart:ui' show ImageFilter;
 
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import '../core/format.dart';
 import '../core/theme.dart';
 import 'shape_art.dart';
 import '../data/models.dart';
@@ -19,6 +22,9 @@ class Assets {
 int glassLevelOf(BuildContext context) {
   final s = context.dependOnInheritedWidgetOfExactType<StoreScope>()?.notifier;
   if (s == null || !s.useBg || s.lite) return 0;
+  // Latar ilustrasi hanya ada di HP. Di jendela lebar / Windows kaca buram tidak berguna dan sangat
+  // berat (setiap kartu memburamkan isi di belakangnya tiap bingkai), jadi selalu mati.
+  if (defaultTargetPlatform == TargetPlatform.windows || MediaQuery.sizeOf(context).width >= 900) return 0;
   return s.glassLevel;
 }
 
@@ -580,4 +586,22 @@ Future<String?> showPickSheet(BuildContext context, String title, List<(String, 
       ]),
     ),
   );
+}
+
+
+/// Menambahkan titik ribuan saat mengetik: 25000 -> 25.000 (maksimal 12 digit).
+class ThousandsFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    var digits = newValue.text.replaceAll(RegExp(r'\D'), '').replaceFirst(RegExp(r'^0+'), '');
+    if (digits.length > 12) digits = digits.substring(0, 12);
+    final text = digits.isEmpty ? '' : dots(int.parse(digits));
+    return TextEditingValue(text: text, selection: TextSelection.collapsed(offset: text.length));
+  }
+}
+
+/// Angka dari isian berformat ribuan ("1.500.000" -> 1500000). null kalau kosong.
+int? parseAmount(String text) {
+  final d = text.replaceAll(RegExp(r'\D'), '');
+  return d.isEmpty ? null : int.tryParse(d);
 }

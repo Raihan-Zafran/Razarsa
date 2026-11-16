@@ -49,3 +49,24 @@ Name: "{autodesktop}\Razarsa"; Filename: "{app}\razarsa.exe"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\razarsa.exe"; Description: "Buka Razarsa"; Flags: nowait postinstall skipifsilent
+
+[Code]
+// Saat dihapus: tawarkan menghapus data aplikasi juga (transaksi, catatan, pengaturan, foto profil),
+// yang tersimpan di %APPDATA%\Razarsa\Razarsa. Tanpa ini, memasang ulang memunculkan data lama.
+// Penghapusan diam-diam (/VERYSILENT, mis. tes CI) tidak menyentuh data.
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  DataDir: String;
+begin
+  if CurUninstallStep <> usPostUninstall then Exit;
+  DataDir := ExpandConstant('{userappdata}\Razarsa\Razarsa');
+  if UninstallSilent or not DirExists(DataDir) then Exit;
+  if MsgBox('Hapus juga semua data Razarsa di komputer ini?' + #13#10#13#10 +
+            'Transaksi, target, tugas, catatan, pengaturan, dan foto profil akan hilang permanen. ' +
+            'Pilih "No" kalau ingin memakainya lagi saat memasang ulang.',
+            mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
+  begin
+    DelTree(DataDir, True, True, True);
+    RemoveDir(ExpandConstant('{userappdata}\Razarsa'));
+  end;
+end;

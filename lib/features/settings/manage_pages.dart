@@ -10,7 +10,7 @@ import '../../shell/app_shell.dart';
 import '../../widgets/common.dart';
 import '../../widgets/count_up.dart';
 
-const kAppVersion = '2.2.0';
+const kAppVersion = '2.2.1';
 
 InputDecoration _input(BuildContext context, String hint, {String? prefix}) {
   final z = ZColors.of(context);

@@ -423,8 +423,10 @@ class _Bar extends StatelessWidget {
         tween: Tween(begin: reduce ? 1 : 0, end: 1),
         duration: reduce ? Duration.zero : Duration(milliseconds: total),
         curve: Interval(lead / total, 1, curve: const Cubic(0.22, 0.8, 0.3, 1)),
-        builder: (_, k, _) => Container(
-          height: h * k,
+        // Tinggi tetap; batang hanya diskalakan dari bawah (cuma digambar ulang, tanpa menata ulang grafik).
+        builder: (_, k, child) => Transform(alignment: Alignment.bottomCenter, transform: Matrix4.diagonal3Values(1, k, 1), child: child),
+        child: Container(
+          height: h,
           constraints: const BoxConstraints(maxWidth: 9),
           decoration: BoxDecoration(color: color, borderRadius: const BorderRadius.vertical(top: Radius.circular(2.5))),
         ),

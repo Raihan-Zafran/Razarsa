@@ -399,13 +399,18 @@ class _DesktopTodosState extends State<DesktopTodos> {
                     // Batang tumbuh bergantian (prototipe growH 0,9 s, tertunda 0,245 s + 45 ms per batang).
                     duration: const Duration(milliseconds: 900),
                     delay: Duration(milliseconds: 245 + 45 * i),
-                    value: act[i] == 0 ? 0.08 : (0.2 + 0.8 * act[i] / maxAct),
-                    builder: (_, v) => Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 5),
-                      height: 88 * v,
-                      decoration: BoxDecoration(
-                        color: z.primary.withValues(alpha: i == 6 ? 1 : 0.55),
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(7), bottom: Radius.circular(3)),
+                    value: 1,
+                    // Tinggi tetap, hanya diskalakan dari bawah: tidak menata ulang kartu tiap bingkai.
+                    builder: (_, v) => Transform(
+                      alignment: Alignment.bottomCenter,
+                      transform: Matrix4.diagonal3Values(1, v, 1),
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 5),
+                        height: 88 * (act[i] == 0 ? 0.08 : (0.2 + 0.8 * act[i] / maxAct)),
+                        decoration: BoxDecoration(
+                          color: z.primary.withValues(alpha: i == 6 ? 1 : 0.55),
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(7), bottom: Radius.circular(3)),
+                        ),
                       ),
                     ),
                   ),

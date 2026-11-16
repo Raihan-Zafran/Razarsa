@@ -48,6 +48,9 @@ List<_Dest> get _dests => [
 const _kSettings = 9;
 const _itemH = 40.0, _itemGap = 3.0, _groupH = 30.0;
 
+/// Lebar sidebar: penuh dan ciut (rel ikon), sesuai prototipe.
+const _sideW = 248.0, _railW = 72.0;
+
 /// Kerangka desktop (jendela lebar): sidebar yang bisa diciutkan, bilah atas, dan isi halaman.
 /// Memakai ulang halaman dan data yang sama dengan versi HP.
 class DesktopShell extends StatefulWidget {
@@ -170,25 +173,52 @@ class _DesktopShellState extends State<DesktopShell> with SingleTickerProviderSt
           // Lebar jendela menyesuaikan: di bawah 1000 px sidebar otomatis ciut jadi rel ikon.
           body: LayoutBuilder(builder: (context, box) {
             final rail = _rail || box.maxWidth < 1000;
-            return Column(children: [
-              _TopBar(onPalette: _openPalette, rail: rail),
-              Expanded(
-                child: Row(children: [
-                  _Sidebar(index: _target ?? _index, rail: rail, onGo: _go, onToggleRail: () => setState(() => _rail = !_rail), onPalette: _openPalette, onLock: _lock),
-                  Expanded(
-                    // Tanpa pudar/geser untuk seluruh halaman: tiap elemen sudah beranimasi sendiri (StaggerItem),
-                    // dan memudarkan halaman penuh sekaligus membuat animasi berat di GPU yang lemah.
-                    child: PageStagger(
-                      desktop: true,
-                      leave: _leave,
-                      typeTitle: _moved,
-                      born: _born,
-                      child: KeyedSubtree(key: ValueKey(_index), child: _page()),
-                    ),
-                  ),
-                ]),
+            final target = rail ? _railW : _sideW;
+            // Halaman ditata SEKALI dengan lebar akhir, lalu hanya digeser selama sidebar menciut/melebar
+            // (bukan dihitung ulang tiap bingkai), jadi animasinya ringan dan mulus.
+            final page = RepaintBoundary(
+              child: PageStagger(
+                desktop: true,
+                leave: _leave,
+                typeTitle: _moved,
+                born: _born,
+                child: KeyedSubtree(key: ValueKey(_index), child: _page()),
               ),
-            ]);
+            );
+            return TweenAnimationBuilder<double>(
+              tween: Tween(end: target),
+              duration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : const Duration(milliseconds: 280),
+              curve: Curves.easeOutCubic,
+              child: page,
+              builder: (context, w, page) => Column(children: [
+                _TopBar(onPalette: _openPalette, brandW: w),
+                Expanded(
+                  child: Stack(children: [
+                    Positioned(
+                      left: target,
+                      top: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: Transform.translate(offset: Offset(w - target, 0), child: page),
+                    ),
+                    Positioned(
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: w,
+                      child: _Sidebar(
+                        index: _target ?? _index,
+                        width: w,
+                        onGo: _go,
+                        onToggleRail: () => setState(() => _rail = !_rail),
+                        onPalette: _openPalette,
+                        onLock: _lock,
+                      ),
+                    ),
+                  ]),
+                ),
+              ]),
+            );
           }),
         ),
       ),
@@ -197,10 +227,12 @@ class _DesktopShellState extends State<DesktopShell> with SingleTickerProviderSt
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onPalette, required this.rail});
+  const _TopBar({required this.onPalette, required this.brandW});
 
   final VoidCallback onPalette;
-  final bool rail;
+
+  /// Lebar area merek = lebar sidebar saat ini (ikut beranimasi).
+  final double brandW;
 
   @override
   Widget build(BuildContext context) {
@@ -220,18 +252,19 @@ class _TopBar extends StatelessWidget {
         Row(children: [
           // Merek di atas sidebar: lebarnya sama dengan sidebar supaya sejajar.
           IgnorePointer(
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOutCubic,
-              width: rail ? 72 : 248,
+            child: Container(
+              width: brandW,
               padding: const EdgeInsets.only(left: 16),
               child: ClipRect(
                 child: Row(children: [
                   const AppLogo(size: 26),
-                  if (!rail) ...[
-                    const SizedBox(width: 9),
-                    const Flexible(child: Text('Razarsa', maxLines: 1, overflow: TextOverflow.clip, softWrap: false, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, letterSpacing: -0.14))),
-                  ],
+                  const SizedBox(width: 9),
+                  Flexible(
+                    child: Opacity(
+                      opacity: ((brandW - _railW) / (_sideW - _railW)).clamp(0.0, 1.0),
+                      child: const Text('Razarsa', maxLines: 1, overflow: TextOverflow.clip, softWrap: false, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, letterSpacing: -0.14)),
+                    ),
+                  ),
                 ]),
               ),
             ),
@@ -364,25 +397,26 @@ class _TopIconButtonState extends State<_TopIconButton> {
 }
 
 class _Kbd extends StatelessWidget {
-  const _Kbd(this.text, this.z, {this.color});
+  const _Kbd(this.text, this.z);
 
   final String text;
   final ZColors z;
-  final Color? color;
 
   @override
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(border: Border.all(color: color ?? z.chipBorder), borderRadius: BorderRadius.circular(5)),
-        child: Text(text, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: color ?? z.muted2)),
+        decoration: BoxDecoration(border: Border.all(color: z.chipBorder), borderRadius: BorderRadius.circular(5)),
+        child: Text(text, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: z.muted2)),
       );
 }
 
 class _Sidebar extends StatelessWidget {
-  const _Sidebar({required this.index, required this.rail, required this.onGo, required this.onToggleRail, required this.onPalette, required this.onLock});
+  const _Sidebar({required this.index, required this.width, required this.onGo, required this.onToggleRail, required this.onPalette, required this.onLock});
 
   final int index;
-  final bool rail;
+
+  /// Lebar saat ini (beranimasi antara [_railW] dan [_sideW]).
+  final double width;
   final ValueChanged<int> onGo;
   final VoidCallback onToggleRail;
   final VoidCallback onPalette;
@@ -397,27 +431,28 @@ class _Sidebar extends StatelessWidget {
     final store = StoreScope.of(context);
     final dests = _dests;
     final name = store.userName.isEmpty ? tr('Pengguna Razarsa') : store.userName;
-    final w = rail ? 72.0 : 248.0;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOutCubic,
-      width: w,
-      decoration: BoxDecoration(color: z.card.withValues(alpha: 0.7), border: Border(right: BorderSide(color: z.divider))),
-      padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
-      // Isi memakai lebar tetap (ciut 52 / lebar 224) dan dipotong oleh wadah yang beranimasi,
+    // Selama menciut, label memudar dulu; tata letak rel (ikon di tengah) baru dipakai saat label sudah
+    // tak terlihat, jadi tidak ada lompatan. Posisi ikon di kedua tata letak hampir sama.
+    final fade = ((width - _railW) / (_sideW - _railW) * 1.6 - 0.6).clamp(0.0, 1.0);
+    final rail = fade == 0;
+    final pad = rail ? 10.0 : 12.0;
+    return Container(
+      decoration: BoxDecoration(color: Color.alphaBlend(z.card.withValues(alpha: 0.7), z.bg), border: Border(right: BorderSide(color: z.divider))),
+      padding: EdgeInsets.fromLTRB(pad, 16, pad, 12),
+      // Isi memakai lebar tetap (rel 52 / penuh 224) dan dipotong oleh wadah yang beranimasi,
       // jadi tidak pernah meluap di tengah animasi.
       child: ClipRect(
         child: OverflowBox(
           alignment: Alignment.topLeft,
           minWidth: 0,
           maxWidth: rail ? 52 : 224,
-          child: SizedBox(width: rail ? 52 : 224, child: _content(context, z, store, dests, name, rail)),
+          child: SizedBox(width: rail ? 52 : 224, child: _content(context, z, store, dests, name, rail, fade)),
         ),
       ),
     );
   }
 
-  Widget _content(BuildContext context, ZColors z, AppStore store, List<_Dest> dests, String name, bool rail) {
+  Widget _content(BuildContext context, ZColors z, AppStore store, List<_Dest> dests, String name, bool rail, double fade) {
     return ClipRect(
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         // Profil
@@ -433,6 +468,8 @@ class _Sidebar extends StatelessWidget {
                 if (!rail) ...[
                   const SizedBox(width: 10),
                   Expanded(
+                    child: Opacity(
+                    opacity: fade,
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
                       const SizedBox(height: 3),
@@ -443,6 +480,7 @@ class _Sidebar extends StatelessWidget {
                         child: LinearProgressIndicator(value: store.xpInLevel / AppStore.xpPerLevel, minHeight: 3, backgroundColor: z.track, color: z.primary),
                       ),
                     ]),
+                    ),
                   ),
                 ],
               ]),
@@ -452,7 +490,7 @@ class _Sidebar extends StatelessWidget {
         const SizedBox(height: 10),
         // Buat baru
         Tooltip(
-          message: rail ? tr('Buat baru') : '',
+          message: rail ? '${tr('Buat baru')} (Ctrl+N)' : 'Ctrl+N',
           child: Material(
             color: z.primary,
             borderRadius: BorderRadius.circular(12),
@@ -466,9 +504,7 @@ class _Sidebar extends StatelessWidget {
                   Icon(Icons.add_rounded, color: z.onPrimary, size: 22),
                   if (!rail) ...[
                     const SizedBox(width: 8),
-                    Expanded(child: Text(tr('Buat baru'), style: TextStyle(color: z.onPrimary, fontWeight: FontWeight.w800, fontSize: 14))),
-                    _Kbd('Ctrl+N', z, color: z.onPrimary.withValues(alpha: 0.7)),
-                    const SizedBox(width: 10),
+                    Expanded(child: Opacity(opacity: fade, child: Text(tr('Buat baru'), maxLines: 1, overflow: TextOverflow.clip, softWrap: false, style: TextStyle(color: z.onPrimary, fontWeight: FontWeight.w800, fontSize: 14)))),
                   ],
                 ]),
               ),
@@ -497,15 +533,15 @@ class _Sidebar extends StatelessWidget {
                       ),
                     ),
                   ),
-                Positioned(top: 0, left: 0, right: 0, child: _GroupLabel(tr('Keuangan'), rail)),
-                Positioned(top: _groupH + 5 * (_itemH + _itemGap) + 8, left: 0, right: 0, child: _GroupLabel(tr('Produktif'), rail)),
+                Positioned(top: 0, left: 0, right: 0, child: _GroupLabel(tr('Keuangan'), rail, fade)),
+                Positioned(top: _groupH + 5 * (_itemH + _itemGap) + 8, left: 0, right: 0, child: _GroupLabel(tr('Produktif'), rail, fade)),
                 for (var i = 0; i < dests.length; i++)
                   Positioned(
                     top: _top(i),
                     left: 0,
                     right: 0,
                     height: _itemH,
-                    child: _NavItem(dest: dests[i], active: index == i, rail: rail, onTap: () => onGo(i)),
+                    child: _NavItem(dest: dests[i], active: index == i, rail: rail, fade: fade, onTap: () => onGo(i)),
                   ),
               ]),
             ),
@@ -515,6 +551,7 @@ class _Sidebar extends StatelessWidget {
           dest: _Dest(Icons.lock_rounded, tr('Kunci'), 'Ctrl+L', true),
           active: false,
           rail: rail,
+          fade: fade,
           onTap: onLock,
         ),
         const SizedBox(height: 3),
@@ -522,6 +559,7 @@ class _Sidebar extends StatelessWidget {
           dest: _Dest(Icons.settings_rounded, tr('Pengaturan'), 'Ctrl+,', true),
           active: index == _kSettings,
           rail: rail,
+          fade: fade,
           onTap: () => onGo(_kSettings),
           solid: true,
         ),
@@ -530,6 +568,7 @@ class _Sidebar extends StatelessWidget {
           dest: _Dest(rail ? Icons.menu_rounded : Icons.menu_open_rounded, tr('Ciutkan menu'), '', true),
           active: false,
           rail: rail,
+          fade: fade,
           onTap: onToggleRail,
         ),
       ]),
@@ -585,10 +624,11 @@ class _PillPopState extends State<_PillPop> with SingleTickerProviderStateMixin 
 }
 
 class _GroupLabel extends StatelessWidget {
-  const _GroupLabel(this.text, this.rail);
+  const _GroupLabel(this.text, this.rail, this.fade);
 
   final String text;
   final bool rail;
+  final double fade;
 
   @override
   Widget build(BuildContext context) {
@@ -599,19 +639,22 @@ class _GroupLabel extends StatelessWidget {
           ? Center(child: Container(height: 1, margin: const EdgeInsets.symmetric(horizontal: 10), color: z.divider))
           : Padding(
               padding: const EdgeInsets.only(left: 10, top: 12),
-              child: Text(text.toUpperCase(), style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, letterSpacing: 1, color: z.muted2)),
+              child: Opacity(opacity: fade, child: Text(text.toUpperCase(), maxLines: 1, softWrap: false, overflow: TextOverflow.clip, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, letterSpacing: 1, color: z.muted2))),
             ),
     );
   }
 }
 
 class _NavItem extends StatelessWidget {
-  const _NavItem({required this.dest, required this.active, required this.rail, required this.onTap, this.solid = false});
+  const _NavItem({required this.dest, required this.active, required this.rail, required this.onTap, this.solid = false, this.fade = 1});
 
   final _Dest dest;
   final bool active;
   final bool rail;
   final VoidCallback onTap;
+
+  /// Kelihatan-tidaknya label selama sidebar menciut / melebar.
+  final double fade;
 
   /// true: latar sendiri saat aktif (item di luar kolom berpil).
   final bool solid;
@@ -620,8 +663,11 @@ class _NavItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final z = ZColors.of(context);
     final fg = active ? z.onPrimary : z.text2;
+    // Pintasan keyboard cukup di tooltip (label "Ctrl+1" di setiap baris terlalu ramai).
+    final tip = rail ? (dest.kbd.isEmpty ? dest.label : '${dest.label} (${dest.kbd})') : dest.kbd;
     return Tooltip(
-      message: rail ? dest.label : '',
+      message: tip,
+      waitDuration: const Duration(milliseconds: 600),
       child: Semantics(
         button: true,
         selected: active,
@@ -631,7 +677,11 @@ class _NavItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(11),
           child: InkWell(
             borderRadius: BorderRadius.circular(11),
-            hoverColor: z.track,
+            // Item aktif berada di atas pil hijau: sorotnya tipis transparan, bukan krem yang menutupi pil
+            // (dulu label dan ikon jadi tidak terlihat saat kursor di atasnya).
+            hoverColor: active ? Colors.white.withValues(alpha: 0.10) : z.track,
+            highlightColor: active ? Colors.white.withValues(alpha: 0.08) : null,
+            splashColor: active ? Colors.white.withValues(alpha: 0.12) : null,
             onTap: onTap,
             child: SizedBox(
               height: _itemH,
@@ -640,8 +690,12 @@ class _NavItem extends StatelessWidget {
                 Icon(dest.icon, size: 21, color: fg),
                 if (!rail) ...[
                   const SizedBox(width: 12),
-                  Expanded(child: Text(dest.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13.5, fontWeight: active ? FontWeight.w800 : FontWeight.w600, color: fg))),
-                  if (dest.kbd.isNotEmpty) _Kbd(dest.kbd, z, color: active ? z.onPrimary.withValues(alpha: 0.7) : null),
+                  Expanded(
+                    child: Opacity(
+                      opacity: fade,
+                      child: Text(dest.label, maxLines: 1, softWrap: false, overflow: TextOverflow.clip, style: TextStyle(fontSize: 13.5, fontWeight: active ? FontWeight.w800 : FontWeight.w600, color: fg)),
+                    ),
+                  ),
                   const SizedBox(width: 10),
                 ],
               ]),

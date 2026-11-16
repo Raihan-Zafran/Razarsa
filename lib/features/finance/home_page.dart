@@ -9,6 +9,7 @@ import '../../data/store.dart';
 import '../../shell/app_shell.dart';
 import '../../shell/layout.dart';
 import '../../widgets/common.dart';
+import '../../widgets/profile_widgets.dart';
 import '../../widgets/count_up.dart';
 import '../settings/profile_page.dart';
 import '../saldo/saldo_page.dart';
@@ -41,13 +42,7 @@ class HomePage extends StatelessWidget {
           const Expanded(child: Align(alignment: Alignment.centerLeft, child: ModeSwitch())),
           const ThemeToggle(size: 34),
           const SizedBox(width: 2),
-          RoundIconButton(
-            icon: Icons.person_outline_rounded,
-            tooltip: tr('Buka profil'),
-            filled: true,
-            size: 34,
-            onTap: () => pushPage(context, const ProfilePage()),
-          ),
+          ProfileHeaderButton(onTap: () => pushPage(context, const ProfilePage())),
         ]),
         const SizedBox(height: 10),
       ],

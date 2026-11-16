@@ -188,7 +188,7 @@ class _ModeShellState extends State<ModeShell> {
 /// Halaman yang dibuka dari dalam (Profil, Tambah Transaksi) berada di luar penanda ini dan tetap meluncur.
 ///
 /// HP (prototipe `.pg>*` stUp): 0,45 s, naik 14 px, jeda 60 ms per elemen.
-/// Windows (prototipe `.pgin>*` flowIn): 0,7 s, naik 22 px + skala 0,985, jeda 70 ms per elemen;
+/// Windows (prototipe `.pgin>*` flowIn): 0,7 s, naik 22 px, jeda 70 ms per elemen;
 /// anak [DCols] langsung di halaman tertunda 0,12 s + 70 ms per kartu. [leave] = isi halaman keluar (0 → 1).
 class PageStagger extends InheritedWidget {
   PageStagger({super.key, required super.child, this.desktop = false, this.leave, this.typeTitle = false, DateTime? born})
@@ -242,7 +242,7 @@ class StaggerItem extends StatefulWidget {
 class _StaggerItemState extends State<StaggerItem> with SingleTickerProviderStateMixin {
   AnimationController? _c;
   Animation<double>? _a;
-  double _dy = 14, _scale = 1;
+  double _dy = 14;
   bool _ready = false;
 
   @override
@@ -255,8 +255,9 @@ class _StaggerItemState extends State<StaggerItem> with SingleTickerProviderStat
     // Dibangun jauh sesudah halaman dibuka (digulir ke bawah): tampil langsung, seperti di prototipe.
     if (page != null && DateTime.now().difference(page.born) > const Duration(milliseconds: 900)) return;
     final desk = page?.desktop ?? false;
+    // Tanpa skala (prototipe: 0,985): dengan geser + pudar saja, gambar kartu yang sudah jadi bisa dipakai
+    // ulang tiap bingkai (raster cache). Skala memaksa kartu (bayangan, grafik) digambar ulang terus.
     _dy = desk ? 22 : 14;
-    _scale = desk ? 0.985 : 1;
     final step = Duration(milliseconds: desk ? 70 : 60);
     final lead = widget.lead ?? step * math.min(widget.index, StaggerItem.maxItems);
     final total = lead + Duration(milliseconds: desk ? 700 : 450);
@@ -286,16 +287,8 @@ class _StaggerItemState extends State<StaggerItem> with SingleTickerProviderStat
       child: AnimatedBuilder(
         animation: a,
         child: RepaintBoundary(child: child),
-        builder: (context, child) {
-          final t = 1 - a.value;
-          final k = 1 - (1 - _scale) * t;
-          // Struktur pohon selalu sama (satu Transform) supaya isi tidak dibangun ulang di akhir animasi.
-          return Transform(
-            alignment: Alignment.center,
-            transform: Matrix4.translationValues(0, _dy * t, 0)..scaleByDouble(k, k, 1, 1),
-            child: child,
-          );
-        },
+        // Struktur pohon selalu sama (satu Transform) supaya isi tidak dibangun ulang di akhir animasi.
+        builder: (context, child) => Transform.translate(offset: Offset(0, _dy * (1 - a.value)), child: child),
       ),
     );
   }

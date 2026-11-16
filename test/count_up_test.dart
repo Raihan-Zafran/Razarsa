@@ -12,13 +12,16 @@ void main() {
   setUp(() => L.lang = 'id');
 
   testWidgets('CountUp: mulai dari 0, naik, berhenti tepat di nilai akhir', (t) async {
+    String shown() => t.state<CountUpState>(find.byType(CountUp)).shown;
     await t.pumpWidget(host(CountUp(value: 1500000, format: rp)));
-    expect(find.text('Rp 0'), findsOneWidget);
+    expect(shown(), 'Rp 0');
     await t.pump(const Duration(milliseconds: 300));
-    final mid = (t.widget<Text>(find.byType(Text)).data!);
+    final mid = shown();
     expect(mid, isNot('Rp 0'));
     expect(mid, isNot('Rp 1.500.000'));
     await t.pump(const Duration(seconds: 1));
+    expect(shown(), 'Rp 1.500.000');
+    // Ukuran selalu dari nilai akhir (tidak menata ulang halaman tiap bingkai).
     expect(find.text('Rp 1.500.000'), findsOneWidget);
   });
 
@@ -27,10 +30,10 @@ void main() {
     await t.pump(const Duration(seconds: 2));
     await t.pumpWidget(host(CountUp(value: 2000, format: rp)));
     await t.pump(const Duration(milliseconds: 50));
-    final v = int.parse(t.widget<Text>(find.byType(Text)).data!.replaceAll(RegExp(r'[^0-9]'), ''));
+    final v = int.parse(t.state<CountUpState>(find.byType(CountUp)).shown.replaceAll(RegExp(r'[^0-9]'), ''));
     expect(v, inInclusiveRange(1000, 2000));
     await t.pump(const Duration(seconds: 2));
-    expect(find.text('Rp 2.000'), findsOneWidget);
+    expect(t.state<CountUpState>(find.byType(CountUp)).shown, 'Rp 2.000');
   });
 
   testWidgets('CountUp: animasi dimatikan -> langsung nilai akhir', (t) async {

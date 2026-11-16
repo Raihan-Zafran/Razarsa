@@ -7,6 +7,7 @@ import '../../data/productive_models.dart';
 import '../../data/store.dart';
 import '../../shell/app_shell.dart';
 import '../../widgets/common.dart';
+import '../../widgets/profile_widgets.dart';
 import '../../widgets/mode_widgets.dart';
 import '../settings/profile_page.dart';
 import '../../shell/layout.dart';
@@ -38,13 +39,7 @@ class ProdHomePage extends StatelessWidget {
         const Expanded(child: Align(alignment: Alignment.centerLeft, child: ModeSwitch())),
         const ThemeToggle(size: 34),
         const SizedBox(width: 2),
-        RoundIconButton(
-          icon: Icons.person_outline_rounded,
-          tooltip: tr('Buka profil'),
-          filled: true,
-          size: 34,
-          onTap: () => pushPage(context, const ProfilePage()),
-        ),
+        ProfileHeaderButton(onTap: () => pushPage(context, const ProfilePage())),
       ]),
       children: [
         // Fokus hari ini: jumlah tugas tersisa + daftar yang bisa langsung diselesaikan.
