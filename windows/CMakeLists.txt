@@ -10,6 +10,10 @@ set(BINARY_NAME "razarsa")
 # versions of CMake.
 cmake_policy(VERSION 3.14...3.25)
 
+# Visual Studio terbaru menjadikan <experimental/coroutine> sebuah galat, padahal plugin
+# local_auth_windows masih memakainya (/await). Berlaku untuk semua target di bawahnya (plugin).
+add_compile_definitions(_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
+
 # Define build configuration option.
 get_property(IS_MULTICONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 if(IS_MULTICONFIG)

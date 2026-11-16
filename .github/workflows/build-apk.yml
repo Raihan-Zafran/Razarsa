@@ -185,6 +185,39 @@ jobs:
       - name: Build Windows
         run: flutter build windows --release
 
+      # Uji asap di Windows sungguhan: aplikasi harus tetap hidup 12 detik setelah dibuka.
+      # Tangkapan layar (kalau bisa diambil di runner) disimpan sebagai artefak untuk dilihat.
+      - name: Uji asap (buka aplikasi)
+        shell: pwsh
+        run: |
+          $exe = "build/windows/x64/runner/Release/razarsa.exe"
+          $p = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 12
+          New-Item -ItemType Directory -Force -Path smoke | Out-Null
+          try {
+            Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+            $b = [System.Windows.Forms.SystemInformation]::VirtualScreen
+            $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+            $g = [System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+            $bmp.Save("smoke/windows-smoke.png")
+          } catch { Write-Warning "Tangkapan layar gagal: $_" }
+          if ($p.HasExited) {
+            Write-Error "Aplikasi berhenti sendiri (kode keluar $($p.ExitCode))."
+            exit 1
+          }
+          Write-Host "Aplikasi masih berjalan setelah 12 detik."
+          Stop-Process -Id $p.Id -Force
+
+      - name: Simpan tangkapan layar uji asap
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-smoke-screenshot
+          path: smoke/*
+          if-no-files-found: ignore
+          retention-days: 14
+
       # Salin pustaka runtime Visual C++ supaya aplikasi jalan di PC yang belum memasang
       # "Microsoft Visual C++ Redistributable".
       - name: Kemas ZIP
