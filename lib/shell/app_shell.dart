@@ -83,6 +83,7 @@ class ModeShell extends StatefulWidget {
 
 class _ModeShellState extends State<ModeShell> {
   int _tab = 0;
+  DateTime _born = DateTime.now();
 
   bool get _prod => widget.mode == 'productive';
 
@@ -105,7 +106,10 @@ class _ModeShellState extends State<ModeShell> {
   void goTo(int i) {
     if (i == _tab) return;
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    setState(() => _tab = i);
+    setState(() {
+      _tab = i;
+      _born = DateTime.now();
+    });
   }
 
   Widget _page() {
@@ -165,7 +169,7 @@ class _ModeShellState extends State<ModeShell> {
           // Pindah tab: halaman baru muncul seketika, lalu elemen-elemennya naik satu per satu
           // (lihat [PageStagger]). Dock dan latar tidak ikut bergerak.
           Positioned.fill(
-            child: PageStagger(child: KeyedSubtree(key: ValueKey(_tab), child: _page())),
+            child: PageStagger(born: _born, child: KeyedSubtree(key: ValueKey(_tab), child: _page())),
           ),
           Positioned(
             left: 16,
@@ -182,28 +186,54 @@ class _ModeShellState extends State<ModeShell> {
 
 /// Menandai halaman tab: elemen-elemen pertamanya ikut animasi naik bertahap saat halaman dibuka.
 /// Halaman yang dibuka dari dalam (Profil, Tambah Transaksi) berada di luar penanda ini dan tetap meluncur.
+///
+/// HP (prototipe `.pg>*` stUp): 0,45 s, naik 14 px, jeda 60 ms per elemen.
+/// Windows (prototipe `.pgin>*` flowIn): 0,7 s, naik 22 px + skala 0,985, jeda 70 ms per elemen;
+/// anak [DCols] langsung di halaman tertunda 0,12 s + 70 ms per kartu. [leave] = isi halaman keluar (0 → 1).
 class PageStagger extends InheritedWidget {
-  const PageStagger({super.key, required super.child});
+  PageStagger({super.key, required super.child, this.desktop = false, this.leave, this.typeTitle = false, DateTime? born})
+      : born = born ?? DateTime.now();
 
-  static bool active(BuildContext context) => context.getInheritedWidgetOfExactType<PageStagger>() != null;
+  final bool desktop;
+  final Animation<double>? leave;
+
+  /// Judul halaman diketik ulang (hanya saat pindah halaman, bukan saat aplikasi pertama dibuka).
+  final bool typeTitle;
+
+  /// Waktu halaman dibuka. Elemen yang baru dibangun lama sesudahnya (karena digulir) langsung tampil.
+  final DateTime born;
+
+  static PageStagger? of(BuildContext context) => context.getInheritedWidgetOfExactType<PageStagger>();
+  static bool active(BuildContext context) => of(context) != null;
 
   @override
   bool updateShouldNotify(PageStagger oldWidget) => false;
 }
 
-/// Satu elemen halaman yang muncul naik 14 px sambil memudar, tertunda 60 ms per urutan.
-/// Hanya opacity dan transform; mati kalau pengguna memilih "kurangi animasi".
+/// Penanda bahwa sebuah widget sudah berada di dalam [StaggerItem] (supaya tidak beranimasi dua kali).
+class _InStagger extends InheritedWidget {
+  const _InStagger({required super.child});
+
+  @override
+  bool updateShouldNotify(_InStagger oldWidget) => false;
+}
+
+/// Satu elemen halaman yang muncul naik sambil memudar, tertunda per urutan (lihat [PageStagger]).
+/// Hanya opacity dan transform; mati kalau pengguna memilih "Kurangi efek".
 class StaggerItem extends StatefulWidget {
-  const StaggerItem({super.key, required this.index, required this.child});
+  const StaggerItem({super.key, required this.index, required this.child, this.lead});
 
   final int index;
   final Widget child;
 
+  /// Penundaan khusus (mis. kartu di dalam grid); kalau kosong dihitung dari [index].
+  final Duration? lead;
+
   /// Urutan penundaan dibatasi di sini: elemen ke-8 dan seterusnya muncul bersamaan dengan yang ke-8,
   /// jadi SEMUA elemen halaman tetap ikut bergerak tanpa membuat halaman panjang terasa lambat.
   static const maxItems = 7;
-  static const delay = Duration(milliseconds: 60);
-  static const duration = Duration(milliseconds: 450);
+
+  static bool inside(BuildContext context) => context.getInheritedWidgetOfExactType<_InStagger>() != null;
 
   @override
   State<StaggerItem> createState() => _StaggerItemState();
@@ -212,13 +242,24 @@ class StaggerItem extends StatefulWidget {
 class _StaggerItemState extends State<StaggerItem> with SingleTickerProviderStateMixin {
   AnimationController? _c;
   Animation<double>? _a;
+  double _dy = 14, _scale = 1;
+  bool _ready = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_c != null || MediaQuery.disableAnimationsOf(context)) return;
-    final lead = StaggerItem.delay * math.min(widget.index, StaggerItem.maxItems);
-    final total = lead + StaggerItem.duration;
+    if (_ready) return;
+    _ready = true;
+    final page = PageStagger.of(context);
+    if (MediaQuery.disableAnimationsOf(context)) return;
+    // Dibangun jauh sesudah halaman dibuka (digulir ke bawah): tampil langsung, seperti di prototipe.
+    if (page != null && DateTime.now().difference(page.born) > const Duration(milliseconds: 900)) return;
+    final desk = page?.desktop ?? false;
+    _dy = desk ? 22 : 14;
+    _scale = desk ? 0.985 : 1;
+    final step = Duration(milliseconds: desk ? 70 : 60);
+    final lead = widget.lead ?? step * math.min(widget.index, StaggerItem.maxItems);
+    final total = lead + Duration(milliseconds: desk ? 700 : 450);
     final c = AnimationController(vsync: this, duration: total);
     _a = CurvedAnimation(
       parent: c,
@@ -236,15 +277,78 @@ class _StaggerItemState extends State<StaggerItem> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     final a = _a;
-    if (a == null) return widget.child;
+    final child = _InStagger(child: widget.child);
+    if (a == null) return child;
     // Isi dikemas RepaintBoundary: gambarnya dibuat sekali, lalu hanya digeser dan dipudarkan oleh kompositor.
     // (Opacity biasa menggambar ulang seluruh isi tiap bingkai, itu yang membuat animasi di Windows patah-patah.)
     return FadeTransition(
       opacity: a,
       child: AnimatedBuilder(
         animation: a,
-        child: RepaintBoundary(child: widget.child),
-        builder: (context, child) => Transform.translate(offset: Offset(0, 14 * (1 - a.value)), child: child),
+        child: RepaintBoundary(child: child),
+        builder: (context, child) {
+          final t = 1 - a.value;
+          final k = 1 - (1 - _scale) * t;
+          // Struktur pohon selalu sama (satu Transform) supaya isi tidak dibangun ulang di akhir animasi.
+          return Transform(
+            alignment: Alignment.center,
+            transform: Matrix4.translationValues(0, _dy * t, 0)..scaleByDouble(k, k, 1, 1),
+            child: child,
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Baris daftar di Windows yang masuk dari kiri 14 px (prototipe `.lrow` rowIn 0,5 s, tertunda 0,345 s + 45 ms per baris).
+/// Di HP dan saat "Kurangi efek" baris langsung tampil.
+class RowIn extends StatefulWidget {
+  const RowIn({super.key, required this.index, required this.child});
+
+  final int index;
+  final Widget child;
+
+  @override
+  State<RowIn> createState() => _RowInState();
+}
+
+class _RowInState extends State<RowIn> with SingleTickerProviderStateMixin {
+  AnimationController? _c;
+  Animation<double>? _a;
+  bool _ready = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_ready) return;
+    _ready = true;
+    final page = PageStagger.of(context);
+    if (page == null || !page.desktop || MediaQuery.disableAnimationsOf(context)) return;
+    if (DateTime.now().difference(page.born) > const Duration(milliseconds: 900)) return;
+    final lead = 345 + 45 * math.min(widget.index, 11).toInt();
+    final total = lead + 500;
+    final c = AnimationController(vsync: this, duration: Duration(milliseconds: total));
+    _a = CurvedAnimation(parent: c, curve: Interval(lead / total, 1, curve: const Cubic(0.22, 0.8, 0.3, 1)));
+    _c = c..forward();
+  }
+
+  @override
+  void dispose() {
+    _c?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final a = _a;
+    if (a == null) return widget.child;
+    return FadeTransition(
+      opacity: a,
+      child: AnimatedBuilder(
+        animation: a,
+        child: widget.child,
+        builder: (context, child) => Transform.translate(offset: Offset(-14 * (1 - a.value), 0), child: child),
       ),
     );
   }
@@ -252,12 +356,17 @@ class _StaggerItemState extends State<StaggerItem> with SingleTickerProviderStat
 
 /// Membungkus semua [children] dengan [StaggerItem] kalau berada di halaman tab.
 List<Widget> staggered(BuildContext context, List<Widget> children, {int start = 0}) {
-  if (!PageStagger.active(context)) return children;
+  final page = PageStagger.of(context);
+  if (page == null) return children;
   return [
     for (var i = 0; i < children.length; i++)
-      StaggerItem(index: i + start, child: children[i]),
+      // Grid di Windows menganimasikan kartunya sendiri-sendiri (lihat [StaggerGroup]).
+      if (page.desktop && children[i] is StaggerGroup) children[i] else StaggerItem(index: i + start, child: children[i]),
   ];
 }
+
+/// Widget yang menganimasikan anak-anaknya sendiri saat halaman dibuka (mis. grid kartu di Windows).
+abstract interface class StaggerGroup {}
 
 /// Isi halaman yang bisa digulir dengan jarak aman atas dan bawah (untuk dock).
 /// Di layar lebar (desktop) isi dipusatkan dalam kolom selebar [maxWidth] dan tanpa ruang dock.
@@ -287,22 +396,21 @@ Future<T?> pushPage<T>(BuildContext context, Widget page) {
   ScaffoldMessenger.of(context).hideCurrentSnackBar();
   // Jendela lebar: halaman pendukung tampil sebagai panel di tengah, bukan memenuhi layar.
   if (isWide(context)) return Navigator.of(context).push<T>(panelRoute<T>(page));
-  return Navigator.of(context).push<T>(slideUpRoute<T>(page));
+  return Navigator.of(context).push<T>(slideInRoute<T>(page));
 }
 
-/// Rute halaman pendukung: naik dari bawah sambil memudar.
-Route<T> slideUpRoute<T>(Widget page) => PageRouteBuilder<T>(
-      transitionDuration: const Duration(milliseconds: 300),
-      reverseTransitionDuration: const Duration(milliseconds: 280),
+/// Rute halaman pendukung di HP (prototipe `.ovp`): masuk dari kanan 0,32 s (ovIn), keluar ke kanan 0,26 s (ovOut).
+/// Hanya geser (tanpa pudar), jadi ringan untuk GPU.
+Route<T> slideInRoute<T>(Widget page) => PageRouteBuilder<T>(
+      transitionDuration: const Duration(milliseconds: 320),
+      reverseTransitionDuration: const Duration(milliseconds: 260),
       pageBuilder: (_, _, _) => page,
-      transitionsBuilder: (_, anim, _, child) {
-        final a = CurvedAnimation(parent: anim, curve: const Cubic(0.22, 0.8, 0.3, 1), reverseCurve: Curves.easeIn);
-        return FadeTransition(
-          opacity: a,
-          child: SlideTransition(
-            position: Tween(begin: const Offset(0, 0.06), end: Offset.zero).animate(a),
-            child: child,
-          ),
+      transitionsBuilder: (context, anim, _, child) {
+        if (MediaQuery.disableAnimationsOf(context)) return child;
+        final a = CurvedAnimation(parent: anim, curve: const Cubic(0.22, 0.8, 0.3, 1), reverseCurve: const Cubic(0.42, 0, 1, 1).flipped);
+        return SlideTransition(
+          position: Tween(begin: const Offset(1, 0), end: Offset.zero).animate(a),
+          child: child,
         );
       },
     );
@@ -322,7 +430,7 @@ Route<T> panelRoute<T>(Widget page) => PageRouteBuilder<T>(
             child: Material(
               color: ZColors.of(context).bg,
               elevation: 16,
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(18),
               clipBehavior: Clip.antiAlias,
               child: page,
             ),

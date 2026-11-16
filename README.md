@@ -19,11 +19,12 @@ Aplikasi Flutter dengan dua mode: **Keuangan** dan **Produktif**. Semua data ter
 - Saldo per sumber (bank, e-wallet, tunai) dengan graph bulat per kuartal
 
 **✅ Produktif**
-- Tugas, kalender dengan pengingat
-- Catatan dengan folder, sematan, dan kunci PIN (terenkripsi)
+- Tugas dengan prioritas, sub-tugas, catatan, tenggat, pengingat, dan pengulangan; tampilan Daftar atau Papan (Windows)
+- Kalender Bulan / Minggu / Agenda dengan lokasi, durasi, warna, pengingat, dan agenda berulang
+- Catatan dengan folder, sematan, dan kunci PIN (terenkripsi); di Windows ada panel editor di samping
 
 **Umum**
-- Terang/gelap dan Indonesia/English
+- Terang/gelap dengan satu palet **Zamrud & champagne**, dan Indonesia/English
 - Tampilan polos secara bawaan; **Pakai latar** menyalakan ilustrasi Gurun Senja (Keuangan) dan ruang kerja (Produktif) dengan efek kaca
 - **Kurangi efek** mematikan blur dan animasi untuk perangkat lama
 - Foto profil dan sampul dari galeri/berkas sendiri
@@ -36,8 +37,8 @@ Aplikasi Flutter dengan dua mode: **Keuangan** dan **Produktif**. Semua data ter
 | | Android | Windows (64-bit) |
 |---|---|---|
 | Keuangan dan Produktif | ✅ | ✅ |
-| Tampilan | menu bawah | sidebar, bilah cari, palet perintah |
-| Pengingat/notifikasi | ✅ | ❌ (belum ada) |
+| Tampilan | menu bawah | bingkai jendela sendiri, sidebar, bilah cari, palet perintah |
+| Pengingat/notifikasi | ✅ | ✅ (notifikasi Windows) |
 | Cegah tangkapan layar | ✅ | ❌ |
 | Kunci biometrik | sidik jari | Windows Hello |
 

@@ -35,14 +35,14 @@ class NoteLock {
     if (!store.pinEnabled) {
       // Mis. catatan terkunci hasil restore di HP baru: belum ada PIN untuk membukanya.
       // Buat PIN dulu (kunci catatan tetap), lalu catatan langsung terbuka.
-      final created = await Navigator.of(context).push<String>(MaterialPageRoute(builder: (_) => const PinSetupPage()));
+      final created = await Navigator.of(context).push<String>(slideInRoute(const PinSetupPage()));
       if (created == null || !context.mounted) return false;
       store.setPin(created);
       open.value = {...open.value, n.id};
       showZToast(context, tr('PIN aktif'));
       return true;
     }
-    final ok = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => const PinVerifyPage()));
+    final ok = await Navigator.of(context).push<bool>(slideInRoute(const PinVerifyPage()));
     if (ok == true) open.value = {...open.value, n.id};
     return ok == true;
   }
@@ -60,6 +60,9 @@ class _NotesPageState extends State<NotesPage> {
   bool _pinnedOnly = false;
   String _folder = '';
 
+  /// Catatan yang terbuka di panel editor (Windows).
+  String? _sel;
+
   @override
   void dispose() {
     // Ditunda sampai pohon widget selesai dibongkar supaya tidak memicu build di tengah proses.
@@ -70,13 +73,17 @@ class _NotesPageState extends State<NotesPage> {
   Future<void> _new() async {
     final store = StoreScope.read(context);
     final n = store.addNote(tone: kNoteTones[store.notes.length % kNoteTones.length], folder: _folder);
+    if (isWide(context)) {
+      setState(() => _sel = n.id);
+      return;
+    }
     await pushPage(context, NoteEditorPage(note: n));
   }
 
   Future<void> _addFolder() async {
     final store = StoreScope.read(context);
     final ctrl = TextEditingController();
-    final name = await showDialog<String>(
+    final name = await showZDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(tr('Folder baru')),
@@ -195,12 +202,22 @@ class _NotesPageState extends State<NotesPage> {
                 ),
               ]),
             );
+        final wide = isWide(context);
         Widget grid(int cols) => Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               for (var c = 0; c < cols; c++) ...[
                 if (c > 0) const SizedBox(width: 12),
                 Expanded(
                   child: Column(children: [
-                    for (var i = c; i < list.length; i += cols) Padding(padding: const EdgeInsets.only(bottom: 12), child: NoteCard(note: list[i], maxLines: 8)),
+                    for (var i = c; i < list.length; i += cols)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: NoteCard(
+                          note: list[i],
+                          maxLines: 8,
+                          selected: wide && list[i].id == _sel,
+                          onOpen: wide ? (n) => setState(() => _sel = n.id) : null,
+                        ),
+                      ),
                   ]),
                 ),
               ],
@@ -227,10 +244,36 @@ class _NotesPageState extends State<NotesPage> {
               const SizedBox(height: 14),
               chips,
               const SizedBox(height: 18),
-              if (list.isEmpty)
-                empty
-              else
-                LayoutBuilder(builder: (context, box) => grid((box.maxWidth / 280).floor().clamp(2, 5))),
+              LayoutBuilder(builder: (context, box) {
+                Note? sel;
+                for (final n in store.notes) {
+                  if (n.id == _sel) sel = n;
+                }
+                // Catatan terkunci yang kuncinya ditutup lagi tidak boleh tetap terbuka di panel.
+                if (sel != null && !NoteLock.isOpen(sel)) sel = null;
+                final panel = DCard(
+                  padding: const EdgeInsets.all(20),
+                  child: sel == null
+                      ? Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 34),
+                          child: Column(children: [
+                            Icon(Icons.sticky_note_2_outlined, size: 40, color: z.text2),
+                            const SizedBox(height: 10),
+                            Text(tr('Pilih atau buat catatan'), style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800)),
+                            const SizedBox(height: 4),
+                            Text(tr('Perubahan tersimpan otomatis.'), style: TextStyle(fontSize: 12.5, color: z.muted)),
+                          ]),
+                        )
+                      : NoteEditorPanel(key: ValueKey(sel.id), note: sel, onClose: () => setState(() => _sel = null)),
+                );
+                final gridArea = list.isEmpty ? empty : LayoutBuilder(builder: (context, b) => grid((b.maxWidth / 240).floor().clamp(1, 5)));
+                if (box.maxWidth < 900) return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [panel, const SizedBox(height: 16), gridArea]);
+                return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Expanded(child: gridArea),
+                  const SizedBox(width: 20),
+                  SizedBox(width: 380, child: panel),
+                ]);
+              }),
             ],
           );
         }
@@ -255,6 +298,7 @@ Future<void> showNoteOptions(BuildContext context, Note note) async {
   if (!await NoteLock.ensure(context, note)) return;
   if (!context.mounted) return;
   await showModalBottomSheet<void>(
+    sheetAnimationStyle: kSheetAnimation,
     context: context,
     isScrollControlled: true,
     builder: (ctx) => SafeArea(
@@ -312,14 +356,22 @@ Future<void> showNoteOptions(BuildContext context, Note note) async {
 
 /// Kartu catatan berwarna.
 class NoteCard extends StatelessWidget {
-  const NoteCard({super.key, required this.note, this.maxLines = 6});
+  const NoteCard({super.key, required this.note, this.maxLines = 6, this.onOpen, this.selected = false});
 
   final Note note;
   final int maxLines;
 
+  /// Kosong = buka halaman editor. Windows: pilih catatan untuk panel editor di kanan.
+  final ValueChanged<Note>? onOpen;
+  final bool selected;
+
   Future<void> _open(BuildContext context) async {
     if (!await NoteLock.ensure(context, note)) return;
     if (!context.mounted) return;
+    if (onOpen != null) {
+      onOpen!(note);
+      return;
+    }
     await pushPage(context, NoteEditorPage(note: note));
   }
 
@@ -333,7 +385,10 @@ class NoteCard extends StatelessWidget {
         final hidden = !NoteLock.isOpen(note);
         return Material(
           color: z.toneBg(note.tone),
-          borderRadius: BorderRadius.circular(12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: selected ? BorderSide(color: z.toneFg(note.tone), width: 2) : BorderSide.none,
+          ),
           child: InkWell(
             borderRadius: BorderRadius.circular(12),
             onTap: () => _open(context),
@@ -503,7 +558,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                 onChanged: (v) => store.updateNote(n, title: v),
                 textCapitalization: TextCapitalization.sentences,
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: z.text),
-                decoration: InputDecoration(border: InputBorder.none, hintText: tr('Judul'), isDense: true),
+                decoration: InputDecoration(border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, hintText: tr('Judul'), isDense: true),
               ),
               const SizedBox(height: 6),
               TextField(
@@ -514,7 +569,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                 minLines: 10,
                 maxLines: null,
                 style: TextStyle(fontSize: 14.5, height: 1.5, color: z.text2),
-                decoration: InputDecoration(border: InputBorder.none, hintText: tr('Tulis sesuatu...'), isDense: true),
+                decoration: InputDecoration(border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, hintText: tr('Tulis sesuatu...'), isDense: true),
               ),
             ]),
           ),
@@ -523,5 +578,131 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
         ],
       ),
     );
+  }
+}
+
+
+/// Editor catatan di panel kanan (Windows, prototipe): judul, isi, warna, sematkan, kunci, hapus.
+/// Tersimpan otomatis; catatan baru yang dibiarkan kosong dihapus saat panel ditutup / berganti.
+class NoteEditorPanel extends StatefulWidget {
+  const NoteEditorPanel({super.key, required this.note, required this.onClose});
+
+  final Note note;
+  final VoidCallback onClose;
+
+  @override
+  State<NoteEditorPanel> createState() => _NoteEditorPanelState();
+}
+
+class _NoteEditorPanelState extends State<NoteEditorPanel> {
+  late final _title = TextEditingController(text: widget.note.title);
+  late final _body = TextEditingController(text: widget.note.body);
+  late AppStore _store;
+  bool _deleted = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _store = StoreScope.read(context);
+  }
+
+  @override
+  void dispose() {
+    final n = widget.note;
+    if (!_deleted && n.title.trim().isEmpty && n.body.trim().isEmpty) {
+      final store = _store;
+      Future.microtask(() => store.removeNote(n.id));
+    }
+    _title.dispose();
+    _body.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final store = StoreScope.of(context);
+    final z = ZColors.of(context);
+    final n = widget.note;
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Row(children: [
+        Expanded(child: Text(tr('Edit catatan'), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: z.muted))),
+        IconButton(
+          tooltip: n.pinned ? tr('Lepas sematan') : tr('Sematkan'),
+          onPressed: () => store.updateNote(n, pinned: !n.pinned),
+          icon: Icon(n.pinned ? Icons.push_pin_rounded : Icons.push_pin_outlined, size: 20, color: n.pinned ? z.accentText : z.text2),
+        ),
+        IconButton(
+          tooltip: n.locked ? tr('Buka kunci') : tr('Kunci dengan PIN'),
+          onPressed: () {
+            if (!store.pinEnabled) {
+              showZToast(context, tr('Aktifkan Kunci PIN di Pengaturan dulu'));
+              return;
+            }
+            if (!store.updateNote(n, locked: !n.locked)) {
+              showZToast(context, tr('Penyimpanan aman tidak tersedia di HP ini, catatan tidak bisa dikunci'));
+            }
+          },
+          icon: Icon(n.locked ? Icons.lock_rounded : Icons.lock_open_rounded, size: 20, color: n.locked ? z.accentText : z.text2),
+        ),
+        IconButton(
+          tooltip: tr('Hapus'),
+          onPressed: () => confirmDelete(context, n.title.isEmpty ? tr('Catatan ini') : n.title, () {
+            _deleted = true;
+            store.removeNote(n.id);
+            widget.onClose();
+          }),
+          icon: Icon(Icons.delete_outline_rounded, size: 20, color: z.warn),
+        ),
+        IconButton(tooltip: tr('Tutup'), onPressed: widget.onClose, icon: Icon(Icons.close_rounded, size: 20, color: z.text2)),
+      ]),
+      const SizedBox(height: 8),
+      Wrap(spacing: 8, children: [
+        for (final t in kNoteTones)
+          Semantics(
+            button: true,
+            selected: n.tone == t,
+            label: trf('Warna {0}', [t]),
+            child: GestureDetector(
+              onTap: () => store.updateNote(n, tone: t),
+              child: Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: z.toneBg(t),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: n.tone == t ? z.toneFg(t) : z.border, width: n.tone == t ? 3 : 1.5),
+                ),
+              ),
+            ),
+          ),
+      ]),
+      const SizedBox(height: 12),
+      Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(color: z.toneBg(n.tone), borderRadius: BorderRadius.circular(12)),
+        child: Column(children: [
+          TextField(
+            controller: _title,
+            autofocus: n.title.isEmpty && n.body.isEmpty,
+            onChanged: (v) => store.updateNote(n, title: v),
+            textCapitalization: TextCapitalization.sentences,
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: z.text),
+            decoration: InputDecoration(border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, hintText: tr('Judul'), isDense: true),
+          ),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _body,
+            onChanged: (v) => store.updateNote(n, body: v),
+            textCapitalization: TextCapitalization.sentences,
+            minLines: 12,
+            maxLines: null,
+            style: TextStyle(fontSize: 14, height: 1.55, color: z.text2),
+            decoration: InputDecoration(border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, hintText: tr('Tulis sesuatu...'), isDense: true),
+          ),
+        ]),
+      ),
+      const SizedBox(height: 10),
+      Text(trf('Tersimpan otomatis · {0}', [dayLabel(n.updatedAt)]), textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: z.muted2)),
+    ]);
   }
 }

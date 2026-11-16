@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../../data/photo_service.dart';
 import '../../widgets/profile_widgets.dart';
 import '../../core/i18n.dart';
+import '../../shell/window_frame.dart';
 import '../../core/theme.dart';
 import '../../data/store.dart';
 import '../../shell/layout.dart';
@@ -130,16 +131,20 @@ class _LoginScreenState extends State<LoginScreen> {
     if (wide) {
       return Scaffold(
         backgroundColor: z.bg,
-        body: Row(children: [
-          Expanded(flex: 11, child: _artPanel(z)),
-          Expanded(
-            flex: 10,
-            child: Stack(children: [
-              Positioned(right: -70, top: -70, child: _Disc(250, const Color(0xFFE8C86A), 0.28)),
-              Positioned(left: -70, bottom: -70, child: _Disc(220, z.primary, 0.07)),
-              Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 440), child: SafeArea(child: switcher))),
-            ]),
-          ),
+        body: Stack(children: [
+          Row(children: [
+            Expanded(flex: 11, child: _artPanel(z)),
+            Expanded(
+              flex: 10,
+              child: Stack(children: [
+                Positioned(right: -70, top: -70, child: _Disc(250, const Color(0xFFE8C86A), 0.28)),
+                Positioned(left: -70, bottom: -70, child: _Disc(220, z.primary, 0.07)),
+                Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 440), child: SafeArea(child: switcher))),
+              ]),
+            ),
+          ]),
+          // Bingkai jendela sendiri (Windows): jalur seret dan tombol jendela.
+          const Positioned(top: 0, left: 0, right: 0, child: WindowCaptionOverlay()),
         ]),
       );
     }
@@ -400,7 +405,8 @@ class _Field extends StatelessWidget {
                 cursorColor: z.primary,
                 decoration: InputDecoration(
                   isCollapsed: true,
-                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                  border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none,
                   hintText: hint,
                   hintStyle: TextStyle(color: z.muted2),
                 ),

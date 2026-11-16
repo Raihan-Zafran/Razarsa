@@ -250,7 +250,7 @@ class BalanceChartCard extends StatefulWidget {
 class _BalanceChartCardState extends State<BalanceChartCard> with SingleTickerProviderStateMixin {
   static const _padR = 6.0, _padT = 8.0, _padB = 22.0;
   double get _padL => widget.desktop ? 58.0 : 38.0;
-  late final AnimationController _draw = AnimationController(vsync: this, duration: const Duration(milliseconds: 1300));
+  late final AnimationController _draw = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400));
   bool _started = false;
   int? _hover;
 
@@ -339,7 +339,7 @@ class _BalanceChartCardState extends State<BalanceChartCard> with SingleTickerPr
                       size: Size(double.infinity, h),
                       painter: _ChartPainter(
                         values: v,
-                        draw: const Cubic(0.4, 0.1, 0.2, 1).transform(_draw.value),
+                        draw: const Interval(0.2 / 1.4, 1, curve: Cubic(0.4, 0.1, 0.2, 1)).transform(_draw.value),
                         hover: hv,
                         hidden: widget.hidden,
                         line: z.primary,
@@ -568,7 +568,7 @@ class QuickChip extends StatelessWidget {
     final cat = store.category(item.cat);
     return Material(
       color: z.card,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(compact ? 99 : 10), side: BorderSide(color: compact ? z.chipBorder : z.cardBorder)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(compact ? 99 : 10), side: BorderSide(color: compact ? z.chipBorder : z.border)),
       child: InkWell(
         borderRadius: BorderRadius.circular(compact ? 99 : 10),
         onTap: () {
@@ -585,7 +585,7 @@ class QuickChip extends StatelessWidget {
                   const SizedBox(width: 8),
                   Text(tr(item.name), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
                   const SizedBox(width: 6),
-                  Text(rpShort(item.amount), style: TextStyle(fontSize: 12, color: z.muted)),
+                  Text(rp(item.amount), style: TextStyle(fontSize: 12, color: z.muted)),
                 ])
               : Row(children: [
             CategoryTile(category: cat, size: 36),

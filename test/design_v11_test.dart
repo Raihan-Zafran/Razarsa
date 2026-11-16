@@ -229,8 +229,8 @@ void main() {
 
   group('Transisi stagger', () {
     testWidgets('elemen muncul bertahap: opacity naik, lalu penuh', (t) async {
-      await t.pumpWidget(const MaterialApp(
-        home: PageStagger(child: StaggerItem(index: 3, child: Text('x'))),
+      await t.pumpWidget(MaterialApp(
+        home: PageStagger(child: const StaggerItem(index: 3, child: Text('x'))),
       ));
       double opacity() => t.widget<FadeTransition>(find.descendant(of: find.byType(StaggerItem), matching: find.byType(FadeTransition))).opacity.value;
       expect(opacity(), 0);
@@ -241,10 +241,10 @@ void main() {
     });
 
     testWidgets('"kurangi animasi": langsung tampil tanpa animasi', (t) async {
-      await t.pumpWidget(const MaterialApp(
+      await t.pumpWidget(MaterialApp(
         home: MediaQuery(
-          data: MediaQueryData(disableAnimations: true),
-          child: PageStagger(child: StaggerItem(index: 3, child: Text('x'))),
+          data: const MediaQueryData(disableAnimations: true),
+          child: PageStagger(child: const StaggerItem(index: 3, child: Text('x'))),
         ),
       ));
       expect(find.descendant(of: find.byType(StaggerItem), matching: find.byType(FadeTransition)), findsNothing);

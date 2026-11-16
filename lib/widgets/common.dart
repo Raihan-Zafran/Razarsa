@@ -103,17 +103,19 @@ class ZCard extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(radius),
+        // Prototipe `.rz .card`: 0 1px 2px rgba(15,30,20,.04), 0 14px 30px -20px rgba(15,30,20,.2).
         boxShadow: light
             ? const [
                 BoxShadow(color: Color(0x0A0F1E14), blurRadius: 2, offset: Offset(0, 1)),
-                BoxShadow(color: Color(0x290F1E14), blurRadius: 16, spreadRadius: -10, offset: Offset(0, 8)),
+                BoxShadow(color: Color(0x330F1E14), blurRadius: 25, spreadRadius: -20, offset: Offset(0, 14)),
               ]
             : null,
       ),
       child: GlassPane(
         color: z.card,
         radius: radius,
-        border: Border.all(color: z.cardBorder),
+        // Garis tepi 1 px warna --border, sama dengan kartu prototipe (terang dan gelap).
+        border: Border.all(color: z.border),
         padding: padding,
         child: child,
       ),
@@ -255,9 +257,11 @@ class Segmented<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final z = ZColors.of(context);
+    // Prototipe: Windows `.rz .seg` 12 / tombol 9, HP 14 / tombol 11.
+    final wide = MediaQuery.sizeOf(context).width >= 900;
     return GlassPane(
       color: z.track,
-      radius: 9,
+      radius: wide ? 12 : 14,
       padding: const EdgeInsets.all(4),
       child: Row(
         children: [
@@ -272,7 +276,7 @@ class Segmented<T> extends StatelessWidget {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: v == value ? z.primary : Colors.transparent,
-                    borderRadius: BorderRadius.circular(7),
+                    borderRadius: BorderRadius.circular(wide ? 9 : 11),
                   ),
                   child: Text(
                     label,
@@ -484,7 +488,7 @@ void showZToast(BuildContext context, String text, {String? actionLabel, VoidCal
 /// Dialog konfirmasi hapus yang seragam di seluruh aplikasi (judul, tombol, dan urutannya sama).
 /// [title] dan [message] boleh diganti; bawaannya "Hapus?" dan "\"{nama}\" akan dihapus.".
 Future<bool> confirmDelete(BuildContext context, String name, VoidCallback onDelete, {String? title, String? message}) async {
-  final ok = await showDialog<bool>(
+  final ok = await showZDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
       title: Text(title ?? tr('Hapus?')),
@@ -497,4 +501,83 @@ Future<bool> confirmDelete(BuildContext context, String name, VoidCallback onDel
   );
   if (ok == true) onDelete();
   return ok == true;
+}
+
+/// Lembar bawah muncul naik 0,35 s (prototipe `.sheet` animasi `up`).
+const kSheetAnimation = AnimationStyle(
+  duration: Duration(milliseconds: 350),
+  reverseDuration: Duration(milliseconds: 240),
+  curve: Cubic(0.22, 0.8, 0.3, 1),
+);
+
+/// Pengganti [showDialog] dengan animasi prototipe `dIn` (0,28 s): memudar sambil naik sedikit dan membesar
+/// (Windows 10 px + skala 0,98; HP 12 px + skala 0,94). Tema, semantik, dan penghalang sama dengan [showDialog].
+Future<T?> showZDialog<T>({required BuildContext context, required WidgetBuilder builder, bool barrierDismissible = true, Color? barrierColor}) {
+  final nav = Navigator.of(context);
+  return nav.push<T>(_ZDialogRoute<T>(
+    context: context,
+    builder: builder,
+    barrierDismissible: barrierDismissible,
+    barrierColor: barrierColor ?? Colors.black54,
+    wide: MediaQuery.sizeOf(context).width >= 900,
+    themes: InheritedTheme.capture(from: context, to: nav.context),
+  ));
+}
+
+class _ZDialogRoute<T> extends DialogRoute<T> {
+  _ZDialogRoute({required super.context, required super.builder, required super.barrierDismissible, required super.barrierColor, required super.themes, required this.wide})
+      : super(barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel);
+
+  final bool wide;
+
+  @override
+  Duration get transitionDuration => const Duration(milliseconds: 280);
+
+  @override
+  Duration get reverseTransitionDuration => const Duration(milliseconds: 160);
+
+  @override
+  Widget buildTransitions(BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation, Widget child) {
+    if (MediaQuery.disableAnimationsOf(context)) return child;
+    final a = CurvedAnimation(parent: animation, curve: const Cubic(0.22, 0.8, 0.3, 1), reverseCurve: Curves.easeIn);
+    final dy = wide ? 10.0 : 12.0;
+    final s0 = wide ? 0.98 : 0.94;
+    return FadeTransition(
+      opacity: a,
+      child: AnimatedBuilder(
+        animation: a,
+        child: child,
+        builder: (context, child) {
+          final t = 1 - a.value;
+          final k = 1 - (1 - s0) * t;
+          return Transform(
+            alignment: Alignment.center,
+            transform: Matrix4.translationValues(0, dy * t, 0)..scaleByDouble(k, k, 1, 1),
+            child: child,
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Lembar pilihan sederhana: judul + daftar opsi, centang di opsi terpilih. Mengembalikan kunci yang dipilih.
+Future<String?> showPickSheet(BuildContext context, String title, List<(String, String)> options, String current) {
+  return showModalBottomSheet<String>(
+    sheetAnimationStyle: kSheetAnimation,
+    context: context,
+    builder: (c) => SafeArea(
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 8),
+        for (final (id, label) in options)
+          ListTile(
+            title: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+            trailing: id == current ? const Icon(Icons.check_rounded) : null,
+            onTap: () => Navigator.pop(c, id),
+          ),
+        const SizedBox(height: 8),
+      ]),
+    ),
+  );
 }

@@ -5,10 +5,12 @@ import '../../core/theme.dart';
 import '../../data/photo_service.dart';
 import '../../data/store.dart';
 import '../../widgets/profile_widgets.dart';
+import '../../widgets/common.dart' show kSheetAnimation;
 
 /// Lembar "Ubah tampilan profil": foto profil dan sampul dari galeri. Perubahan langsung berlaku.
 Future<void> showProfileStyleSheet(BuildContext context) {
   return showModalBottomSheet<void>(
+    sheetAnimationStyle: kSheetAnimation,
     context: context,
     isScrollControlled: true,
     showDragHandle: true,

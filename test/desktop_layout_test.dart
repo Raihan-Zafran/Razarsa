@@ -70,6 +70,8 @@ void main() {
       await t.pump(const Duration(seconds: 2));
       for (final k in keys) {
         await ctrl(t, k);
+        // Isi lama keluar dulu (170 ms), baru halaman baru dibangun di bingkai berikutnya.
+        await t.pump(const Duration(milliseconds: 200));
         await t.pump(const Duration(seconds: 2));
         expect(t.takeException(), isNull, reason: 'galat di halaman ${keys.indexOf(k) + 1} pada $size');
       }

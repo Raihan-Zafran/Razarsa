@@ -51,7 +51,7 @@ class SettingsPage extends StatelessWidget {
       }),
       Material(
         color: z.card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: BorderSide(color: z.cardBorder)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: BorderSide(color: z.border)),
         child: InkWell(
           borderRadius: BorderRadius.circular(18),
           onTap: () => pushPage(context, const ProfilePage()),
@@ -86,7 +86,7 @@ class SettingsPage extends StatelessWidget {
               sub: tr('Kartu tembus pandang di atas latar'),
               onTap: () => _pick(context, tr('Efek kaca'), [('0', tr('Mati')), ('1', tr('Halus')), ('2', tr('Kuat'))],
                   '${store.glassLevel}', (v) => store.setGlassLevel(int.parse(v)))),
-        _ToggleRow(Icons.speed_rounded, tr('Kurangi efek'), tr('Matikan blur dan animasi supaya lebih ringan di HP lama'),
+        _ToggleRow(Icons.speed_rounded, tr('Kurangi efek'), isWide(context) ? tr('Matikan blur dan animasi supaya lebih ringan di komputer lama') : tr('Matikan blur dan animasi supaya lebih ringan di HP lama'),
             value: store.lite, onChanged: store.setLite),
       ]),
       _Group(tr('Umum'), [
@@ -114,8 +114,8 @@ class SettingsPage extends StatelessWidget {
             onTap: () => _pick(context, tr('Awal minggu'), [('mon', tr('Senin')), ('sun', tr('Hari Minggu'))],
                 store.weekStartMonday ? 'mon' : 'sun', (v) => store.setWeekStartMonday(v == 'mon'))),
       ]),
-      // Pengingat dan layar aman memakai fitur Android; di Windows barisnya disembunyikan (bukan pura-pura jalan).
-      if (defaultTargetPlatform == TargetPlatform.android)
+      // Pengingat: notifikasi Android, atau toast Windows. Platform lain tidak punya notifikasi.
+      if (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.windows)
       _Group(tr('Notifikasi'), [
         _Switch(store, 'daily', Icons.notifications_none_rounded, 'purple', tr('Pengingat harian'), tr('Setiap hari pukul 20.00'),
             onChanged: (v) async {
@@ -128,12 +128,15 @@ class SettingsPage extends StatelessWidget {
               if (v && !await _allowNotifications(context)) return;
               store.setSwitch('budgetAlert', v);
             }),
-        _Switch(store, 'agenda', Icons.event_available_outlined, 'blue', tr('Pengingat kalender'), tr('Notifikasi untuk pengingat di mode Produktif'),
+        _Switch(store, 'agenda', Icons.event_available_outlined, 'blue', tr('Pengingat kalender'), tr('Notifikasi untuk agenda dan tugas di mode Produktif'),
             onChanged: (v) async {
               if (v && !await _allowNotifications(context)) return;
               store.setSwitch('agenda', v);
               for (final a in store.agenda) {
                 await Notif.syncAgenda(a, enabled: v);
+              }
+              for (final t in store.todos) {
+                await Notif.syncTodo(t, enabled: v);
               }
             }),
         _Switch(store, 'bill', Icons.receipt_long_outlined, 'teal', tr('Pengingat tagihan'), tr('Sehari sebelum transaksi berulang jatuh tempo'),
@@ -188,6 +191,7 @@ class SettingsPage extends StatelessWidget {
       void Function(String) onPick) async {
     final store = StoreScope.read(context);
     final v = await showModalBottomSheet<String>(
+      sheetAnimationStyle: kSheetAnimation,
       context: context,
       builder: (c) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -211,7 +215,7 @@ class SettingsPage extends StatelessWidget {
 
   Future<void> _pickMonthStart(BuildContext context, AppStore store) async {
     final z = ZColors.of(context);
-    final day = await showDialog<int>(
+    final day = await showZDialog<int>(
       context: context,
       builder: (c) => AlertDialog(
         title: Text(tr('Pilih tanggal awal bulan anggaran')),
@@ -248,7 +252,7 @@ class SettingsPage extends StatelessWidget {
   Future<void> _editProfile(BuildContext context, AppStore store) async {
     final name = TextEditingController(text: store.userName);
     final mail = TextEditingController(text: store.email);
-    final ok = await showDialog<bool>(
+    final ok = await showZDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
         title: Text(tr('Ubah nama & email')),
@@ -283,16 +287,16 @@ class SettingsPage extends StatelessWidget {
 
   Future<void> _togglePin(BuildContext context, AppStore store, bool on) async {
     if (on) {
-      final pin = await Navigator.of(context).push<String>(MaterialPageRoute(builder: (_) => const PinSetupPage()));
+      final pin = await Navigator.of(context).push<String>(slideInRoute(const PinSetupPage()));
       if (pin != null) {
         store.setPin(pin);
         if (context.mounted) showZToast(context, tr('PIN aktif'));
       }
     } else {
-      final ok = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => const PinVerifyPage()));
+      final ok = await Navigator.of(context).push<bool>(slideInRoute(const PinVerifyPage()));
       if (ok != true || !context.mounted) return;
       if (store.hasLockedNotes) {
-        final sure = await showDialog<bool>(
+        final sure = await showZDialog<bool>(
           context: context,
           builder: (c) => AlertDialog(
             title: Text(tr('Matikan PIN?')),
@@ -312,9 +316,9 @@ class SettingsPage extends StatelessWidget {
 
   /// Ganti PIN: PIN lama diperiksa dulu; catatan yang terkunci tetap terkunci.
   Future<void> _changePin(BuildContext context, AppStore store) async {
-    final ok = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => const PinVerifyPage()));
+    final ok = await Navigator.of(context).push<bool>(slideInRoute(const PinVerifyPage()));
     if (ok != true || !context.mounted) return;
-    final pin = await Navigator.of(context).push<String>(MaterialPageRoute(builder: (_) => const PinSetupPage()));
+    final pin = await Navigator.of(context).push<String>(slideInRoute(const PinSetupPage()));
     if (pin == null) return;
     store.setPin(pin);
     if (context.mounted) showZToast(context, tr('PIN diganti'));
@@ -339,6 +343,7 @@ class SettingsPage extends StatelessWidget {
 
   Future<void> _backupSheet(BuildContext context, AppStore store) async {
     final v = await showModalBottomSheet<String>(
+      sheetAnimationStyle: kSheetAnimation,
       context: context,
       builder: (c) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -369,7 +374,7 @@ class SettingsPage extends StatelessWidget {
     } else if (v == 'restore') {
       await _restore(context, store);
     } else if (v == 'auto') {
-      final ok = await showDialog<bool>(
+      final ok = await showZDialog<bool>(
         context: context,
         builder: (c) => AlertDialog(
           title: Text(tr('Pulihkan cadangan otomatis?')),
@@ -394,7 +399,7 @@ class SettingsPage extends StatelessWidget {
     final a = TextEditingController();
     final b = TextEditingController();
     String? error;
-    return showDialog<String>(
+    return showZDialog<String>(
       context: context,
       builder: (c) => StatefulBuilder(
         builder: (c, setS) => AlertDialog(
@@ -435,7 +440,7 @@ class SettingsPage extends StatelessWidget {
 
   Future<String?> _askPassword(BuildContext context, {bool wrong = false}) {
     final a = TextEditingController();
-    return showDialog<String>(
+    return showZDialog<String>(
       context: context,
       builder: (c) => AlertDialog(
         title: Text(tr('Masukkan kata sandi backup')),
@@ -505,7 +510,7 @@ class SettingsPage extends StatelessWidget {
         return;
       }
       final made = insp.exportedAt;
-      final ok = await showDialog<bool>(
+      final ok = await showZDialog<bool>(
         context: context,
         builder: (c) => AlertDialog(
           title: Text(tr('Pulihkan dari backup?')),
@@ -541,6 +546,7 @@ class SettingsPage extends StatelessWidget {
 
   Future<void> _pickTheme(BuildContext context, AppStore store) async {
     final m = await showModalBottomSheet<ThemeMode>(
+      sheetAnimationStyle: kSheetAnimation,
       context: context,
       builder: (c) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -564,7 +570,7 @@ class SettingsPage extends StatelessWidget {
 
   Future<void> _confirmClear(BuildContext context, AppStore store) async {
     // null = batal, true = hapus + simpan cadangan, false = hapus permanen.
-    final keep = await showDialog<bool>(
+    final keep = await showZDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
         title: Text(tr('Hapus semua data?')),

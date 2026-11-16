@@ -61,7 +61,7 @@ void main() {
     s.setWalletBalance('cash', -50000);
     await show(t, s, const SaldoPage());
     await t.drag(find.byType(ListView), const Offset(0, -700));
-    await t.pump();
+    await t.pump(const Duration(milliseconds: 1500)); // angka total selesai menghitung naik
     expect(find.text('BANK · 1'), findsOneWidget);
     expect(find.text('E-WALLET · 1'), findsOneWidget);
     expect(find.text('TUNAI · 1'), findsOneWidget);

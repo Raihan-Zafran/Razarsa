@@ -138,7 +138,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                   onChanged: (_) => setState(() {}),
                   style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: z.text, letterSpacing: -0.8),
                   decoration: InputDecoration(
-                    border: InputBorder.none,
+                    border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none,
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(vertical: 8),
                     hintText: '0',

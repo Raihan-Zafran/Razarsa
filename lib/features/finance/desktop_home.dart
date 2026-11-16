@@ -149,7 +149,7 @@ class _Hero extends StatelessWidget {
         hero: true,
         color: z.hero,
         color2: z.hero2,
-        radius: 20,
+        radius: 22,
         border: Border.all(color: z.heroBorder),
         padding: const EdgeInsets.fromLTRB(32, 28, 32, 26),
         child: LayoutBuilder(builder: (context, box) {
@@ -205,14 +205,14 @@ class _HeroBtn extends StatelessWidget {
     return Material(
       color: filled ? z.hi : Colors.transparent,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         side: filled ? BorderSide.none : BorderSide(color: Colors.white.withValues(alpha: 0.5), width: 1.5),
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: SizedBox(
-          height: 46,
+          height: 48,
           child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
             Icon(icon, size: 20, color: fg),
             const SizedBox(width: 8),
@@ -259,7 +259,7 @@ class _BudgetCard extends StatelessWidget {
             stroke: 11,
             color: pct >= 0.9 ? z.warn : z.primary,
             center: Column(mainAxisSize: MainAxisSize.min, children: [
-              Text('${(pct * 100).round()}%', style: const TextStyle(fontSize: 23, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+              CountUp(value: (pct * 100).round(), format: (n) => '$n%', style: const TextStyle(fontSize: 23, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
               Text(tr('terpakai'), style: TextStyle(fontSize: 11, color: z.muted2)),
             ]),
           ),
@@ -270,7 +270,9 @@ class _BudgetCard extends StatelessWidget {
               FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
-                child: Text(m(left.abs()), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+                child: store.hideBalance
+                    ? Text(m(left.abs()), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5))
+                    : CountUp(value: left.abs(), format: rp, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
               ),
               Text(trf('dari {0}', [m(budget)]), style: TextStyle(fontSize: 12, color: z.muted2)),
             ]),
@@ -302,13 +304,16 @@ class _Recent extends StatelessWidget {
           ? EmptyState(icon: Icons.receipt_long_rounded, title: tr('Belum ada transaksi'), message: tr('Catat pengeluaran atau pemasukan pertamamu lewat tombol di atas.'))
           : Column(children: [
               for (var i = 0; i < list.length; i++)
-                TxnRow(
-                  category: store.category(list[i].cat),
-                  title: list[i].name,
-                  subtitle: '${dayLabel(list[i].at)}, ${timeLabel(list[i].at)} · ${store.walletName(list[i].wallet)}',
-                  amountText: store.hideBalance ? rpHidden : rpSigned(list[i].amount),
-                  isIncome: !list[i].isExpense,
-                  showDivider: i < list.length - 1,
+                RowIn(
+                  index: i,
+                  child: TxnRow(
+                    category: store.category(list[i].cat),
+                    title: list[i].name,
+                    subtitle: '${dayLabel(list[i].at)}, ${timeLabel(list[i].at)} · ${store.walletName(list[i].wallet)}',
+                    amountText: store.hideBalance ? rpHidden : rpSigned(list[i].amount),
+                    isIncome: !list[i].isExpense,
+                    showDivider: i < list.length - 1,
+                  ),
                 ),
             ]),
     );
@@ -346,8 +351,10 @@ class _Wallets extends StatelessWidget {
       link: tr('Peta saldo'),
       onLink: onMap,
       child: Column(children: [
-        for (final w in store.wallets)
-          Padding(
+        for (final (i, w) in store.wallets.indexed)
+          RowIn(
+            index: i,
+            child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: Row(children: [
               IconTile(icon: walletIcon(w.type), tone: walletTone(w.type), size: 36, radius: 10),
@@ -361,6 +368,7 @@ class _Wallets extends StatelessWidget {
               Text(store.hideBalance ? rpHidden : rpNeg(store.walletBalance(w.id)),
                   style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, fontFeatures: [FontFeature.tabularFigures()])),
             ]),
+            ),
           ),
       ]),
     );

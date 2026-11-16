@@ -55,7 +55,10 @@ void main() {
         }), still: still);
     await t.pumpWidget(w(false));
     expect(last, 0);
+    // Tertunda 0,3 s seperti prototipe, lalu tumbuh.
     await t.pump(const Duration(milliseconds: 200));
+    expect(last, 0);
+    await t.pump(const Duration(milliseconds: 300));
     expect(last, greaterThan(0));
     expect(last, lessThan(0.6));
     await t.pump(const Duration(seconds: 2));

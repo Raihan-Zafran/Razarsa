@@ -415,11 +415,14 @@ class _Bar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final h = value <= 0 ? 0.0 : math.max(value, 3.0);
+    // Prototipe growH: 0,9 s, tertunda 0,245 s + 45 ms per kolom.
+    final lead = 245 + 45 * index;
+    final total = lead + 900;
     return Flexible(
       child: TweenAnimationBuilder<double>(
         tween: Tween(begin: reduce ? 1 : 0, end: 1),
-        duration: reduce ? Duration.zero : Duration(milliseconds: 900 + index * 35),
-        curve: const Cubic(0.22, 0.8, 0.3, 1),
+        duration: reduce ? Duration.zero : Duration(milliseconds: total),
+        curve: Interval(lead / total, 1, curve: const Cubic(0.22, 0.8, 0.3, 1)),
         builder: (_, k, _) => Container(
           height: h * k,
           constraints: const BoxConstraints(maxWidth: 9),
@@ -485,8 +488,8 @@ class _CompositionCard extends StatelessWidget {
           height: 132,
           child: TweenAnimationBuilder<double>(
             tween: Tween(begin: MediaQuery.disableAnimationsOf(context) ? 1 : 0, end: 1),
-            duration: const Duration(milliseconds: 900),
-            curve: Curves.easeOutCubic,
+            duration: const Duration(milliseconds: 1550),
+            curve: const Interval(0.16, 1, curve: Cubic(0.22, 0.8, 0.3, 1)),
             builder: (_, v, _) => CustomPaint(
               painter: DonutPainter(parts: [for (final p in parts) (p.$2.toDouble(), p.$3)], empty: z.track, progress: v),
               child: Center(
@@ -560,7 +563,7 @@ class DonutPainter extends CustomPainter {
 /// Dialog untuk mengubah anggaran bulanan.
 Future<void> editBudget(BuildContext context, AppStore store) async {
   final ctrl = TextEditingController(text: dots(store.monthlyBudget));
-  final value = await showDialog<int>(
+  final value = await showZDialog<int>(
     context: context,
     builder: (c) => AlertDialog(
       title: Text(tr('Anggaran bulanan')),

@@ -26,7 +26,8 @@ class WaterJar extends StatefulWidget {
 }
 
 class _WaterJarState extends State<WaterJar> with TickerProviderStateMixin {
-  late final AnimationController _level = AnimationController(vsync: this, duration: const Duration(milliseconds: 1800));
+  // Prototipe jarFill: 2,4 s, tertunda 0,35 s saat pertama tampil; perubahan berikutnya 1,2 s tanpa jeda.
+  late final AnimationController _level = AnimationController(vsync: this, duration: const Duration(milliseconds: 2750));
   late final AnimationController _loop = AnimationController(vsync: this, duration: const Duration(seconds: 54));
   late Animation<double> _curve = const AlwaysStoppedAnimation(0);
   double _from = 0, _to = 0;
@@ -52,8 +53,8 @@ class _WaterJarState extends State<WaterJar> with TickerProviderStateMixin {
     }
   }
 
-  void _bind() {
-    _curve = CurvedAnimation(parent: _level, curve: const Cubic(0.22, 0.8, 0.3, 1));
+  void _bind({bool first = true}) {
+    _curve = CurvedAnimation(parent: _level, curve: first ? const Interval(0.35 / 2.75, 1, curve: Cubic(0.22, 0.8, 0.3, 1)) : const Cubic(0.22, 0.8, 0.3, 1));
   }
 
   @override
@@ -63,6 +64,8 @@ class _WaterJarState extends State<WaterJar> with TickerProviderStateMixin {
     if (next != _to) {
       _from = _from + (_to - _from) * _curve.value;
       _to = next;
+      _level.duration = const Duration(milliseconds: 1200);
+      _bind(first: false);
       _level
         ..reset()
         ..forward();

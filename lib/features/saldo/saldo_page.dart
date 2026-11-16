@@ -9,7 +9,8 @@ import '../../core/theme.dart';
 import '../../data/models.dart';
 import '../../data/store.dart';
 import '../../widgets/common.dart';
-import '../../shell/app_shell.dart' show pushPage;
+import '../../widgets/count_up.dart';
+import '../../shell/app_shell.dart' show pushPage, RowIn;
 import '../../shell/desktop_page.dart';
 import '../../shell/layout.dart';
 import '../finance/add_transaction_page.dart';
@@ -174,7 +175,9 @@ class _SaldoPageState extends State<SaldoPage> {
               FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
-                child: Text(money(total), style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: -0.6)),
+                child: hidden
+                    ? Text(money(total), style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: -0.6))
+                    : CountUp(value: total, format: (n) => rpNeg(n.toInt()), style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: -0.6)),
               ),
               const SizedBox(height: 24),
               Row(children: [
@@ -294,8 +297,10 @@ class _SaldoPageState extends State<SaldoPage> {
       title: tr('Sumber saldo'),
       trailing: IconButton(tooltip: tr('Tambah'), visualDensity: VisualDensity.compact, onPressed: () => _add(context, store), icon: const Icon(Icons.add_rounded, size: 20)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        for (final w in store.wallets)
-          InkWell(
+        for (final (i, w) in store.wallets.indexed)
+          RowIn(
+            index: i,
+            child: InkWell(
             borderRadius: BorderRadius.circular(10),
             onTap: () => _manage(context, store, w),
             child: Padding(
@@ -321,6 +326,7 @@ class _SaldoPageState extends State<SaldoPage> {
                 ),
               ]),
             ),
+          ),
           ),
         const SizedBox(height: 10),
         Text(tr('Klik satu titik di peta untuk melihat rinciannya dan menyorot garisnya.'), style: TextStyle(fontSize: 12.5, height: 1.45, color: z.muted)),
@@ -355,6 +361,7 @@ class _SaldoPageState extends State<SaldoPage> {
       return;
     }
     final name = await showModalBottomSheet<String>(
+      sheetAnimationStyle: kSheetAnimation,
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -366,6 +373,7 @@ class _SaldoPageState extends State<SaldoPage> {
   // ---------- Kelola sumber ----------
   Future<void> _manage(BuildContext context, AppStore store, Wallet w) async {
     final act = await showModalBottomSheet<String>(
+      sheetAnimationStyle: kSheetAnimation,
       context: context,
       backgroundColor: Colors.transparent,
       builder: (c) => _DarkSheet(
@@ -389,12 +397,12 @@ class _SaldoPageState extends State<SaldoPage> {
   }
 
   Future<void> _setBalance(BuildContext context, AppStore store, Wallet w) async {
-    final ok = await showDialog<bool>(context: context, builder: (c) => _BalanceDialog(store: store, wallet: w));
+    final ok = await showZDialog<bool>(context: context, builder: (c) => _BalanceDialog(store: store, wallet: w));
     if (ok == true && context.mounted) showZToast(context, trf('Saldo {0} diperbarui', [w.name]));
   }
 
   Future<void> _rename(BuildContext context, AppStore store, Wallet w) =>
-      showDialog<void>(context: context, builder: (c) => _RenameDialog(store: store, wallet: w));
+      showZDialog<void>(context: context, builder: (c) => _RenameDialog(store: store, wallet: w));
 
   Future<void> _delete(BuildContext context, AppStore store, Wallet w) async {
     final to = store.walletReceiving(w.id);

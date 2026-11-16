@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -12,9 +14,11 @@ import 'data/store.dart';
 import 'features/auth/login_screen.dart';
 import 'features/security/lock.dart';
 import 'shell/app_shell.dart';
+import 'shell/window_frame.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initWindow();
   await initializeDateFormatting();
   final prefs = await SharedPreferences.getInstance();
   final vault = await SecureKeyVault.open();
@@ -28,6 +32,10 @@ Future<void> main() async {
   Notif.syncBills(store);
   store.onAgendaChanged = (a, {bool removed = false}) =>
       Notif.syncAgenda(a, removed: removed, enabled: store.switches['agenda'] == true);
+  store.onTodoChanged = (t, {bool removed = false}) =>
+      Notif.syncTodo(t, removed: removed, enabled: store.switches['agenda'] == true);
+  // Jadwal pengingat agenda & tugas dipasang ulang setiap aplikasi dibuka (Windows tidak mengulang sendiri).
+  unawaited(Notif.syncProductive(store));
   Notif.syncDaily(store.switches['daily'] == true);
   // Aplikasi sering tetap hidup di latar belakang berhari-hari: transaksi berulang yang jatuh tempo
   // (termasuk pergantian bulan) diproses setiap aplikasi dibuka kembali, bukan hanya saat mulai dari nol.
@@ -49,8 +57,8 @@ class RazarsaApp extends StatelessWidget {
         builder: (context, _) => MaterialApp(
           title: 'Razarsa',
           debugShowCheckedModeBanner: false,
-          theme: buildTheme(Brightness.light, plain: !store.useBg),
-          darkTheme: buildTheme(Brightness.dark, plain: !store.useBg),
+          theme: buildTheme(Brightness.light),
+          darkTheme: buildTheme(Brightness.dark),
           themeMode: store.themeMode,
           themeAnimationDuration: const Duration(milliseconds: 300),
           locale: store.lang == 'en' ? const Locale('en', 'US') : const Locale('id', 'ID'),

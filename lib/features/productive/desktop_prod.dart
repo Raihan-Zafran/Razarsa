@@ -5,10 +5,12 @@ import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../data/productive_models.dart';
 import '../../data/store.dart';
+import '../../shell/app_shell.dart' show RowIn;
 import '../../shell/desktop_page.dart';
 import '../../widgets/common.dart';
 import '../../widgets/count_up.dart';
 import 'prod_common.dart';
+import 'todo_detail.dart';
 
 Widget _addBtn(BuildContext context, String label, VoidCallback onTap) => FilledButton.icon(
       onPressed: onTap,
@@ -69,7 +71,7 @@ class _DesktopProdHomeState extends State<DesktopProdHome> {
       hero: true,
       color: z.hero,
       color2: z.hero2,
-      radius: 20,
+      radius: 22,
       border: Border.all(color: z.heroBorder),
       padding: const EdgeInsets.fromLTRB(32, 28, 32, 28),
       child: Center(
@@ -103,8 +105,10 @@ class _DesktopProdHomeState extends State<DesktopProdHome> {
       child: agenda.isEmpty
           ? Text(tr('Tidak ada agenda hari ini'), style: TextStyle(fontSize: 13, color: z.muted))
           : Column(children: [
-              for (final a in agenda.take(5))
-                Padding(
+              for (final (i, a) in agenda.take(5).indexed)
+                RowIn(
+                  index: i,
+                  child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 7),
                   child: Row(children: [
                     IconTile(icon: a.reminder ? Icons.notifications_none_rounded : Icons.event_outlined, tone: a.tone, size: 38, radius: 11),
@@ -116,6 +120,7 @@ class _DesktopProdHomeState extends State<DesktopProdHome> {
                       ]),
                     ),
                   ]),
+                ),
                 ),
             ]),
     );
@@ -148,7 +153,7 @@ class _DesktopProdHomeState extends State<DesktopProdHome> {
         if (today.isEmpty)
           Padding(padding: const EdgeInsets.symmetric(vertical: 24), child: Text(tr('Belum ada tugas untuk hari ini'), style: TextStyle(color: z.muted)))
         else
-          for (var i = 0; i < today.length; i++) TodoRow(todo: today[i], showDivider: i < today.length - 1),
+          for (var i = 0; i < today.length; i++) RowIn(index: i, child: TodoRow(todo: today[i], showDivider: i < today.length - 1)),
       ]),
     );
 
@@ -191,9 +196,6 @@ class _DesktopProdHomeState extends State<DesktopProdHome> {
 
 // ---------------------------------------------------------------------------------------------
 
-enum _Group { late, today, tomorrow, week, later, none, done }
-
-/// Tugas untuk jendela lebar: ringkasan angka, pencarian, penyaring, daftar bergrup, dan grafik aktivitas.
 class DesktopTodos extends StatefulWidget {
   const DesktopTodos({super.key});
 
@@ -201,173 +203,183 @@ class DesktopTodos extends StatefulWidget {
   State<DesktopTodos> createState() => _DesktopTodosState();
 }
 
+/// Tugas di Windows (prototipe): ringkasan 4 angka, kartu saring (cari, Daftar/Papan, urut, kategori,
+/// prioritas, status), lalu daftar per tenggat atau papan 3 kolom. Panel kanan = detail tugas terpilih
+/// atau aktivitas 7 hari.
 class _DesktopTodosState extends State<DesktopTodos> {
-  String _q = '';
-  String _status = 'all'; // all, open, today, late, done
-  String _cat = '';
-  String _sort = 'due'; // due, name
-
-  _Group _groupOf(Todo t, DateTime today) {
-    if (t.done) return _Group.done;
-    if (t.isOverdue()) return _Group.late;
-    final d = t.due;
-    if (d == null) return _Group.none;
-    final day = dayOnly(d);
-    final diff = day.difference(today).inDays;
-    if (diff <= 0) return _Group.today;
-    if (diff == 1) return _Group.tomorrow;
-    if (diff <= 7) return _Group.week;
-    return _Group.later;
-  }
+  final _query = TaskQuery();
+  String _view = 'list';
+  String? _sel;
 
   @override
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
     final z = ZColors.of(context);
     final today = dayOnly(DateTime.now());
-    final all = store.todos;
-    final late = all.where((t) => t.isOverdue()).length;
-    final doneN = all.where((t) => t.done).length;
-    final openN = all.length - doneN;
-    final todayN = all.where((t) => !t.done && t.due != null && dayOnly(t.due!) == today).length;
+    final counts = _query.counts(store);
+    final list = _query.apply(store);
+    final groups = _query.groups(store, list);
+    final selected = _sel == null ? null : store.todoById(_sel!);
 
-    final q = _q.trim().toLowerCase();
-    var list = all.where((t) {
-      if (q.isNotEmpty && !t.title.toLowerCase().contains(q)) return false;
-      if (_cat.isNotEmpty && t.cat != _cat) return false;
-      switch (_status) {
-        case 'open':
-          return !t.done;
-        case 'today':
-          return !t.done && t.due != null && dayOnly(t.due!) == today;
-        case 'late':
-          return t.isOverdue();
-        case 'done':
-          return t.done;
-      }
-      return true;
-    }).toList();
-    list.sort((a, b) {
-      if (_sort == 'name') return a.title.toLowerCase().compareTo(b.title.toLowerCase());
-      final ad = a.due, bd = b.due;
-      if (ad == null && bd == null) return 0;
-      if (ad == null) return 1;
-      if (bd == null) return -1;
-      return ad.compareTo(bd);
-    });
-    final groups = <_Group, List<Todo>>{};
-    for (final t in list) {
-      groups.putIfAbsent(_groupOf(t, today), () => []).add(t);
-    }
-    String gTitle(_Group g) => switch (g) {
-          _Group.late => tr('Terlambat'),
-          _Group.today => tr('Hari ini'),
-          _Group.tomorrow => tr('Besok'),
-          _Group.week => tr('Minggu ini'),
-          _Group.later => tr('Nanti'),
-          _Group.none => tr('Tanpa tenggat'),
-          _Group.done => tr('Selesai'),
-        };
-    IconData gIcon(_Group g) => switch (g) {
-          _Group.late => Icons.warning_amber_rounded,
-          _Group.today || _Group.tomorrow || _Group.week => Icons.event_outlined,
-          _Group.later => Icons.schedule_rounded,
-          _Group.none => Icons.inbox_outlined,
-          _Group.done => Icons.check_circle_outline_rounded,
-        };
+    void open(Todo t) => setState(() => _sel = _sel == t.id ? null : t.id);
 
-    Widget stat(IconData icon, String tone, int n, String label) => DCard(
+    Widget stat(IconData icon, int n, String label) => DCard(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
           child: Row(children: [
-            IconTile(icon: icon, tone: tone, size: 40, radius: 12),
+            IconTile(icon: icon, tone: 'gray', size: 38, radius: 12),
             const SizedBox(width: 12),
-            Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-              Text('$n', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, height: 1.1)),
-              Text(label, style: TextStyle(fontSize: 12, color: z.muted2)),
-            ]),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                Text('$n', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, height: 1)),
+                const SizedBox(height: 3),
+                Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: z.muted2)),
+              ]),
+            ),
           ]),
         );
 
-    Widget chip(String k, String label, int n) => ZChip(label: '$label  $n', selected: _status == k, onTap: () => setState(() => _status = k));
-
-    Widget dropdown<T>(T value, List<(T, String)> items, ValueChanged<T> on) => Container(
+    Widget dropdown(String value, List<(String, String)> items, ValueChanged<String> on) => Container(
           height: 44,
           padding: const EdgeInsets.symmetric(horizontal: 14),
-          decoration: BoxDecoration(color: z.card, borderRadius: BorderRadius.circular(12), border: Border.all(color: z.chipBorder)),
+          decoration: BoxDecoration(color: z.card, borderRadius: BorderRadius.circular(10), border: Border.all(color: z.border, width: 1.5)),
           child: DropdownButtonHideUnderline(
-            child: DropdownButton<T>(
+            child: DropdownButton<String>(
               value: value,
               isExpanded: true,
               borderRadius: BorderRadius.circular(12),
               icon: Icon(Icons.expand_more_rounded, color: z.muted),
               style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: z.text, fontFamily: kFont),
-              items: [for (final (v, l) in items) DropdownMenuItem(value: v, child: Text(l))],
+              items: [for (final (v, l) in items) DropdownMenuItem(value: v, child: Text(l, overflow: TextOverflow.ellipsis))],
               onChanged: (v) {
-                if (v != null) on(v);
+                if (v != null) setState(() => on(v));
               },
             ),
           ),
         );
 
     final filters = DCard(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        TextField(
-          onChanged: (v) => setState(() => _q = v),
-          decoration: InputDecoration(
-            hintText: tr('Cari tugas'),
-            isDense: true,
-            prefixIcon: Icon(Icons.search_rounded, size: 20, color: z.muted2),
-            filled: true,
-            fillColor: z.card,
-            contentPadding: const EdgeInsets.symmetric(vertical: 13),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: z.chipBorder)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: z.primary, width: 2)),
+        Row(children: [
+          Expanded(
+            child: TextField(
+              onChanged: (v) => setState(() => _query.q = v),
+              decoration: InputDecoration(
+                hintText: tr('Cari tugas atau catatannya'),
+                isDense: true,
+                prefixIcon: Icon(Icons.search_rounded, size: 20, color: z.muted2),
+              ),
+            ),
           ),
-        ),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 220,
+            child: Segmented<String>(
+              items: [('list', tr('Daftar')), ('board', tr('Papan'))],
+              value: _view,
+              height: 36,
+              onChanged: (v) => setState(() => _view = v),
+            ),
+          ),
+        ]),
         const SizedBox(height: 12),
         Row(children: [
-          Expanded(child: dropdown<String>(_sort, [('due', tr('Urut: Tenggat terdekat')), ('name', tr('Urut: Nama'))], (v) => setState(() => _sort = v))),
-          const SizedBox(width: 12),
-          Expanded(child: dropdown<String>(_cat, [('', tr('Semua kategori')), for (final c in kTodoCats) (c.$1, tr(c.$1))], (v) => setState(() => _cat = v))),
+          Expanded(flex: 11, child: dropdown(_query.sort, TaskQuery.sorts, (v) => _query.sort = v)),
+          const SizedBox(width: 10),
+          Expanded(flex: 10, child: dropdown(_query.cat, TaskQuery.cats, (v) => _query.cat = v)),
+          const SizedBox(width: 10),
+          Expanded(flex: 10, child: dropdown(_query.pri, TaskQuery.pris, (v) => _query.pri = v)),
         ]),
         const SizedBox(height: 10),
-        Wrap(spacing: 8, children: [
-          chip('all', tr('Semua'), all.length),
-          chip('open', tr('Belum selesai'), openN),
-          chip('today', tr('Hari ini'), todayN),
-          chip('late', tr('Terlambat'), late),
-          chip('done', tr('Selesai'), doneN),
+        Wrap(spacing: 8, runSpacing: 4, children: [
+          for (final (k, l) in [
+            ('all', tr('Semua')),
+            ('open', tr('Belum selesai')),
+            ('today', tr('Hari ini')),
+            ('late', tr('Terlambat')),
+            ('done', tr('Selesai')),
+          ])
+            ZChip(label: '$l  ${counts[k]}', selected: _query.status == k, onTap: () => setState(() => _query.status = k)),
         ]),
       ]),
     );
 
-    final listCard = DCard(
-      padding: const EdgeInsets.fromLTRB(22, 18, 22, 12),
-      child: list.isEmpty
-          ? Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24),
-              child: EmptyState(icon: Icons.checklist_rounded, title: tr('Belum ada tugas di sini'), message: tr('Tekan + untuk menambah tugas.')),
-            )
-          : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              for (final g in _Group.values)
-                if (groups[g] != null) ...[
+    final empty = Padding(
+      padding: const EdgeInsets.symmetric(vertical: 30),
+      child: EmptyState(
+        icon: Icons.task_alt_rounded,
+        title: store.todos.isEmpty ? tr('Belum ada tugas') : tr('Tidak ada tugas yang cocok'),
+        message: store.todos.isEmpty ? tr('Tekan “Tugas baru” untuk menambah.') : tr('Ubah filter atau tekan “Tugas baru”.'),
+      ),
+    );
+
+    final Widget body;
+    if (_view == 'list') {
+      var row = 0;
+      body = DCard(
+        padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
+        child: groups.isEmpty
+            ? empty
+            : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                for (final (_, title, icon, rows) in groups) ...[
                   Padding(
-                    padding: const EdgeInsets.only(top: 12, bottom: 2),
+                    padding: const EdgeInsets.fromLTRB(6, 14, 6, 4),
                     child: Row(children: [
-                      Icon(gIcon(g), size: 17, color: z.text2),
+                      Icon(icon, size: 17, color: z.text2),
                       const SizedBox(width: 8),
-                      Text(gTitle(g).toUpperCase(), style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, letterSpacing: 1, color: z.text2)),
+                      Text(title.toUpperCase(), style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, letterSpacing: 1, color: z.text2)),
                     ]),
                   ),
-                  for (var i = 0; i < groups[g]!.length; i++) TodoRow(todo: groups[g]![i], showDivider: i < groups[g]!.length - 1),
+                  for (var i = 0; i < rows.length; i++)
+                    RowIn(
+                      index: row++,
+                      child: TodoRow(todo: rows[i], showDivider: i < rows.length - 1, selected: rows[i].id == _sel, showPriText: true, onOpen: () => open(rows[i])),
+                    ),
                 ],
+              ]),
+      );
+    } else {
+      final now = DateTime.now();
+      final pending = list.where((t) => !t.done).toList();
+      final cols = [
+        (tr('Terlambat & hari ini'), Icons.bolt_rounded, pending.where((t) => const ['late', 'today'].contains(t.bucket(now: now, mondayFirst: store.weekStartMonday))).toList()),
+        (tr('Mendatang'), Icons.schedule_rounded, pending.where((t) => !const ['late', 'today'].contains(t.bucket(now: now, mondayFirst: store.weekStartMonday))).toList()),
+        (tr('Selesai'), Icons.task_alt_rounded, list.where((t) => t.done).toList()),
+      ];
+      body = DCols(minChild: 200, gap: 16, children: [
+        for (final (title, icon, cards) in cols)
+          Container(
+            padding: const EdgeInsets.all(10),
+            constraints: const BoxConstraints(minHeight: 300),
+            decoration: BoxDecoration(color: z.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: z.border)),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 2, 4, 8),
+                child: Row(children: [
+                  Icon(icon, size: 18, color: z.text2),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800))),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(color: z.toneBg('gray'), borderRadius: BorderRadius.circular(99)),
+                    child: Text('${cards.length}', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: z.toneFg('gray'))),
+                  ),
+                ]),
+              ),
+              for (final t in cards) _BoardCard(todo: t, selected: t.id == _sel, onOpen: () => open(t)),
+              if (cards.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  child: Text(tr('Kosong'), textAlign: TextAlign.center, style: TextStyle(fontSize: 12.5, color: z.muted2)),
+                ),
             ]),
-    );
+          ),
+      ]);
+    }
 
     // Aktivitas 7 hari: tugas yang diselesaikan per hari.
     final act = List<int>.filled(7, 0);
-    for (final t in all) {
+    for (final t in store.todos) {
       final d = t.doneAt;
       if (d == null) continue;
       final k = today.difference(dayOnly(d)).inDays;
@@ -378,53 +390,159 @@ class _DesktopTodosState extends State<DesktopTodos> {
       title: tr('Aktivitas 7 hari'),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         SizedBox(
-          height: 110,
+          height: 120,
           child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
             for (var i = 0; i < 7; i++)
               Expanded(
                 child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
                   FillIn(
+                    // Batang tumbuh bergantian (prototipe growH 0,9 s, tertunda 0,245 s + 45 ms per batang).
+                    duration: const Duration(milliseconds: 900),
+                    delay: Duration(milliseconds: 245 + 45 * i),
                     value: act[i] == 0 ? 0.08 : (0.2 + 0.8 * act[i] / maxAct),
                     builder: (_, v) => Container(
-                      width: 34,
-                      height: 78 * v,
-                      decoration: BoxDecoration(color: z.primary, borderRadius: BorderRadius.circular(8)),
+                      margin: const EdgeInsets.symmetric(horizontal: 5),
+                      height: 88 * v,
+                      decoration: BoxDecoration(
+                        color: z.primary.withValues(alpha: i == 6 ? 1 : 0.55),
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(7), bottom: Radius.circular(3)),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 6),
-                  Text(weekdayName(today.subtract(Duration(days: 6 - i))).substring(0, 3), style: TextStyle(fontSize: 11, color: z.muted2)),
+                  Text(weekdayName(today.subtract(Duration(days: 6 - i))).substring(0, 3), style: TextStyle(fontSize: 11.5, color: z.muted2)),
                 ]),
               ),
           ]),
         ),
         const SizedBox(height: 14),
-        Text(tr('Tekan lama sebuah tugas untuk menghapusnya. Ketuk lingkaran untuk menandai selesai.'), style: TextStyle(fontSize: 12.5, height: 1.45, color: z.muted)),
+        Text(tr('Klik sebuah tugas untuk melihat detail: sub-tugas, catatan, prioritas, tenggat, pengingat, dan pengulangan.'),
+            style: TextStyle(fontSize: 12.5, height: 1.55, color: z.muted)),
       ]),
     );
+
+    final aside = selected == null
+        ? activity
+        : DCard(
+            padding: const EdgeInsets.all(20),
+            child: TodoDetail(key: ValueKey(selected.id), todo: selected, scroll: false, onClose: () => setState(() => _sel = null)),
+          );
+
+    final left = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      DCols(minChild: 150, gap: 14, children: [
+        stat(Icons.radio_button_unchecked_rounded, counts['open']!, tr('Belum selesai')),
+        stat(Icons.task_alt_rounded, counts['done']!, tr('Selesai')),
+        stat(Icons.warning_amber_rounded, counts['late']!, tr('Terlambat')),
+        stat(Icons.today_rounded, counts['today']!, tr('Hari ini')),
+      ]),
+      const SizedBox(height: 16),
+      filters,
+      const SizedBox(height: 16),
+      body,
+    ]);
 
     return DesktopPage(
       title: tr('Tugas'),
       subtitle: tr('Daftar tugas dan pengingat'),
       action: _addBtn(context, tr('Tugas baru'), () => showAddTodo(context)),
       children: [
-        DCols(minChild: 190, children: [
-          stat(Icons.radio_button_unchecked_rounded, 'gray', openN, tr('Belum selesai')),
-          stat(Icons.check_circle_outline_rounded, 'green', doneN, tr('Selesai')),
-          stat(Icons.warning_amber_rounded, 'orange', late, tr('Terlambat')),
-          stat(Icons.event_outlined, 'blue', todayN, tr('Hari ini')),
-        ]),
-        const SizedBox(height: 20),
         LayoutBuilder(builder: (context, box) {
-          if (box.maxWidth < 900) {
-            return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [filters, const SizedBox(height: 20), listCard, const SizedBox(height: 20), activity]);
+          if (box.maxWidth < 980) {
+            return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [left, const SizedBox(height: 20), aside]);
           }
           return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Expanded(flex: 7, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [filters, const SizedBox(height: 20), listCard])),
+            Expanded(child: left),
             const SizedBox(width: 20),
-            Expanded(flex: 3, child: activity),
+            SizedBox(width: 380, child: aside),
           ]);
         }),
       ],
+    );
+  }
+}
+
+/// Kartu tugas di tampilan Papan.
+class _BoardCard extends StatelessWidget {
+  const _BoardCard({required this.todo, required this.selected, required this.onOpen});
+
+  final Todo todo;
+  final bool selected;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final z = ZColors.of(context);
+    final store = StoreScope.read(context);
+    final doneSubs = todo.subs.where((x) => x.done).length;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: z.bg,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: selected ? z.primary : z.border, width: selected ? 1.5 : 1),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onOpen,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(10, 10, 12, 10),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Semantics(
+                  button: true,
+                  checked: todo.done,
+                  label: todo.done ? trf('Batalkan selesai: {0}', [todo.title]) : trf('Tandai selesai: {0}', [todo.title]),
+                  child: GestureDetector(
+                    onTap: () => store.toggleTodo(todo.id),
+                    child: Container(
+                      width: 22,
+                      height: 22,
+                      margin: const EdgeInsets.only(top: 1, right: 10),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: todo.done ? z.primary : Colors.transparent,
+                        border: Border.all(color: todo.done ? z.primary : z.chipBorder, width: 2),
+                      ),
+                      child: todo.done ? Icon(Icons.check_rounded, size: 14, color: z.onPrimary) : null,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(todo.title,
+                        style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: todo.done ? z.muted2 : z.text,
+                            decoration: todo.done ? TextDecoration.lineThrough : null)),
+                    const SizedBox(height: 2),
+                    Text(todoDueText(todo), style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: todo.isOverdue() ? z.warn : z.muted)),
+                  ]),
+                ),
+              ]),
+              const SizedBox(height: 8),
+              Row(children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                  decoration: BoxDecoration(color: z.toneBg(todo.tone), borderRadius: BorderRadius.circular(99)),
+                  child: Text(tr(todo.cat), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: z.toneFg(todo.tone))),
+                ),
+                const SizedBox(width: 8),
+                Icon(Icons.flag_rounded, size: 15, color: priColor(z, todo.pri)),
+                const SizedBox(width: 3),
+                Text(priLabel(todo.pri), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: priColor(z, todo.pri))),
+                const Spacer(),
+                if (todo.subs.isNotEmpty) ...[
+                  Icon(Icons.checklist_rounded, size: 15, color: z.muted2),
+                  const SizedBox(width: 3),
+                  Text('$doneSubs/${todo.subs.length}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: z.muted2)),
+                ],
+              ]),
+            ]),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -444,6 +562,9 @@ class _DesktopCalendarState extends State<DesktopCalendar> {
   DateTime _sel = dayOnly(DateTime.now());
   late DateTime _month = DateTime(_sel.year, _sel.month);
   bool _tasks = true;
+  String _tone = 'all';
+
+  List<Agenda> _on(AppStore store, DateTime d) => store.agendaOn(d).where((a) => _tone == 'all' || a.tone == _tone).toList();
 
   void _shift(int dir) => setState(() {
         if (_view == 'week') {
@@ -478,13 +599,17 @@ class _DesktopCalendarState extends State<DesktopCalendar> {
 
     Widget cell(DateTime d) {
       final inMonth = _view == 'week' || d.month == _month.month;
-      final items = store.agendaOn(d);
+      final items = _on(store, d);
       final due = _tasks ? store.todos.where((t) => !t.done && t.due != null && dayOnly(t.due!) == d).length : 0;
       final isToday = d == today, isSel = d == _sel;
-      return Padding(
-        padding: const EdgeInsets.all(3),
+      // Prototipe: akhir pekan berlatar sedikit gelap (.mcell.wk), tanggal di luar bulan dipudarkan (.out).
+      final weekend = d.weekday == DateTime.saturday || d.weekday == DateTime.sunday;
+      return Opacity(
+        opacity: inMonth ? 1 : 0.45,
+        child: Padding(
+        padding: const EdgeInsets.all(2),
         child: Material(
-          color: inMonth ? z.card : z.track.withValues(alpha: 0.5),
+          color: weekend ? Color.alphaBlend(z.track.withValues(alpha: 0.6), z.card) : z.card,
           borderRadius: BorderRadius.circular(10),
           child: InkWell(
             borderRadius: BorderRadius.circular(10),
@@ -493,9 +618,10 @@ class _DesktopCalendarState extends State<DesktopCalendar> {
               if (_view == 'month' && d.month != _month.month) _month = DateTime(d.year, d.month);
             }),
             child: Container(
-              height: _view == 'week' ? 260 : 82,
-              padding: const EdgeInsets.fromLTRB(8, 6, 8, 4),
-              decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), border: Border.all(color: isSel ? z.primary : z.divider, width: isSel ? 2 : 1)),
+              // Prototipe .mcell: tinggi minimal 80, ikut memanjang kalau isinya banyak.
+              constraints: BoxConstraints(minHeight: _view == 'week' ? 260 : 82),
+              padding: const EdgeInsets.fromLTRB(6, 5, 6, 5),
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), border: Border.all(color: isSel ? z.primary : z.border, width: isSel ? 2 : 1)),
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                 Row(children: [
                   Container(
@@ -520,6 +646,7 @@ class _DesktopCalendarState extends State<DesktopCalendar> {
               ]),
             ),
           ),
+        ),
         ),
       );
     }
@@ -546,7 +673,42 @@ class _DesktopCalendarState extends State<DesktopCalendar> {
             onChanged: (v) => setState(() => _view = v),
           ),
         ),
-        FilterChip(label: Text(tr('Tugas')), avatar: const Icon(Icons.task_alt_rounded, size: 17), selected: _tasks, onSelected: (v) => setState(() => _tasks = v)),
+        ZChip(label: tr('Tugas'), icon: Icons.task_alt_rounded, selected: _tasks, onTap: () => setState(() => _tasks = !_tasks)),
+        // Saring warna (prototipe: "Warna" + titik warna). Tiap butir anak Wrap supaya bisa turun baris.
+        Text(tr('Warna'), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: z.muted2)),
+          for (final (k, l) in [('all', tr('Semua')), for (final (k, l) in kAgendaTones) (k, tr(l))])
+            Padding(
+              padding: EdgeInsets.zero,
+              child: Tooltip(
+                message: l,
+                child: Semantics(
+                  button: true,
+                  selected: _tone == k,
+                  label: trf('Warna {0}', [l]),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(99),
+                    onTap: () => setState(() => _tone = k),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 160),
+                      height: 28,
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      decoration: BoxDecoration(
+                        color: _tone == k ? z.primary : z.card,
+                        borderRadius: BorderRadius.circular(99),
+                        border: Border.all(color: _tone == k ? z.primary : z.chipBorder),
+                      ),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Container(width: 10, height: 10, decoration: BoxDecoration(shape: BoxShape.circle, color: k == 'all' ? z.muted2 : z.chart(k))),
+                        if (k == 'all') ...[
+                          const SizedBox(width: 6),
+                          Text(l, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: _tone == k ? z.onPrimary : z.text2)),
+                        ],
+                      ]),
+                    ),
+                  ),
+                ),
+              ),
+            ),
       ]),
     );
 
@@ -559,10 +721,12 @@ class _DesktopCalendarState extends State<DesktopCalendar> {
         title: '${monthLong(_month)} ${_month.year}',
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           for (final d in days)
-            if (store.agendaOn(d).isNotEmpty) ...[
+            if (_on(store, d).isNotEmpty) ...[
               Padding(padding: const EdgeInsets.only(top: 10, bottom: 6), child: Text(_longDate(d), style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: z.text2))),
-              for (final a in store.agendaOn(d)) AgendaRow(item: a),
+              for (final (i, a) in _on(store, d).indexed) RowIn(index: i, child: AgendaRow(item: a)),
             ],
+          if (days.every((d) => _on(store, d).isEmpty))
+            Padding(padding: const EdgeInsets.symmetric(vertical: 24), child: Text(tr('Belum ada agenda bulan ini'), textAlign: TextAlign.center, style: TextStyle(color: z.muted))),
         ]),
       );
     } else {
@@ -571,13 +735,17 @@ class _DesktopCalendarState extends State<DesktopCalendar> {
         child: Column(children: [
           Row(children: [for (final n in names) Expanded(child: Center(child: Text(n, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: z.text2))))]),
           const SizedBox(height: 6),
-          for (var w = 0; w < weeks; w++) Row(children: [for (var i = 0; i < 7; i++) Expanded(child: cell(gridStart.add(Duration(days: w * 7 + i))))]),
+          for (var w = 0; w < weeks; w++)
+            IntrinsicHeight(
+              child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [for (var i = 0; i < 7; i++) Expanded(child: cell(gridStart.add(Duration(days: w * 7 + i))))]),
+            ),
         ]),
       );
     }
 
-    final items = store.agendaOn(_sel);
-    final overdue = store.todos.where((t) => t.isOverdue()).toList();
+    final items = _on(store, _sel);
+    // Tugas yang tenggatnya jatuh di hari terpilih (bukan semua tugas terlambat).
+    final overdue = _tasks ? store.todos.where((t) => !t.done && t.due != null && dayOnly(t.due!) == _sel).toList() : <Todo>[];
     final side = DCard(
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(children: [
@@ -608,12 +776,17 @@ class _DesktopCalendarState extends State<DesktopCalendar> {
         const SizedBox(height: 16),
         Text(tr('Jadwal'), style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800)),
         const SizedBox(height: 8),
-        if (items.isEmpty) Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Text(tr('Belum ada agenda'), style: TextStyle(color: z.muted))) else for (final a in items) AgendaRow(item: a),
+        if (items.isEmpty)
+          Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Text(tr('Belum ada agenda'), style: TextStyle(color: z.muted)))
+        else ...[
+          // Garis waktu harian (prototipe): jam 06.00–22.00, agenda ditempatkan sesuai jam mulai dan lamanya.
+          _DayTimeline(items: items),
+        ],
         if (overdue.isNotEmpty) ...[
           const SizedBox(height: 12),
           Text(tr('Tugas bertenggat'), style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
-          for (var i = 0; i < overdue.length; i++) TodoRow(todo: overdue[i], showDivider: i < overdue.length - 1),
+          for (var i = 0; i < overdue.length; i++) RowIn(index: i, child: TodoRow(todo: overdue[i], showDivider: i < overdue.length - 1)),
         ],
       ]),
     );
@@ -634,6 +807,66 @@ class _DesktopCalendarState extends State<DesktopCalendar> {
           ]);
         }),
       ],
+    );
+  }
+}
+
+
+/// Garis waktu satu hari: baris per jam, agenda sebagai balok berwarna setinggi lamanya. Ketuk = rincian.
+class _DayTimeline extends StatelessWidget {
+  const _DayTimeline({required this.items});
+
+  final List<Agenda> items;
+
+  static const rowH = 22.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final z = ZColors.of(context);
+    var first = 6, last = 22;
+    for (final a in items) {
+      first = a.at.hour < first ? a.at.hour : first;
+      final endH = a.end.day != a.at.day ? 24 : (a.end.hour + (a.end.minute > 0 ? 1 : 0));
+      last = endH > last ? endH.clamp(0, 24) : last;
+    }
+    final hours = last - first;
+    return SizedBox(
+      height: hours * rowH + 14,
+      child: Stack(children: [
+        for (var h = 0; h <= hours; h++)
+          Positioned(
+            top: h * rowH,
+            left: 0,
+            right: 0,
+            child: Row(children: [
+              SizedBox(width: 40, child: Text('${(first + h).toString().padLeft(2, '0')}.00', style: TextStyle(fontSize: 10.5, color: z.muted2, height: 1))),
+              Expanded(child: Container(height: 1, color: z.divider)),
+            ]),
+          ),
+        for (final a in items)
+          Positioned(
+            top: ((a.at.hour - first) * 60 + a.at.minute) / 60 * rowH + 1,
+            left: 44,
+            right: 0,
+            height: (a.durMin / 60 * rowH).clamp(rowH - 2, double.infinity) - 2,
+            child: Material(
+              color: z.toneBg(a.tone),
+              borderRadius: BorderRadius.circular(6),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(6),
+                onTap: () => showAgendaSheet(context, a),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('${timeLabel(a.at)}  ${a.title}',
+                        maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: z.toneFg(a.tone))),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ]),
     );
   }
 }

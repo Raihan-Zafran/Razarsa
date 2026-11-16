@@ -27,8 +27,10 @@ bool FlutterWindow::OnCreate() {
   RegisterPlugins(flutter_controller_->engine());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
+  // Jendela ditampilkan oleh window_manager (lib/shell/window_frame.dart) sesudah ukuran,
+  // posisi, dan bingkai sendiri siap, supaya tidak berkedip dengan bingkai bawaan Windows.
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
-    this->Show();
+    // this->Show();
   });
 
   // Flutter can complete the first frame before the "show window" callback is

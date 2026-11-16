@@ -42,8 +42,10 @@ Name: "desktopicon"; Description: "Buat pintasan di Desktop"; GroupDescription: 
 Source: "{#SrcDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 
 [Icons]
-Name: "{autoprograms}\Razarsa"; Filename: "{app}\razarsa.exe"
-Name: "{autodesktop}\Razarsa"; Filename: "{app}\razarsa.exe"; Tasks: desktopicon
+; AppUserModelID sama dengan Notif.windowsAumid (lib/core/notifications.dart) supaya notifikasi toast
+; tampil atas nama Razarsa dan bisa diklik untuk membuka aplikasi.
+Name: "{autoprograms}\Razarsa"; Filename: "{app}\razarsa.exe"; AppUserModelID: "Razarsa.Razarsa.App"
+Name: "{autodesktop}\Razarsa"; Filename: "{app}\razarsa.exe"; Tasks: desktopicon; AppUserModelID: "Razarsa.Razarsa.App"
 
 [Run]
 Filename: "{app}\razarsa.exe"; Description: "Buka Razarsa"; Flags: nowait postinstall skipifsilent

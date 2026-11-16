@@ -42,7 +42,7 @@ class ProfilePage extends StatelessWidget {
           decoration: BoxDecoration(
             color: z.card,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: z.cardBorder),
+            border: Border.all(color: z.border),
             boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: dark ? 0.35 : 0.07), blurRadius: 24, offset: const Offset(0, 8))],
           ),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -201,7 +201,7 @@ class ProfilePage extends StatelessWidget {
 
   Future<void> _editBio(BuildContext context, AppStore store) async {
     final c = TextEditingController(text: store.bio);
-    final v = await showDialog<String>(
+    final v = await showZDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(tr('Edit bio')),

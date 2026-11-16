@@ -131,6 +131,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
   /// Ketuk: ubah atau hapus transaksi.
   Future<void> _options(BuildContext context, AppStore store, Txn t) async {
     final act = await showModalBottomSheet<String>(
+      sheetAnimationStyle: kSheetAnimation,
       context: context,
       builder: (c) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [

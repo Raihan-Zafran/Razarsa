@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 
@@ -198,49 +199,105 @@ const kFont = 'PlusJakartaSans';
 
 /// Warna dasar saat "Pakai latar" mati: terang abu kehijauan (mist), gelap biru petrol.
 /// Ditimpa di atas palet yang dipilih supaya halaman polos tetap sejuk dan terbaca.
-const _plainLight = <String, Color>{
-  'bg': Color(0xFFEDF3F1),
-  'card': Color(0xFFFFFFFF),
-  'cardBorder': Color(0x00FFFFFF),
-  'divider': Color(0xFFE1EAE7),
-  'border': Color(0xFFD8E3DF),
-  'chipBorder': Color(0xFFC6D5D0),
-  'track': Color(0xFFE2EBE8),
-  'grayBg': Color(0xFFE6EEEB),
-  'disabledBg': Color(0xFFDBE5E1),
-  'tipBg': Color(0xFFE6F0EC),
+/// Palet Razarsa: Zamrud & champagne (sama dengan prototipe HP dan Windows), ditimpakan di atas warna dasar.
+/// Hanya satu palet; mode gelap memakai pasangan zamrud gelap + emas supaya menyatu dengan mode terang.
+const _zamrudLight = <String, Color>{
+      'bg': Color(0xFFF7F4EC),
+      'card': Color(0xFFFFFEFA),
+      'cardBorder': Color(0x00FFFEFA),
+      'text': Color(0xFF17130C),
+      'text2': Color(0xFF3A352B),
+      'muted': Color(0xFF554F41),
+      'muted2': Color(0xFF665F4F),
+      'divider': Color(0xFFEEE9DC),
+      'border': Color(0xFFE6DFCF),
+      'chipBorder': Color(0xFFD9D0BB),
+      'track': Color(0xFFE9E3D3),
+      'accentText': Color(0xFF0E5A3F),
+      'primary': Color(0xFF0E5A3F),
+      'onPrimary': Color(0xFFF6E7C1),
+      'disabledBg': Color(0xFFE4DDCB),
+      'disabledFg': Color(0xFF5A5446),
+      'hero': Color(0xFF0B4A36),
+      'hero2': Color(0xFF073324),
+      'heroBorder': Color(0x59D4B26A),
+      'heroInner': Color(0xFF0F5A41),
+      'heroMuted': Color(0xFFC4DACE),
+      'barMuted': Color(0xFF1F6B52),
+      'hi': Color(0xFFE6CD92),
+      'pos': Color(0xFF0E7A4F),
+      'dock': Color(0xFF101714),
+      'dockShadow': Color(0x331A1408),
+      'dockMuted': Color(0xFFA8A28F),
+      'ball': Color(0xFFD9B76A),
+      'ballFg': Color(0xFF2A200A),
+      'ballGlow': Color(0x59D9B76A),
+      'tipBg': Color(0xFFF3EDD9),
+      'tipBorder': Color(0xFFE3D6AE),
+      'tipTitle': Color(0xFF5C4A12),
+      'tipText': Color(0xFF4A3D12),
+      'toastBg': Color(0xFF17130C),
+      'toastAccent': Color(0xFFE6CD92),
 };
 
-const _plainDark = <String, Color>{
-  'bg': Color(0xFF0F171E),
-  'card': Color(0xFF16222C),
-  'cardBorder': Color(0xFF243441),
-  'divider': Color(0xFF243441),
-  'border': Color(0xFF2A3B49),
-  'chipBorder': Color(0xFF35495B),
-  'track': Color(0xFF1C2B37),
-  'grayBg': Color(0xFF1C2B37),
-  'disabledBg': Color(0xFF213240),
-  'tipBg': Color(0xFF182633),
-  'dock': Color(0xFF1B2A36),
-  'dockShadow': Color(0x8C000000),
-  'dockMuted': Color(0xFF8FA3B3),
+const _zamrudDark = <String, Color>{
+      'bg': Color(0xFF0B0D0B),
+      'card': Color(0xFF141815),
+      'cardBorder': Color(0xFF1E241F),
+      'text': Color(0xFFF5F0E4),
+      'text2': Color(0xFFDDD6C6),
+      'muted': Color(0xFFB5AE9C),
+      'muted2': Color(0xFF9E9784),
+      'divider': Color(0xFF1E241F),
+      'border': Color(0xFF262D27),
+      'chipBorder': Color(0xFF323A33),
+      'track': Color(0xFF1C221D),
+      'accentText': Color(0xFFE6CD92),
+      'primary': Color(0xFFD9B76A),
+      'onPrimary': Color(0xFF1F1807),
+      'disabledBg': Color(0xFF222822),
+      'disabledFg': Color(0xFFA59E8B),
+      'hero': Color(0xFF0E3A2B),
+      'hero2': Color(0xFF08241B),
+      'heroBorder': Color(0x4DD4B26A),
+      'heroInner': Color(0xFF134735),
+      'heroMuted': Color(0xFFB6CDBF),
+      'barMuted': Color(0xFF1B5441),
+      'hi': Color(0xFFE6CD92),
+      'pos': Color(0xFF5FD39A),
+      'dock': Color(0xFF171C18),
+      'dockShadow': Color(0x8C000000),
+      'dockMuted': Color(0xFFA09A87),
+      'ball': Color(0xFFD9B76A),
+      'ballFg': Color(0xFF2A200A),
+      'ballGlow': Color(0x4CD9B76A),
+      'tipBg': Color(0xFF1A1810),
+      'tipBorder': Color(0xFF3A3114),
+      'tipTitle': Color(0xFFE6CD92),
+      'tipText': Color(0xFFD8CFA8),
+      'toastBg': Color(0xFFF1EBDD),
+      'toastFg': Color(0xFF14110B),
+      'toastAccent': Color(0xFF7A5E14),
 };
 
-/// Warna untuk satu mode: warna dasar, lalu (kalau [plain], yaitu "Pakai latar" mati) ditimpa warna polos mist/petrol.
-ZColors zColorsFor(Brightness brightness, {bool plain = false}) {
+/// Warna untuk satu mode: warna dasar ditimpa palet Zamrud & champagne.
+ZColors zColorsFor(Brightness brightness) {
   final dark = brightness == Brightness.dark;
   final base = dark ? ZColors.dark : ZColors.light;
-  var c = base.c;
-  if (plain) {
-    final pl = dark ? _plainDark : _plainLight;
-    c = {...c, for (final e in pl.entries) if (c.containsKey(e.key)) e.key: e.value};
-  }
-  return identical(c, base.c) ? base : ZColors(c);
+  final over = dark ? _zamrudDark : _zamrudLight;
+  return ZColors({...base.c, for (final e in over.entries) if (base.c.containsKey(e.key)) e.key: e.value});
 }
 
-ThemeData buildTheme(Brightness brightness, {bool plain = false}) {
-  final z = zColorsFor(brightness, plain: plain);
+ThemeData buildTheme(Brightness brightness) {
+  final z = zColorsFor(brightness);
+  // Ukuran sudut mengikuti prototipe masing-masing: Windows (`.rz .btn` 12, `.fld` 10, `.dlg` 18)
+  // dan HP (tombol 12, `.fld` 9, `.dlg` 16, lembar bawah 16).
+  final desk = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+  final btnShape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(12));
+  final fieldR = BorderRadius.circular(desk ? 10 : 9);
+  final fieldW = desk ? 1.5 : 1.0;
+  const btnText = TextStyle(fontFamily: kFont, fontSize: 14, fontWeight: FontWeight.w800);
+  final btnMin = Size(0, desk ? 44 : 48);
   final base = ThemeData(
     useMaterial3: true,
     brightness: brightness,
@@ -282,12 +339,60 @@ ThemeData buildTheme(Brightness brightness, {bool plain = false}) {
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: z.card,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(desk ? 18 : 16)),
     ),
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: z.card,
+      surfaceTintColor: Colors.transparent,
       showDragHandle: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       constraints: const BoxConstraints(maxWidth: 560), // di jendela lebar lembar tetap rapi di tengah
+    ),
+    // Tombol: persegi membulat 12 (bawaan Material 3 berbentuk kapsul, terlalu melengkung untuk desain ini).
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        shape: btnShape,
+        minimumSize: btnMin,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        textStyle: btnText,
+        disabledBackgroundColor: z['disabledBg'],
+        disabledForegroundColor: z['disabledFg'],
+      ),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(shape: btnShape, minimumSize: btnMin, padding: const EdgeInsets.symmetric(horizontal: 20), textStyle: btnText),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        shape: btnShape,
+        minimumSize: btnMin,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        textStyle: btnText,
+        foregroundColor: z.accentText,
+        side: BorderSide(color: z.primary, width: 2),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        foregroundColor: z.accentText,
+        textStyle: btnText,
+      ),
+    ),
+    iconButtonTheme: IconButtonThemeData(
+      style: IconButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(desk ? 9 : 12))),
+    ),
+    // Kolom isian bergaris seperti prototipe `.fld` (bukan garis bawah bawaan Material).
+    inputDecorationTheme: InputDecorationTheme(
+      contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: desk ? 12 : 14),
+      border: OutlineInputBorder(borderRadius: fieldR, borderSide: BorderSide(color: z.border, width: fieldW)),
+      enabledBorder: OutlineInputBorder(borderRadius: fieldR, borderSide: BorderSide(color: z.border, width: fieldW)),
+      focusedBorder: OutlineInputBorder(borderRadius: fieldR, borderSide: BorderSide(color: z.accentText, width: desk ? 1.5 : 2)),
+      errorBorder: OutlineInputBorder(borderRadius: fieldR, borderSide: BorderSide(color: z['warn'], width: fieldW)),
+      focusedErrorBorder: OutlineInputBorder(borderRadius: fieldR, borderSide: BorderSide(color: z['warn'], width: 2)),
+      hintStyle: TextStyle(color: z.muted2),
+      floatingLabelStyle: TextStyle(color: z.accentText),
     ),
   );
 }

@@ -51,12 +51,13 @@ String rpShort(num n) {
 
 DateTime dayOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
-/// "Hari ini", "Kemarin", atau "3 November 2026".
+/// "Hari ini", "Kemarin", "Besok", atau "3 November 2026".
 String dayLabel(DateTime d, {DateTime? now}) {
   final today = dayOnly(now ?? DateTime.now());
   final diff = today.difference(dayOnly(d)).inDays;
   if (diff == 0) return tr('Hari ini');
   if (diff == 1) return tr('Kemarin');
+  if (diff == -1) return tr('Besok');
   return DateFormat(L.en ? 'MMMM d, y' : 'd MMMM y', L.dateLocale).format(d);
 }
 

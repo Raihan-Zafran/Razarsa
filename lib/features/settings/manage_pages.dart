@@ -10,7 +10,7 @@ import '../../shell/app_shell.dart';
 import '../../widgets/common.dart';
 import '../../widgets/count_up.dart';
 
-const kAppVersion = '2.1.0';
+const kAppVersion = '2.2.0';
 
 InputDecoration _input(BuildContext context, String hint, {String? prefix}) {
   final z = ZColors.of(context);
@@ -108,6 +108,7 @@ class QuickItemsPage extends StatelessWidget {
     final amount = TextEditingController(text: old == null ? '' : dots(old.amount));
     var cat = old?.cat ?? 'food';
     return showModalBottomSheet<void>(
+      sheetAnimationStyle: kSheetAnimation,
       context: context,
       isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(builder: (ctx, set) {
@@ -267,6 +268,7 @@ class RecurringPage extends StatelessWidget {
     var cat = 'bills';
     var day = DateTime.now().day.clamp(1, 28);
     return showModalBottomSheet<void>(
+      sheetAnimationStyle: kSheetAnimation,
       context: context,
       isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(builder: (ctx, set) {
@@ -530,6 +532,7 @@ class CategoriesPage extends StatelessWidget {
     var income = c?.income ?? false;
     String? error;
     return showModalBottomSheet<void>(
+      sheetAnimationStyle: kSheetAnimation,
       context: context,
       isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(builder: (ctx, set) {
@@ -661,7 +664,7 @@ class CategoryBudgetsPage extends StatelessWidget {
     final ctrl = TextEditingController(text: store.catBudgets[c.id] == null ? '' : dots(store.catBudgets[c.id]!));
     final had = store.catBudgets.containsKey(c.id);
     // null = batal, 0 = hapus batas
-    final value = await showDialog<int>(
+    final value = await showZDialog<int>(
       context: context,
       builder: (dc) => AlertDialog(
         title: Text(trf('Batas {0}', [c.label])),

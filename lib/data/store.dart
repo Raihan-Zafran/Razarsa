@@ -1664,25 +1664,77 @@ class AppStore extends ChangeNotifier {
   int get xpInLevel => xp % xpPerLevel;
 
   // ---------- Tugas ----------
-  Todo addTodo(String title, {required String cat, required String tone, DateTime? due}) {
-    final t = Todo(id: newId(), title: title.trim(), cat: cat, tone: tone, due: due);
+  /// Dipanggil setiap tugas berubah / dihapus (untuk menjadwalkan ulang pengingatnya).
+  void Function(Todo t, {bool removed})? onTodoChanged;
+
+  Todo addTodo(String title,
+      {required String cat, required String tone, DateTime? due, String pri = 'sedang', String notes = '', int remind = 0, String repeat = 'none'}) {
+    final t = Todo(id: newId(), title: title.trim(), cat: cat, tone: tone, due: due, pri: pri, notes: notes.trim(), remind: remind, repeat: repeat);
     todos.add(t);
     _changed();
+    onTodoChanged?.call(t);
     return t;
   }
 
+  Todo? todoById(String id) {
+    for (final t in todos) {
+      if (t.id == id) return t;
+    }
+    return null;
+  }
+
+  /// Simpan perubahan pada tugas [t] (judul, catatan, prioritas, sub-tugas, tenggat, pengingat, ulangi).
+  void updateTodo(Todo t) {
+    if (!todos.contains(t)) return;
+    _changed();
+    onTodoChanged?.call(t);
+  }
+
+  /// Tandai selesai / belum. Tugas berulang yang diselesaikan langsung membuat tugas berikutnya
+  /// (tenggat digeser sesuai pengulangan, sub-tugas dikosongkan centangnya).
   void toggleTodo(String id) {
     final i = todos.indexWhere((t) => t.id == id);
     if (i < 0) return;
     final t = todos[i];
     t.done = !t.done;
     t.doneAt = t.done ? DateTime.now() : null;
+    Todo? next;
+    if (t.done && t.repeat != 'none' && t.due != null) {
+      next = Todo(
+        id: newId(),
+        title: t.title,
+        cat: t.cat,
+        tone: t.tone,
+        due: nextRepeat(t.due!, t.repeat),
+        pri: t.pri,
+        notes: t.notes,
+        subs: [for (final x in t.subs) SubTask(x.t)],
+        remind: t.remind,
+        repeat: t.repeat,
+      );
+      // Pengulangan pindah ke tugas baru supaya tugas yang selesai tidak membuat salinan lagi.
+      t.repeat = 'none';
+      todos.add(next);
+    }
     _changed();
+    onTodoChanged?.call(t);
+    if (next != null) onTodoChanged?.call(next);
   }
 
   void removeTodo(String id) {
-    todos.removeWhere((t) => t.id == id);
+    final i = todos.indexWhere((t) => t.id == id);
+    if (i < 0) return;
+    final t = todos.removeAt(i);
     _changed();
+    onTodoChanged?.call(t, removed: true);
+  }
+
+  /// Kembalikan tugas yang baru dihapus (tombol "Urungkan").
+  void restoreTodo(Todo t) {
+    if (todos.any((x) => x.id == t.id)) return;
+    todos.add(t);
+    _changed();
+    onTodoChanged?.call(t);
   }
 
   /// Tugas diurutkan: belum selesai dulu, lalu menurut waktu.
@@ -1706,12 +1758,30 @@ class AppStore extends ChangeNotifier {
   }
 
   // ---------- Agenda ----------
-  Agenda addAgenda(String title, DateTime at, {bool reminder = false, bool daily = false}) {
-    final a = Agenda(id: newId(), title: title.trim(), at: at, reminder: reminder, daily: daily, tone: reminder ? 'amber' : 'blue');
+  Agenda addAgenda(String title, DateTime at,
+      {bool reminder = false, bool daily = false, String? repeat, String? tone, String loc = '', int durMin = 60, int remindMin = 0}) {
+    final a = Agenda(
+      id: newId(),
+      title: title.trim(),
+      at: at,
+      reminder: reminder,
+      repeat: repeat ?? (daily ? 'daily' : 'none'),
+      tone: tone ?? (reminder ? 'amber' : 'blue'),
+      loc: loc.trim(),
+      durMin: durMin,
+      remindMin: remindMin,
+    );
     agenda.add(a);
     _changed();
     onAgendaChanged?.call(a);
     return a;
+  }
+
+  /// Simpan perubahan pada agenda [a] dan jadwalkan ulang pengingatnya.
+  void updateAgenda(Agenda a) {
+    if (!agenda.contains(a)) return;
+    _changed();
+    onAgendaChanged?.call(a);
   }
 
   void toggleAgenda(String id) {

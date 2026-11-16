@@ -19,7 +19,7 @@ import '../features/saldo/saldo_page.dart';
 import '../features/settings/profile_page.dart';
 import '../features/settings/settings_page.dart';
 import '../widgets/common.dart';
-import '../widgets/mode_widgets.dart' show ThemeToggle;
+import 'window_frame.dart';
 import '../widgets/profile_widgets.dart';
 import 'app_shell.dart' show PageStagger, pushPage;
 
@@ -57,16 +57,55 @@ class DesktopShell extends StatefulWidget {
   State<DesktopShell> createState() => _DesktopShellState();
 }
 
-class _DesktopShellState extends State<DesktopShell> {
+class _DesktopShellState extends State<DesktopShell> with SingleTickerProviderStateMixin {
   int _index = 0;
   bool _rail = false;
 
+  /// Sudah pernah pindah halaman: judul halaman berikutnya diketik ulang (prototipe flowTitle).
+  bool _moved = false;
+  DateTime _born = DateTime.now();
+
+  /// Isi halaman lama keluar dulu 170 ms (prototipe `.pgin.leave`), baru halaman baru dibangun.
+  late final AnimationController _leave = AnimationController(vsync: this, duration: const Duration(milliseconds: 170));
+  int? _target;
+
+  @override
+  void dispose() {
+    _leave.dispose();
+    super.dispose();
+  }
+
   void _go(int i) {
-    if (i == _index) return;
+    if (i == (_target ?? _index)) return;
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     final store = StoreScope.read(context);
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _show(i);
+      return;
+    }
+    // Ketukan cepat beruntun: tujuan terakhir yang dipakai, animasi keluar tidak diulang.
+    final running = _target != null;
+    _target = i;
     if (i < _kSettings) store.setMode(_dests[i].fin ? 'finance' : 'productive');
-    setState(() => _index = i);
+    if (running) return;
+    _leave.forward(from: 0).whenCompleteOrCancel(() {
+      if (!mounted) return;
+      final t = _target;
+      _target = null;
+      if (t != null) _show(t);
+      _leave.value = 0;
+    });
+    setState(() {});
+  }
+
+  void _show(int i) {
+    final store = StoreScope.read(context);
+    if (i < _kSettings) store.setMode(_dests[i].fin ? 'finance' : 'productive');
+    setState(() {
+      _index = i;
+      _moved = true;
+      _born = DateTime.now();
+    });
   }
 
   Widget _page() {
@@ -135,11 +174,17 @@ class _DesktopShellState extends State<DesktopShell> {
               _TopBar(onPalette: _openPalette, rail: rail),
               Expanded(
                 child: Row(children: [
-                  _Sidebar(index: _index, rail: rail, onGo: _go, onToggleRail: () => setState(() => _rail = !_rail), onPalette: _openPalette, onLock: _lock),
+                  _Sidebar(index: _target ?? _index, rail: rail, onGo: _go, onToggleRail: () => setState(() => _rail = !_rail), onPalette: _openPalette, onLock: _lock),
                   Expanded(
                     // Tanpa pudar/geser untuk seluruh halaman: tiap elemen sudah beranimasi sendiri (StaggerItem),
                     // dan memudarkan halaman penuh sekaligus membuat animasi berat di GPU yang lemah.
-                    child: PageStagger(child: KeyedSubtree(key: ValueKey(_index), child: _page())),
+                    child: PageStagger(
+                      desktop: true,
+                      leave: _leave,
+                      typeTitle: _moved,
+                      born: _born,
+                      child: KeyedSubtree(key: ValueKey(_index), child: _page()),
+                    ),
                   ),
                 ]),
               ),
@@ -160,74 +205,159 @@ class _TopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final z = ZColors.of(context);
-    return SizedBox(
-      height: 56,
-      child: Padding(
-        padding: const EdgeInsets.only(right: 24),
-        child: Row(children: [
+    final store = StoreScope.of(context);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    // Bilah atas = judul jendela (seperti prototipe): bagian kosong untuk menyeret jendela,
+    // tombol minimize / maximize / tutup di kanan.
+    return Container(
+      height: 48,
+      decoration: BoxDecoration(
+        color: Color.alphaBlend(z.card.withValues(alpha: 0.62), z.bg),
+        border: Border(bottom: BorderSide(color: z.divider)),
+      ),
+      child: Stack(children: [
+        const Positioned.fill(child: WindowDragArea(child: SizedBox.expand())),
+        Row(children: [
           // Merek di atas sidebar: lebarnya sama dengan sidebar supaya sejajar.
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            width: rail ? 76 : 252,
-            padding: const EdgeInsets.only(left: 20),
-            child: ClipRect(
-              child: Row(children: [
-                const AppLogo(size: 24),
-                if (!rail) ...[
-                  const SizedBox(width: 10),
-                  const Flexible(child: Text('Razarsa', maxLines: 1, overflow: TextOverflow.clip, softWrap: false, style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800))),
-                ],
-              ]),
+          IgnorePointer(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOutCubic,
+              width: rail ? 72 : 248,
+              padding: const EdgeInsets.only(left: 16),
+              child: ClipRect(
+                child: Row(children: [
+                  const AppLogo(size: 26),
+                  if (!rail) ...[
+                    const SizedBox(width: 9),
+                    const Flexible(child: Text('Razarsa', maxLines: 1, overflow: TextOverflow.clip, softWrap: false, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, letterSpacing: -0.14))),
+                  ],
+                ]),
+              ),
             ),
           ),
+          const SizedBox(width: 12),
           Expanded(
-            child: Align(
-              alignment: Alignment.centerLeft,
+            child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 520),
                 child: Semantics(
                   button: true,
                   label: tr('Cari halaman atau jalankan perintah'),
-                  child: Material(
-                    color: z.card,
-                    shape: StadiumBorder(side: BorderSide(color: z.border)),
-                    child: InkWell(
-                      customBorder: const StadiumBorder(),
-                      onTap: onPalette,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: SizedBox(
-                          height: 40,
-                          child: Row(children: [
-                            Icon(Icons.search_rounded, size: 19, color: z.muted2),
-                            const SizedBox(width: 10),
-                            Expanded(child: Text(tr('Cari halaman, transaksi, atau jalankan perintah'), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13.5, color: z.muted2))),
-                            _Kbd('Ctrl+K', z),
-                          ]),
-                        ),
-                      ),
-                    ),
-                  ),
+                  child: _SearchBox(onTap: onPalette),
                 ),
               ),
             ),
           ),
           const SizedBox(width: 12),
-          DecoratedBox(
-            decoration: BoxDecoration(color: z.track, borderRadius: BorderRadius.circular(99)),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          IgnorePointer(
+            child: Container(
+              height: 30,
+              padding: const EdgeInsets.fromLTRB(9, 0, 12, 0),
+              decoration: BoxDecoration(color: z.toneBg('gray'), borderRadius: BorderRadius.circular(99)),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.laptop_windows_rounded, size: 15, color: z.muted),
+                Icon(Icons.devices_rounded, size: 17, color: z.toneFg('gray')),
                 const SizedBox(width: 6),
-                Text(tr('Hanya di perangkat ini'), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: z.muted)),
+                Text(tr('Hanya di perangkat ini'), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: z.toneFg('gray'))),
               ]),
             ),
           ),
-          const SizedBox(width: 12),
-          const ThemeToggle(),
+          const SizedBox(width: 8),
+          _TopIconButton(
+            icon: dark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+            tooltip: dark ? tr('Mode terang') : tr('Mode gelap'),
+            onTap: () => store.setThemeMode(dark ? ThemeMode.light : ThemeMode.dark),
+          ),
+          if (customWindowFrame) const SizedBox(width: 4) else const SizedBox(width: 16),
+          const WindowButtons(height: 48),
         ]),
+      ]),
+    );
+  }
+}
+
+class _SearchBox extends StatefulWidget {
+  const _SearchBox({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  State<_SearchBox> createState() => _SearchBoxState();
+}
+
+class _SearchBoxState extends State<_SearchBox> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final z = ZColors.of(context);
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          height: 34,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: _hover ? z.card : Color.alphaBlend(z.card.withValues(alpha: 0.8), z.bg),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: _hover ? z.chipBorder : z.border),
+          ),
+          child: Row(children: [
+            Icon(Icons.search_rounded, size: 19, color: z.muted2),
+            const SizedBox(width: 10),
+            Expanded(child: Text(tr('Cari halaman, transaksi, atau jalankan perintah'), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: z.muted2))),
+            _Kbd('Ctrl+K', z),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+class _TopIconButton extends StatefulWidget {
+  const _TopIconButton({required this.icon, required this.tooltip, required this.onTap});
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  State<_TopIconButton> createState() => _TopIconButtonState();
+}
+
+class _TopIconButtonState extends State<_TopIconButton> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final z = ZColors.of(context);
+    return Tooltip(
+      message: widget.tooltip,
+      child: Semantics(
+        button: true,
+        label: widget.tooltip,
+        child: MouseRegion(
+          onEnter: (_) => setState(() => _hover = true),
+          onExit: (_) => setState(() => _hover = false),
+          child: GestureDetector(
+            onTap: widget.onTap,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(color: _hover ? z.track : Colors.transparent, borderRadius: BorderRadius.circular(9)),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                transitionBuilder: (c, a) => RotationTransition(turns: Tween(begin: 0.75, end: 1.0).animate(a), child: FadeTransition(opacity: a, child: c)),
+                child: Icon(widget.icon, key: ValueKey(widget.icon), size: 20, color: z.text2),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -267,21 +397,21 @@ class _Sidebar extends StatelessWidget {
     final store = StoreScope.of(context);
     final dests = _dests;
     final name = store.userName.isEmpty ? tr('Pengguna Razarsa') : store.userName;
-    final w = rail ? 76.0 : 252.0;
+    final w = rail ? 72.0 : 248.0;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOutCubic,
       width: w,
       decoration: BoxDecoration(color: z.card.withValues(alpha: 0.7), border: Border(right: BorderSide(color: z.divider))),
       padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
-      // Isi memakai lebar tetap (ciut 52 / lebar 228) dan dipotong oleh wadah yang beranimasi,
+      // Isi memakai lebar tetap (ciut 52 / lebar 224) dan dipotong oleh wadah yang beranimasi,
       // jadi tidak pernah meluap di tengah animasi.
       child: ClipRect(
         child: OverflowBox(
           alignment: Alignment.topLeft,
           minWidth: 0,
-          maxWidth: rail ? 52 : 228,
-          child: SizedBox(width: rail ? 52 : 228, child: _content(context, z, store, dests, name, rail)),
+          maxWidth: rail ? 52 : 224,
+          child: SizedBox(width: rail ? 52 : 224, child: _content(context, z, store, dests, name, rail)),
         ),
       ),
     );
@@ -354,14 +484,17 @@ class _Sidebar extends StatelessWidget {
               child: Stack(children: [
                 if (index < _kSettings)
                   AnimatedPositioned(
-                    duration: const Duration(milliseconds: 420),
+                    duration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : const Duration(milliseconds: 550),
                     curve: const Cubic(0.3, 1.25, 0.5, 1),
                     top: _top(index),
                     left: 0,
                     right: 0,
                     height: _itemH,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(color: z.primary, borderRadius: BorderRadius.circular(11), boxShadow: [BoxShadow(color: z.primary.withValues(alpha: 0.28), blurRadius: 14, offset: const Offset(0, 6), spreadRadius: -6)]),
+                    child: _PillPop(
+                      index: index,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(color: z.primary, borderRadius: BorderRadius.circular(11), boxShadow: [BoxShadow(color: z.primary.withValues(alpha: 0.45), blurRadius: 16, offset: const Offset(0, 6), spreadRadius: -6)]),
+                      ),
                     ),
                   ),
                 Positioned(top: 0, left: 0, right: 0, child: _GroupLabel(tr('Keuangan'), rail)),
@@ -400,6 +533,53 @@ class _Sidebar extends StatelessWidget {
           onTap: onToggleRail,
         ),
       ]),
+    );
+  }
+}
+
+/// Pil navigasi berdenyut sekali saat pindah (prototipe pillPop 0,55 s: terang 1,25 dan skala 1,045 di 35%).
+class _PillPop extends StatefulWidget {
+  const _PillPop({required this.index, required this.child});
+
+  final int index;
+  final Widget child;
+
+  @override
+  State<_PillPop> createState() => _PillPopState();
+}
+
+class _PillPopState extends State<_PillPop> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 550), value: 1);
+
+  @override
+  void didUpdateWidget(_PillPop old) {
+    super.didUpdateWidget(old);
+    if (old.index != widget.index && !MediaQuery.disableAnimationsOf(context)) _c.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _c,
+      child: widget.child,
+      builder: (context, child) {
+        final v = _c.value;
+        final p = v < 0.35 ? Curves.ease.transform(v / 0.35) : 1 - Curves.ease.transform((v - 0.35) / 0.65);
+        return Transform.scale(
+          scale: 1 + 0.045 * p,
+          child: Stack(fit: StackFit.expand, children: [
+            child!,
+            // Terang 1,25: lapisan putih tipis di atas pil.
+            DecoratedBox(decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.18 * p), borderRadius: BorderRadius.circular(11))),
+          ]),
+        );
+      },
     );
   }
 }
@@ -487,7 +667,7 @@ class _Cmd {
 }
 
 Future<void> showCommandPalette(BuildContext context, {required ValueChanged<int> go, required VoidCallback toggleRail, required VoidCallback lock}) {
-  return showDialog<void>(
+  return showZDialog<void>(
     context: context,
     barrierColor: Colors.black.withValues(alpha: 0.45),
     builder: (c) => _Palette(go: go, toggleRail: toggleRail, lock: lock, shellContext: context),
@@ -601,7 +781,7 @@ class _PaletteState extends State<_Palette> {
                         if (cmds.isNotEmpty) cmds[_sel].run();
                       },
                       style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                      decoration: InputDecoration(border: InputBorder.none, isCollapsed: true, hintText: tr('Cari halaman, transaksi, atau jalankan perintah'), hintStyle: TextStyle(color: z.muted2, fontWeight: FontWeight.w500)),
+                      decoration: InputDecoration(border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, isCollapsed: true, contentPadding: EdgeInsets.zero, hintText: tr('Cari halaman, transaksi, atau jalankan perintah'), hintStyle: TextStyle(color: z.muted2, fontWeight: FontWeight.w500)),
                     ),
                   ),
                   _Kbd('Esc', z),

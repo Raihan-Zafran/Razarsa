@@ -1,3 +1,5 @@
+import 'dart:io' show File, Platform;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
@@ -46,6 +48,22 @@ class Notif {
     return tz.UTC;
   }
 
+  static bool get _win => !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+
+  /// AppUserModelID aplikasi di Windows (harus sama dengan pintasan Start di pemasang).
+  static const windowsAumid = 'Razarsa.Razarsa.App';
+
+  /// Ikon toast: berkas PNG di folder aset aplikasi (di sebelah razarsa.exe).
+  static String? _windowsIcon() {
+    try {
+      final dir = File(Platform.resolvedExecutable).parent.path;
+      final f = File('$dir\\data\\flutter_assets\\assets\\images\\app_icon.png');
+      return f.existsSync() ? f.path : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   static Future<void>? _initFuture;
 
   /// Berapa kali penyiapan sungguhan dijalankan (untuk tes: harus 1 walau dipanggil bersamaan).
@@ -79,7 +97,18 @@ class Notif {
     }
     try {
       await _p.initialize(
-        settings: const InitializationSettings(android: AndroidInitializationSettings('@mipmap/ic_launcher')),
+        settings: InitializationSettings(
+          android: const AndroidInitializationSettings('@mipmap/ic_launcher'),
+          // Windows: notifikasi toast. AUMID sama dengan pintasan Start dari pemasang (windows/installer/razarsa.iss).
+          windows: _win
+              ? WindowsInitializationSettings(
+                  appName: 'Razarsa',
+                  appUserModelId: windowsAumid,
+                  guid: 'a7c3f2e1-5b4d-4e8a-9c21-6f0b3d7e8a14',
+                  iconPath: _windowsIcon(),
+                )
+              : null,
+        ),
       );
       _ready = true;
     } catch (e) {
@@ -89,7 +118,7 @@ class Notif {
 
   /// Apakah notifikasi boleh tampil sekarang (izin diberikan dan tidak diblokir di Pengaturan HP).
   static Future<bool> enabled() async {
-    if (kIsWeb) return true;
+    if (kIsWeb || _win) return true;
     await init();
     try {
       final android = _p.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
@@ -103,7 +132,7 @@ class Notif {
   /// Minta izin notifikasi (Android 13+) hanya kalau belum diizinkan. true = notifikasi bisa tampil.
   /// false = ditolak/diblokir; pemanggil wajib memberi tahu pengguna cara mengaktifkannya.
   static Future<bool> requestPermission() async {
-    if (kIsWeb) return true;
+    if (kIsWeb || _win) return true; // Windows tidak meminta izin; pengguna mengaturnya di Pengaturan Windows
     await init();
     try {
       final android = _p.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
@@ -186,29 +215,82 @@ class Notif {
     }
   }
 
-  /// Jadwalkan / batalkan notifikasi untuk satu pengingat di kalender.
+  /// Waktu notifikasi berikutnya untuk agenda [a] (mulai dikurangi [Agenda.remindMin]), setelah [now].
+  /// Null kalau agenda sekali dan waktunya sudah lewat.
+  @visibleForTesting
+  static tz.TZDateTime? agendaFireAt(Agenda a, tz.TZDateTime now) {
+    final lead = Duration(minutes: a.remindMin);
+    var start = tz.TZDateTime(now.location, a.at.year, a.at.month, a.at.day, a.at.hour, a.at.minute);
+    var fire = start.subtract(lead);
+    if (a.repeat == 'none') return fire.isAfter(now) ? fire : null;
+    // Agenda berulang: maju ke kemunculan berikutnya yang pengingatnya belum lewat.
+    for (var i = 0; i < 800 && !fire.isAfter(now); i++) {
+      final n = nextRepeat(start, a.repeat);
+      start = tz.TZDateTime(now.location, n.year, n.month, n.day, n.hour, n.minute);
+      fire = start.subtract(lead);
+    }
+    return fire.isAfter(now) ? fire : null;
+  }
+
+  /// Jadwalkan / batalkan notifikasi untuk satu agenda di kalender.
   static Future<void> syncAgenda(Agenda a, {bool removed = false, bool enabled = true}) async {
     await init();
     if (!_ready) return;
     await _p.cancel(id: a.notifId);
     if (removed || !enabled || !a.reminder || !a.on) return;
-    final now = tz.TZDateTime.now(tz.local);
-    var at = tz.TZDateTime(tz.local, a.at.year, a.at.month, a.at.day, a.at.hour, a.at.minute);
-    if (a.daily) {
-      at = tz.TZDateTime(tz.local, now.year, now.month, now.day, a.at.hour, a.at.minute);
-      if (!at.isAfter(now)) at = at.add(const Duration(days: 1));
-    } else if (!at.isAfter(now)) {
-      return;
+    final at = agendaFireAt(a, tz.TZDateTime.now(tz.local));
+    if (at == null) return;
+    try {
+      await _p.zonedSchedule(
+        id: a.notifId,
+        title: a.title,
+        body: a.loc.isEmpty ? tr('Pengingat dari Razarsa') : '${timeLabel(a.at)} · ${a.loc}',
+        scheduledDate: at,
+        notificationDetails: _details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        matchDateTimeComponents: switch (a.repeat) {
+          'daily' => DateTimeComponents.time,
+          'weekly' => DateTimeComponents.dayOfWeekAndTime,
+          'monthly' => DateTimeComponents.dayOfMonthAndTime,
+          _ => null,
+        },
+      );
+    } catch (e) {
+      debugPrint('Razarsa: pengingat gagal dijadwalkan: $e');
     }
-    await _p.zonedSchedule(
-      id: a.notifId,
-      title: a.title,
-      body: tr('Pengingat dari Razarsa'),
-      scheduledDate: at,
-      notificationDetails: _details,
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      matchDateTimeComponents: a.daily ? DateTimeComponents.time : null,
-    );
+  }
+
+  /// Jadwalkan ulang semua pengingat agenda dan tugas. Dipanggil saat aplikasi dibuka: di Windows
+  /// notifikasi berulang tidak diulang otomatis oleh sistem, jadi jadwal berikutnya dipasang setiap kali.
+  static Future<void> syncProductive(AppStore store) async {
+    final on = store.switches['agenda'] == true;
+    for (final a in [...store.agenda]) {
+      await syncAgenda(a, enabled: on);
+    }
+    for (final t in [...store.todos]) {
+      await syncTodo(t, enabled: on);
+    }
+  }
+
+  /// Jadwalkan / batalkan pengingat satu tugas (sekali, [Todo.remind] menit sebelum tenggat).
+  static Future<void> syncTodo(Todo t, {bool removed = false, bool enabled = true}) async {
+    await init();
+    if (!_ready) return;
+    await _p.cancel(id: t.notifId);
+    final at = t.remindAt;
+    if (removed || !enabled || t.done || at == null || !at.isAfter(DateTime.now())) return;
+    try {
+      await _p.zonedSchedule(
+        id: t.notifId,
+        title: t.title,
+        body: trf('Tugas · tenggat {0}', [t.hasTime ? '${dayLabel(t.due!)}, ${timeLabel(t.due!)}' : dayLabel(t.due!)]),
+        scheduledDate: tz.TZDateTime.from(at, tz.local),
+        notificationDetails: _details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      );
+    } catch (e) {
+      debugPrint('Razarsa: pengingat gagal dijadwalkan: $e');
+    }
   }
 
   /// Waktu pengingat tagihan untuk tanggal jatuh tempo [dueDay] (1-28), dihitung dari [now]:

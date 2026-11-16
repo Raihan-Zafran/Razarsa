@@ -1,3 +1,7 @@
+import 'dart:convert' show HtmlEscape;
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/format.dart';
@@ -50,7 +54,7 @@ class _DesktopReportState extends State<DesktopReport> {
     String m(num v) => store.hideBalance ? rpHidden : rp(v);
     final diff = income - expense;
 
-    Widget kpi(IconData icon, String tone, String label, String value, String sub, {Color? color}) => DCard(
+    Widget kpi(IconData icon, String tone, String label, num value, String Function(num) fmt, String sub, {Color? color}) => DCard(
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
@@ -62,7 +66,11 @@ class _DesktopReportState extends State<DesktopReport> {
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
-              child: Text(value, style: TextStyle(fontSize: 27, fontWeight: FontWeight.w800, letterSpacing: -0.6, color: color, fontFeatures: const [FontFeature.tabularFigures()])),
+              child: Builder(builder: (context) {
+                final style = TextStyle(fontSize: 27, fontWeight: FontWeight.w800, letterSpacing: -0.6, color: color, fontFeatures: const [FontFeature.tabularFigures()]);
+                // Angka besar menghitung naik saat halaman dibuka (prototipe flowCount).
+                return store.hideBalance ? Text(rpHidden, style: style) : CountUp(value: value, format: fmt, style: style);
+              }),
             ),
             const SizedBox(height: 2),
             Text(sub, style: TextStyle(fontSize: 12.5, color: z.muted2)),
@@ -80,12 +88,21 @@ class _DesktopReportState extends State<DesktopReport> {
         ),
       ),
       const Spacer(),
-      OutlinedButton.icon(
+      FilledButton.icon(
         onPressed: () => exportCsvFile(context, store),
         icon: const Icon(Icons.download_rounded, size: 19),
-        label: Text(tr('Ekspor CSV'), style: const TextStyle(fontWeight: FontWeight.w800)),
-        style: OutlinedButton.styleFrom(minimumSize: const Size(0, 44), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+        label: Text(tr('Ekspor CSV')),
+        style: FilledButton.styleFrom(backgroundColor: z.track, foregroundColor: z.text2),
       ),
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) ...[
+        const SizedBox(width: 10),
+        FilledButton.icon(
+          onPressed: () => _print(context, store, from, to, income, expense, byCat, countBy),
+          icon: const Icon(Icons.picture_as_pdf_outlined, size: 19),
+          label: Text(tr('Cetak laporan')),
+          style: FilledButton.styleFrom(backgroundColor: z.track, foregroundColor: z.text2),
+        ),
+      ],
     ]);
 
     return DesktopPage(
@@ -101,10 +118,10 @@ class _DesktopReportState extends State<DesktopReport> {
         head,
         const SizedBox(height: 20),
         DCols(minChild: 240, children: [
-          kpi(Icons.south_west_rounded, 'green', tr('Pemasukan'), m(income), trf('{0} transaksi', [incN]), color: z.accentText),
-          kpi(Icons.north_east_rounded, 'orange', tr('Pengeluaran'), m(expense), trf('{0} transaksi', [expN])),
-          kpi(Icons.balance_rounded, 'blue', tr('Selisih'), store.hideBalance ? rpHidden : rpSigned(diff), diff >= 0 ? tr('Surplus') : tr('Defisit'), color: diff >= 0 ? z.accentText : z.warn),
-          kpi(Icons.calendar_today_rounded, 'purple', tr('Rata-rata harian'), m((expense / n).round()), tr('Pengeluaran per hari')),
+          kpi(Icons.south_west_rounded, 'green', tr('Pemasukan'), income, rp, trf('{0} transaksi', [incN]), color: z.accentText),
+          kpi(Icons.north_east_rounded, 'orange', tr('Pengeluaran'), expense, rp, trf('{0} transaksi', [expN])),
+          kpi(Icons.balance_rounded, 'blue', tr('Selisih'), diff, rpSigned, diff >= 0 ? tr('Surplus') : tr('Defisit'), color: diff >= 0 ? z.accentText : z.warn),
+          kpi(Icons.calendar_today_rounded, 'purple', tr('Rata-rata harian'), (expense / n).round(), rp, tr('Pengeluaran per hari')),
         ]),
         const SizedBox(height: 20),
         DCols(minChild: 380, flex: const [2, 1], children: [
@@ -160,6 +177,61 @@ class _DesktopReportState extends State<DesktopReport> {
   }
 }
 
+/// Cetak laporan (Windows): halaman laporan siap cetak dibuka di peramban bawaan, yang langsung
+/// menampilkan dialog cetak (pilih printer atau "Simpan sebagai PDF").
+Future<void> _print(BuildContext context, AppStore store, DateTime from, DateTime to, int income, int expense,
+    List<MapEntry<String, int>> byCat, Map<String, int> countBy) async {
+  try {
+    final html = reportHtml(store, from, to, income, expense, byCat, countBy);
+    final f = File('${Directory.systemTemp.path}${Platform.pathSeparator}razarsa-laporan-${DateTime.now().millisecondsSinceEpoch}.html');
+    await f.writeAsString(html);
+    await Process.start('explorer.exe', [f.path]);
+    if (context.mounted) showZToast(context, tr('Pilih printer atau “Simpan sebagai PDF”'));
+  } catch (e) {
+    debugPrint('Razarsa: laporan gagal dicetak: $e');
+    if (context.mounted) showZToast(context, tr('Laporan gagal dibuka'));
+  }
+}
+
+/// HTML laporan siap cetak: ringkasan, rincian per kategori, dan daftar transaksi pada periode itu.
+@visibleForTesting
+String reportHtml(AppStore store, DateTime from, DateTime to, int income, int expense, List<MapEntry<String, int>> byCat, Map<String, int> countBy) {
+  const esc = HtmlEscape();
+  final last = to.subtract(const Duration(days: 1));
+  final txns = store.txns.where((t) => !t.at.isBefore(from) && t.at.isBefore(to)).toList()..sort((a, b) => a.at.compareTo(b.at));
+  final total = byCat.fold<int>(0, (a, e) => a + e.value);
+  final b = StringBuffer()
+    ..write('<!doctype html><html lang="${L.en ? 'en' : 'id'}"><head><meta charset="utf-8"><title>${esc.convert(tr('Laporan'))} Razarsa</title><style>')
+    ..write('body{font-family:"Segoe UI",Arial,sans-serif;color:#17130C;margin:32px;font-size:13px}h1{font-size:24px;margin:0}')
+    ..write('.sub{color:#665F4F;margin:4px 0 20px}.kpi{display:flex;gap:12px;margin-bottom:22px}.kpi div{flex:1;border:1px solid #E6DFCF;border-radius:12px;padding:12px 14px}')
+    ..write('.kpi b{display:block;font-size:18px;margin-top:4px}h2{font-size:15px;margin:22px 0 8px}table{width:100%;border-collapse:collapse}')
+    ..write('th,td{text-align:left;padding:7px 6px;border-bottom:1px solid #EEE9DC}th{color:#665F4F;font-size:11.5px;text-transform:uppercase}')
+    ..write('.r{text-align:right;font-variant-numeric:tabular-nums}.foot{margin-top:24px;color:#665F4F;font-size:11px}@media print{body{margin:12mm}}')
+    ..write('</style></head><body>')
+    ..write('<h1>${esc.convert(tr('Laporan'))} · Razarsa</h1>')
+    ..write('<div class="sub">${esc.convert('${shortDate(from)} – ${shortDate(last)}')}${store.userName.isEmpty ? '' : ' · ${esc.convert(store.userName)}'}</div>')
+    ..write('<div class="kpi"><div>${esc.convert(tr('Pemasukan'))}<b>${esc.convert(rp(income))}</b></div>')
+    ..write('<div>${esc.convert(tr('Pengeluaran'))}<b>${esc.convert(rp(expense))}</b></div>')
+    ..write('<div>${esc.convert(tr('Selisih'))}<b>${esc.convert(rpSigned(income - expense))}</b></div></div>')
+    ..write('<h2>${esc.convert(tr('Rincian per kategori'))}</h2><table><tr><th>${esc.convert(tr('Kategori'))}</th><th class="r">${esc.convert(tr('Porsi'))}</th>')
+    ..write('<th class="r">${esc.convert(tr('Jumlah'))}</th><th class="r">${esc.convert(tr('Transaksi'))}</th></tr>');
+  for (final e in byCat) {
+    final pct = total == 0 ? 0 : (e.value / total * 100).round();
+    b.write('<tr><td>${esc.convert(store.category(e.key).label)}</td><td class="r">$pct%</td><td class="r">${esc.convert(rp(e.value))}</td><td class="r">${countBy[e.key] ?? 0}</td></tr>');
+  }
+  if (byCat.isEmpty) b.write('<tr><td colspan="4">${esc.convert(tr('Belum ada pengeluaran'))}</td></tr>');
+  b.write('</table><h2>${esc.convert(tr('Transaksi'))}</h2><table><tr><th>${esc.convert(tr('Tanggal'))}</th><th>${esc.convert(tr('Nama'))}</th>'
+      '<th>${esc.convert(tr('Kategori'))}</th><th>${esc.convert(tr('Sumber'))}</th><th class="r">${esc.convert(tr('Jumlah'))}</th></tr>');
+  for (final t in txns) {
+    b.write('<tr><td>${esc.convert('${shortDate(t.at)} ${timeLabel(t.at)}')}</td><td>${esc.convert(t.name)}</td><td>${esc.convert(store.category(t.cat).label)}</td>'
+        '<td>${esc.convert(store.walletName(t.wallet))}</td><td class="r">${esc.convert(rpSigned(t.amount))}</td></tr>');
+  }
+  b
+    ..write('</table><div class="foot">${esc.convert(trf('Dibuat {0} · data hanya di perangkat ini', ['${shortDate(DateTime.now())} ${timeLabel(DateTime.now())}']))}</div>')
+    ..write('<script>window.addEventListener("load",function(){setTimeout(function(){window.print()},300)})</script></body></html>');
+  return b.toString();
+}
+
 class _Composition extends StatelessWidget {
   const _Composition({required this.parts, required this.total, required this.hidden});
 
@@ -179,8 +251,9 @@ class _Composition extends StatelessWidget {
             height: 190,
             child: TweenAnimationBuilder<double>(
               tween: Tween(begin: MediaQuery.disableAnimationsOf(context) ? 1 : 0, end: 1),
-              duration: const Duration(milliseconds: 1000),
-              curve: Curves.easeOutCubic,
+              // Prototipe ringIn: 1,3 s, tertunda 0,25 s.
+              duration: const Duration(milliseconds: 1550),
+              curve: const Interval(0.16, 1, curve: Cubic(0.22, 0.8, 0.3, 1)),
               builder: (_, v, _) => CustomPaint(
                 painter: DonutPainter(parts: [for (final p in parts) (p.$2.toDouble(), p.$3)], empty: z.track, progress: v),
                 child: Center(
@@ -197,15 +270,18 @@ class _Composition extends StatelessWidget {
         if (parts.isEmpty)
           Text(tr('Belum ada pengeluaran'), textAlign: TextAlign.center, style: TextStyle(fontSize: 12.5, color: z.muted))
         else
-          for (final p in parts.take(7))
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4.5),
-              child: Row(children: [
-                Container(width: 10, height: 10, decoration: BoxDecoration(color: p.$3, borderRadius: BorderRadius.circular(3))),
-                const SizedBox(width: 10),
-                Expanded(child: Text(p.$1, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13))),
-                Text('${(p.$2 / total * 100).round()}%', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, fontFeatures: [FontFeature.tabularFigures()])),
-              ]),
+          for (final (i, p) in parts.take(7).indexed)
+            RowIn(
+              index: i,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4.5),
+                child: Row(children: [
+                  Container(width: 10, height: 10, decoration: BoxDecoration(color: p.$3, borderRadius: BorderRadius.circular(3))),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(p.$1, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13))),
+                  Text('${(p.$2 / total * 100).round()}%', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, fontFeatures: [FontFeature.tabularFigures()])),
+                ]),
+              ),
             ),
       ]),
     );

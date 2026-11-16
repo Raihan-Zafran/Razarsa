@@ -3,6 +3,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show debugPrint, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
+
+import '../../shell/window_frame.dart';
 import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
 
@@ -114,7 +116,7 @@ class _LockGateState extends State<LockGate> with WidgetsBindingObserver {
   }
 
   void _forgot(BuildContext context) {
-    showDialog<void>(
+    showZDialog<void>(
       context: context,
       builder: (c) => AlertDialog(
         title: Text(tr('Lupa PIN?')),
@@ -494,6 +496,7 @@ class _PinPadState extends State<PinPad> with SingleTickerProviderStateMixin {
             ),
           ),
         ),
+        const Positioned(top: 0, left: 0, right: 0, child: WindowCaptionOverlay()),
       ]),
     );
   }

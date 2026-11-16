@@ -25,7 +25,7 @@ Future<void> show(WidgetTester t, AppStore s, Widget home) async {
   t.view.devicePixelRatio = 2;
   addTearDown(t.view.reset);
   await t.pumpWidget(StoreScope(store: s, child: MaterialApp(theme: buildTheme(Brightness.light), home: home)));
-  await t.pump(const Duration(milliseconds: 900));
+  await t.pump(const Duration(milliseconds: 1200));
 }
 
 Future<void> digits(WidgetTester t, String d) async {

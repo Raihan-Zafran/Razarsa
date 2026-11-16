@@ -95,7 +95,7 @@ class GoalsPage extends StatelessWidget {
       hero: true,
       color: z.hero,
       color2: z.hero2,
-      radius: 20,
+      radius: 22,
       border: Border.all(color: z.heroBorder),
       padding: const EdgeInsets.fromLTRB(32, 26, 32, 26),
       child: LayoutBuilder(builder: (context, box) {
@@ -148,7 +148,7 @@ class GoalsPage extends StatelessWidget {
   Future<void> _addGoal(BuildContext context, AppStore store) async {
     final name = TextEditingController();
     final amount = TextEditingController();
-    final ok = await showDialog<bool>(
+    final ok = await showZDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
         title: Text(tr('Target baru')),
@@ -312,7 +312,7 @@ class _GoalCard extends StatelessWidget {
   Future<void> _addSaving(BuildContext context, AppStore store) async {
     final ctrl = TextEditingController();
     // Positif = tambah, negatif = kurangi, null = batal / kosong.
-    final v = await showDialog<int>(
+    final v = await showZDialog<int>(
       context: context,
       builder: (c) => AlertDialog(
         title: Text(trf('Tabung untuk {0}', [goal.name])),
@@ -355,6 +355,7 @@ class _GoalCard extends StatelessWidget {
   /// Tekan lama: ubah target atau hapus.
   Future<void> _more(BuildContext context, AppStore store) async {
     final act = await showModalBottomSheet<String>(
+      sheetAnimationStyle: kSheetAnimation,
       context: context,
       builder: (c) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -383,7 +384,7 @@ class _GoalCard extends StatelessWidget {
   Future<void> _edit(BuildContext context, AppStore store) async {
     final name = TextEditingController(text: goal.name);
     final amount = TextEditingController(text: '${goal.target}');
-    final ok = await showDialog<bool>(
+    final ok = await showZDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
         title: Text(tr('Ubah target')),
