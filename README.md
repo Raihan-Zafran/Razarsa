@@ -63,9 +63,8 @@ Data tiap perangkat terpisah. **Belum ada sinkron otomatis**; untuk memindahkan 
 3. Pasang. Izinkan "sumber tidak dikenal" jika diminta.
 
 **Windows**
-1. Unduh **`…-windows-x64.zip`** dari [Releases](../../releases/latest) dan ekstrak ke satu folder.
-2. Jalankan `razarsa.exe`.
-3. File belum ditandatangani digital, jadi Windows bisa menampilkan peringatan SmartScreen: pilih "Informasi lebih lanjut" lalu "Tetap jalankan".
+1. Unduh **`…-windows-x64-setup.exe`** dari [Releases](../../releases/latest) lalu jalankan (terpasang untuk pengguna saat ini, tanpa hak admin). Atau unduh **`…-windows-x64.zip`**, ekstrak, dan jalankan `razarsa.exe`.
+2. File belum ditandatangani digital, jadi Windows bisa menampilkan peringatan SmartScreen: pilih "Informasi lebih lanjut" lalu "Tetap jalankan". Kalau Smart App Control aktif, Windows memblokirnya; matikan fitur itu atau tunggu versi bertanda tangan.
 
 ## Pengembangan
 

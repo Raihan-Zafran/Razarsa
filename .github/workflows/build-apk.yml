@@ -1,6 +1,6 @@
 name: Build APK
 
-# Alur: verify (analyze + test, tanpa secret) -> build (APK) + build-windows (zip) -> release (hanya kalau versi baru).
+# Alur: verify (analyze + test, tanpa secret) -> build (APK) + build-windows (pemasang .exe + zip) -> release (hanya kalau versi baru).
 # Push hanya di main dan tag; PR hanya menjalankan cek kode & tes (tanpa membangun APK).
 # Rilis dibuat kalau: push tag v*, push ke branch utama dengan versi baru di pubspec.yaml,
 # atau dijalankan manual dengan isian "rilis".
@@ -237,6 +237,40 @@ jobs:
           powershell -NoProfile -Command "Compress-Archive -Path '$REL/*' -DestinationPath 'dist/${BASE}.zip'"
           echo "base=$BASE" >> "$GITHUB_OUTPUT"
 
+      # Pemasang satu berkas .exe (Inno Setup). Dipasang untuk pengguna saat ini, tanpa hak admin.
+      - name: Buat pemasang (.exe)
+        shell: pwsh
+        env:
+          BASE: ${{ steps.zip.outputs.base }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          choco install innosetup -y --no-progress
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          $ver = ((Select-String -Path pubspec.yaml -Pattern '^version:').Line -replace 'version:\s*','' -replace '\+.*','')
+          $src = (Resolve-Path 'build/windows/x64/runner/Release').Path
+          $out = (Resolve-Path 'dist').Path
+          & $iscc "/DAppVersion=$ver" "/DOutBase=$env:BASE-setup" "/DSrcDir=$src" "/DOutDir=$out" windows/installer/razarsa.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC gagal ($LASTEXITCODE)" }
+          Get-ChildItem dist
+
+      # Pasang sungguhan di runner (diam-diam), jalankan 8 detik, lalu cabut lagi.
+      - name: Uji pemasang
+        shell: pwsh
+        env:
+          BASE: ${{ steps.zip.outputs.base }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dir = Join-Path $env:RUNNER_TEMP 'razarsa-uji'
+          $p = Start-Process -FilePath "dist/$env:BASE-setup.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/DIR=$dir" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Pemasang gagal (kode $($p.ExitCode))" }
+          if (-not (Test-Path "$dir\razarsa.exe")) { throw "razarsa.exe tidak terpasang" }
+          $app = Start-Process -FilePath "$dir\razarsa.exe" -PassThru
+          Start-Sleep -Seconds 8
+          if ($app.HasExited) { throw "Aplikasi hasil pasang berhenti sendiri (kode $($app.ExitCode))" }
+          Stop-Process -Id $app.Id -Force
+          $un = Get-ChildItem $dir -Filter 'unins*.exe' | Select-Object -First 1
+          Start-Process -FilePath $un.FullName -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES" -Wait
+
       - name: Simpan ZIP Windows (tab Actions > Artifacts)
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -329,7 +363,7 @@ jobs:
         run: |
           set -euo pipefail
           ls -l dist
-          ls dist/*-arm64.apk dist/*-universal.apk dist/*-windows-x64.zip
+          ls dist/*-arm64.apk dist/*-universal.apk dist/*-windows-x64.zip dist/*-windows-x64-setup.exe
 
       - name: Buat GitHub Release
         if: steps.rel.outputs.tag != ''
