@@ -106,7 +106,7 @@ class ZCard extends StatelessWidget {
         boxShadow: light
             ? const [
                 BoxShadow(color: Color(0x0A0F1E14), blurRadius: 2, offset: Offset(0, 1)),
-                BoxShadow(color: Color(0x330F1E14), blurRadius: 30, spreadRadius: -20, offset: Offset(0, 14)),
+                BoxShadow(color: Color(0x290F1E14), blurRadius: 16, spreadRadius: -10, offset: Offset(0, 8)),
               ]
             : null,
       ),
@@ -384,6 +384,7 @@ class TxnRow extends StatelessWidget {
     required this.isIncome,
     this.showDivider = true,
     this.onLongPress,
+    this.onTap,
   });
 
   final Category category;
@@ -393,11 +394,13 @@ class TxnRow extends StatelessWidget {
   final bool isIncome;
   final bool showDivider;
   final VoidCallback? onLongPress;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final z = ZColors.of(context);
     return InkWell(
+      onTap: onTap,
       onLongPress: onLongPress,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),

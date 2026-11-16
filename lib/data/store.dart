@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/crypto.dart';
-import '../core/palettes.dart';
 import '../core/format.dart';
 import '../core/i18n.dart';
 import 'backup.dart';
@@ -67,8 +66,6 @@ class AppStore extends ChangeNotifier {
   /// Sumber yang terakhir dipakai mencatat transaksi: pilihan awal di Tambah Transaksi dan dipakai Catat Cepat.
   String lastWallet = '';
 
-  /// Palet warna (indeks di [kPalettes]).
-  int palette = kDefaultPalette;
   List<Goal> goals = [];
   List<CustomCategory> customCats = [];
   int monthlyBudget = 5000000;
@@ -210,7 +207,6 @@ class AppStore extends ChangeNotifier {
     txns = _readList('txns', Txn.fromJson);
     wallets = _readList('wallets', Wallet.fromJson);
     lastWallet = _get('lastWallet', '');
-    palette = clampPalette(_get<Object?>('palette', kDefaultPalette));
     goals = _readList('goals', Goal.fromJson);
     customCats = _readList('customCats', CustomCategory.fromJson);
     todos = _readList('todos', Todo.fromJson);
@@ -480,7 +476,6 @@ class AppStore extends ChangeNotifier {
     await _put('txns', list(txns, (e) => e.toJson()));
     await _put('wallets', list(wallets, (e) => e.toJson()));
     await _put('lastWallet', lastWallet);
-    await _put('palette', palette);
     await _put('goals', list(goals, (e) => e.toJson()));
     await _put('customCats', list(customCats, (e) => e.toJson()));
     await _put('switches', jsonEncode(switches));
@@ -793,7 +788,6 @@ class AppStore extends ChangeNotifier {
           'useBg': useBg,
           'lite': lite,
           'glassLevel': glassLevel,
-          'palette': palette,
           'themeMode': themeMode.index,
           'mode': this.mode, // 'mode' sendiri adalah parameter jenis ekspor
         },
@@ -991,7 +985,6 @@ class AppStore extends ChangeNotifier {
       final newBg = st['useBg'] is bool ? st['useBg'] as bool : (st['financeBg'] is String ? st['financeBg'] == 'dusk' : useBg);
       final newLite = st['lite'] is bool ? st['lite'] as bool : lite;
       final newGlass = st['glassLevel'] is num ? (st['glassLevel'] as num).toInt().clamp(0, 2) : glassLevel;
-      final newPalette = st['palette'] is int ? clampPalette(st['palette']) : palette;
       final newBio = pf['bio'] is String && (pf['bio'] as String).length <= 1000 ? pf['bio'] as String : bio;
       final newJoined = pf['joinedAt'] is String && dayRe.hasMatch(pf['joinedAt'] as String) ? pf['joinedAt'] as String : joinedAt;
       final newDays = pf['activeDays'] is List
@@ -1025,7 +1018,6 @@ class AppStore extends ChangeNotifier {
       useBg = newBg;
       lite = newLite;
       glassLevel = newGlass;
-      palette = newPalette;
       themeMode = newTheme;
       mode = newAppMode;
       userName = newName;
@@ -1370,10 +1362,6 @@ class AppStore extends ChangeNotifier {
     _changed();
   }
 
-  void setPalette(int v) {
-    palette = clampPalette(v);
-    _changed();
-  }
 
   /// Selisih hari kalender (aman terhadap pergantian jam musim panas).
   static int _daysBetween(DateTime a, DateTime b) =>

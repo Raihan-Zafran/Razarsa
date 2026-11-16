@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'palettes.dart';
 
 /// Semua warna Razarsa untuk mode terang dan gelap.
 /// Disimpan sebagai ThemeExtension supaya pergantian mode bisa beranimasi halus.
@@ -228,15 +227,11 @@ const _plainDark = <String, Color>{
   'dockMuted': Color(0xFF8FA3B3),
 };
 
-/// Warna untuk satu mode dan palet: warna dasar, ditimpa palet yang dipilih,
-/// lalu (kalau [plain], yaitu "Pakai latar" mati) ditimpa warna polos mist/petrol.
-ZColors zColorsFor(Brightness brightness, int palette, {bool plain = false}) {
+/// Warna untuk satu mode: warna dasar, lalu (kalau [plain], yaitu "Pakai latar" mati) ditimpa warna polos mist/petrol.
+ZColors zColorsFor(Brightness brightness, {bool plain = false}) {
   final dark = brightness == Brightness.dark;
   final base = dark ? ZColors.dark : ZColors.light;
-  final p = kPalettes[clampPalette(palette)];
-  final over = dark ? p.dark : p.light;
   var c = base.c;
-  if (over.isNotEmpty) c = {...c, for (final e in over.entries) if (c.containsKey(e.key)) e.key: e.value};
   if (plain) {
     final pl = dark ? _plainDark : _plainLight;
     c = {...c, for (final e in pl.entries) if (c.containsKey(e.key)) e.key: e.value};
@@ -244,8 +239,8 @@ ZColors zColorsFor(Brightness brightness, int palette, {bool plain = false}) {
   return identical(c, base.c) ? base : ZColors(c);
 }
 
-ThemeData buildTheme(Brightness brightness, {int palette = kDefaultPalette, bool plain = false}) {
-  final z = zColorsFor(brightness, palette, plain: plain);
+ThemeData buildTheme(Brightness brightness, {bool plain = false}) {
+  final z = zColorsFor(brightness, plain: plain);
   final base = ThemeData(
     useMaterial3: true,
     brightness: brightness,

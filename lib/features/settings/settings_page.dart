@@ -4,7 +4,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 
-import '../../core/palettes.dart';
 
 import '../../core/format.dart';
 import '../../core/notifications.dart';
@@ -76,12 +75,12 @@ class SettingsPage extends StatelessWidget {
         ),
       ),
       _Group(tr('Tampilan'), [
-        _Row(icon: Icons.dark_mode_outlined, tone: 'purple', label: tr('Tampilan'), value: themeLabel, onTap: () => _pickTheme(context, store)),
-        _Row(icon: Icons.palette_outlined, tone: 'pink', label: tr('Palet warna'), value: tr(kPalettes[store.palette].name),
-            onTap: () => _pickPalette(context, store)),
-        _ToggleRow(Icons.wallpaper_rounded, tr('Pakai latar'), tr('Ilustrasi di Keuangan dan Produktif. Mati = polos'),
-            value: store.useBg, onChanged: store.setUseBg),
-        if (store.useBg)
+        if (!isWide(context)) _Row(icon: Icons.dark_mode_outlined, tone: 'purple', label: tr('Tampilan'), value: themeLabel, onTap: () => _pickTheme(context, store)),
+        // Latar ilustrasi hanya ada di versi HP; di Windows barisnya disembunyikan.
+        if (defaultTargetPlatform != TargetPlatform.windows)
+          _ToggleRow(Icons.wallpaper_rounded, tr('Pakai latar'), tr('Ilustrasi di Keuangan dan Produktif. Mati = polos'),
+              value: store.useBg, onChanged: store.setUseBg),
+        if (store.useBg && defaultTargetPlatform != TargetPlatform.windows)
           _Row(icon: Icons.blur_on_rounded, tone: 'teal', label: tr('Efek kaca'),
               value: const ['Mati', 'Halus', 'Kuat'].map(tr).toList()[store.glassLevel],
               sub: tr('Kartu tembus pandang di atas latar'),
@@ -210,38 +209,6 @@ class SettingsPage extends StatelessWidget {
     }
   }
 
-  Future<void> _pickPalette(BuildContext context, AppStore store) async {
-    final v = await showModalBottomSheet<int>(
-      context: context,
-      builder: (c) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(tr('Palet warna'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 8),
-          for (var i = 0; i < kPalettes.length; i++)
-            ListTile(
-              title: Text(tr(kPalettes[i].name), style: const TextStyle(fontWeight: FontWeight.w700)),
-              subtitle: Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Row(children: [
-                  for (final s in kPalettes[i].swatches)
-                    Container(
-                      width: 22,
-                      height: 22,
-                      margin: const EdgeInsets.only(right: 6),
-                      decoration: BoxDecoration(color: s, shape: BoxShape.circle, border: Border.all(color: Colors.black12)),
-                    ),
-                ]),
-              ),
-              trailing: i == store.palette ? const Icon(Icons.check_rounded) : null,
-              onTap: () => Navigator.pop(c, i),
-            ),
-          const SizedBox(height: 8),
-        ]),
-      ),
-    );
-    if (v != null && v != store.palette) store.setPalette(v);
-  }
-
   Future<void> _pickMonthStart(BuildContext context, AppStore store) async {
     final z = ZColors.of(context);
     final day = await showDialog<int>(
@@ -356,11 +323,18 @@ class SettingsPage extends StatelessWidget {
   Future<void> _toggleBio(BuildContext context, AppStore store, bool on) async {
     if (!on) return store.setSwitch('bio', false);
     if (!store.pinEnabled) return showZToast(context, tr('Aktifkan PIN dulu'));
+    final win = defaultTargetPlatform == TargetPlatform.windows;
     if (!await biometricAvailable()) {
-      if (context.mounted) showZToast(context, tr('HP ini tidak mendukung sidik jari'));
+      if (context.mounted) {
+        showZToast(context, win ? tr('Windows Hello belum diatur di PC ini. Atur di Pengaturan Windows → Akun → Opsi masuk.') : tr('HP ini tidak mendukung sidik jari'));
+      }
       return;
     }
-    if (await authenticateBiometric()) store.setSwitch('bio', true);
+    if (await authenticateBiometric()) {
+      store.setSwitch('bio', true);
+    } else if (context.mounted) {
+      showZToast(context, win ? tr('Verifikasi Windows Hello dibatalkan atau gagal') : tr('Verifikasi dibatalkan atau gagal'));
+    }
   }
 
   Future<void> _backupSheet(BuildContext context, AppStore store) async {
@@ -875,13 +849,6 @@ class _DeskSettingsState extends State<_DeskSettings> {
             ),
           ),
         ),
-        const SizedBox(height: 20),
-        DCard(
-          title: tr('Palet warna'),
-          child: Column(children: [
-            for (var p = 0; p < kPalettes.length; p++) _PaletteCard(index: p, selected: store.palette == p, onTap: () => store.setPalette(p)),
-          ]),
-        ),
       ],
       for (final g in shown) g,
     ]);
@@ -900,44 +867,6 @@ class _DeskSettingsState extends State<_DeskSettings> {
           ]);
         }),
       ],
-    );
-  }
-}
-
-class _PaletteCard extends StatelessWidget {
-  const _PaletteCard({required this.index, required this.selected, required this.onTap});
-
-  final int index;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final z = ZColors.of(context);
-    final p = kPalettes[index];
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Material(
-        color: selected ? z.toneBg('amber') : Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: selected ? z.primary : z.chipBorder, width: selected ? 2 : 1.4)),
-            child: Row(children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Row(children: [for (final c in p.swatches) Container(width: 28, height: 44, color: c)]),
-              ),
-              const SizedBox(width: 16),
-              Expanded(child: Text(tr(p.name), style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800))),
-              if (selected) Icon(Icons.check_circle_rounded, color: z.primary),
-            ]),
-          ),
-        ),
-      ),
     );
   }
 }

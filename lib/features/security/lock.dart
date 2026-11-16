@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show debugPrint, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
@@ -17,18 +18,26 @@ import '../../widgets/shape_art.dart';
 final _auth = LocalAuthentication();
 
 /// Bisa pakai sidik jari di HP ini?
+/// Windows Hello (wajah, sidik jari, atau PIN Windows) tersedia di PC ini?
+/// Di Windows cukup "perangkat didukung": Windows tidak punya pemeriksaan biometrik terpisah.
 Future<bool> biometricAvailable() async {
   try {
+    if (defaultTargetPlatform == TargetPlatform.windows) return await _auth.isDeviceSupported();
     return await _auth.isDeviceSupported() && await _auth.canCheckBiometrics;
   } catch (_) {
     return false;
   }
 }
 
+/// Minta verifikasi. Windows menolak parameter biometricOnly (melempar galat), jadi hanya Android yang memakainya.
 Future<bool> authenticateBiometric() async {
   try {
-    return await _auth.authenticate(localizedReason: tr('Buka Razarsa'), biometricOnly: true);
-  } catch (_) {
+    return await _auth.authenticate(
+      localizedReason: tr('Buka Razarsa'),
+      biometricOnly: defaultTargetPlatform != TargetPlatform.windows,
+    );
+  } catch (e) {
+    debugPrint('Razarsa: verifikasi biometrik gagal: $e');
     return false;
   }
 }

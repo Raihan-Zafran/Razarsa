@@ -135,14 +135,12 @@ void main() {
     await tester.pumpWidget(RazarsaApp(store: store));
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('Buat profil'), findsOneWidget);
-    expect(find.text('Lewati dulu'), findsOneWidget);
+    expect(find.text('Lewati dulu'), findsNothing);
     // Tidak ada yang berpura-pura jadi akun online.
     expect(find.textContaining('GOOGLE'), findsNothing);
     expect(find.textContaining('kata sandi', findRichText: true), findsNothing);
 
-    await tester.ensureVisible(find.text('Lewati dulu'));
-    await tester.pump();
-    await tester.tap(find.text('Lewati dulu'));
+    store.login(name: 'Budi');
     await tester.pump(const Duration(milliseconds: 800));
     expect(find.text('Transaksi Terbaru', skipOffstage: false), findsOneWidget);
     expect(find.text('Belum ada transaksi', skipOffstage: false), findsOneWidget);
@@ -177,7 +175,7 @@ void main() {
   });
 
   testWidgets('pindah ke mode Produktif', (tester) async {
-    SharedPreferences.setMockInitialValues({'loggedIn': true, 'mode': 'productive'});
+    SharedPreferences.setMockInitialValues({'loggedIn': true, 'userName': 'Budi', 'mode': 'productive'});
     final store = AppStore(await SharedPreferences.getInstance(), vault: testVault);
     await tester.pumpWidget(RazarsaApp(store: store));
     await tester.pump(const Duration(milliseconds: 800));

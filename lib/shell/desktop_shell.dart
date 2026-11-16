@@ -137,16 +137,9 @@ class _DesktopShellState extends State<DesktopShell> {
                 child: Row(children: [
                   _Sidebar(index: _index, rail: rail, onGo: _go, onToggleRail: () => setState(() => _rail = !_rail), onPalette: _openPalette, onLock: _lock),
                   Expanded(
-                    child: PageStagger(
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 260),
-                        transitionBuilder: (child, a) => FadeTransition(
-                          opacity: a,
-                          child: SlideTransition(position: Tween(begin: const Offset(0, 0.015), end: Offset.zero).animate(a), child: child),
-                        ),
-                        child: KeyedSubtree(key: ValueKey(_index), child: _page()),
-                      ),
-                    ),
+                    // Tanpa pudar/geser untuk seluruh halaman: tiap elemen sudah beranimasi sendiri (StaggerItem),
+                    // dan memudarkan halaman penuh sekaligus membuat animasi berat di GPU yang lemah.
+                    child: PageStagger(child: KeyedSubtree(key: ValueKey(_index), child: _page())),
                   ),
                 ]),
               ),

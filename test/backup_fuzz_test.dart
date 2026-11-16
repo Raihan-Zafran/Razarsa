@@ -51,7 +51,6 @@ void main() {
       src.addTxn(name: 'T$i', cat: i.isEven ? 'food' : 'salary', amount: i.isEven ? -1000 * (i + 1) : 5000, wallet: src.wallets[i % 3].id);
     }
     src.addGoal('Laptop', 5000000);
-    src.setPalette(2);
     final good = src.exportJson();
     final r = Random(7);
     for (var n = 0; n < 400; n++) {
@@ -71,7 +70,6 @@ void main() {
         expect(target.wallets.length, lessThanOrEqualTo(AppStore.maxWallets));
         final ids = {for (final w in target.wallets) w.id};
         expect(target.txns.every((t) => ids.contains(t.wallet)), isTrue, reason: 'iterasi $n');
-        expect(target.palette, inInclusiveRange(0, 3));
         expect(target.balance, isA<int>());
       }
     }
@@ -101,7 +99,6 @@ void main() {
       SharedPreferences.setMockInitialValues(prefs);
       final s = AppStore(await SharedPreferences.getInstance(), vault: testVault);
       expect(s.wallets, isNotEmpty, reason: '$prefs');
-      expect(s.palette, inInclusiveRange(0, 3));
       final ids = {for (final w in s.wallets) w.id};
       expect(s.txns.every((t) => ids.contains(t.wallet)), isTrue, reason: '$prefs');
       expect(ids.contains(s.defaultWallet.id), isTrue);

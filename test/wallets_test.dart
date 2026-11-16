@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:razarsa/core/palettes.dart';
 import 'package:razarsa/data/models.dart';
 import 'package:razarsa/data/store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -141,13 +140,11 @@ void main() {
       s.addWallet(name: 'OVO', type: 'ewallet', opening: 5000);
       final ovo = s.wallets.last.id;
       s.addTxn(name: 'Es', cat: 'food', amount: -7000, wallet: ovo);
-      s.setPalette(2);
       await s.flush();
       final back = AppStore(await SharedPreferences.getInstance(), vault: testVault);
       expect(back.wallets.map((w) => w.name), ['Tunai', 'OVO']);
       expect(back.txns.single.wallet, ovo);
       expect(back.lastWallet, ovo);
-      expect(back.palette, 2);
       expect(back.balance, -2000);
     });
 
@@ -251,24 +248,13 @@ void main() {
     });
   });
 
-  group('Palet', () {
-    test('bawaan Zamrud; indeks rusak kembali ke bawaan; pilihan tersimpan', () async {
-      expect((await newStore()).palette, kDefaultPalette);
-      expect((await newStore({'palette': 99})).palette, kDefaultPalette);
-      expect((await newStore({'palette': 'x'})).palette, kDefaultPalette);
-      final s = await newStore();
-      s.setPalette(3);
-      expect(s.palette, 3);
-      s.setPalette(-5);
-      expect(s.palette, kDefaultPalette);
-    });
-
-    test('backup membawa palet', () async {
-      final s = await newStore();
-      s.setPalette(2);
+  group('Palet (dihapus)', () {
+    test('data lama yang masih berisi palet dibaca tanpa galat dan tidak ditulis lagi', () async {
+      final s = await newStore({'palette': 3});
+      expect(s.exportJson().contains('"palette"'), isFalse);
       final other = await newStore();
-      expect(await other.importBackup(s.exportJson()), BackupResult.ok);
-      expect(other.palette, 2);
+      final legacy = s.exportJson().replaceFirst('"settings":{', '"settings":{"palette":2,');
+      expect(await other.importBackup(legacy), BackupResult.ok);
     });
   });
 }

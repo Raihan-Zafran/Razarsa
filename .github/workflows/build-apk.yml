@@ -146,8 +146,11 @@ jobs:
           BASE="razarsa-v${VERSION}-build${RUN_NUMBER}"
           [ "$SIGNED" = "true" ] || BASE="${BASE}-DEBUGKEY"
           mkdir -p dist
-          mv build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "dist/${BASE}-arm64.apk"
-          mv build/app/outputs/flutter-apk/app-release.apk "dist/${BASE}-universal.apk"
+          # Nama berkas dibuat singkat: Razarsa-2.1.0.apk (arm64, untuk hampir semua HP) dan Razarsa-2.1.0-universal.apk.
+          SUFFIX=""
+          [ "$SIGNED" = "true" ] || SUFFIX="-DEBUGKEY"
+          mv build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "dist/Razarsa-${VERSION}${SUFFIX}.apk"
+          mv build/app/outputs/flutter-apk/app-release.apk "dist/Razarsa-${VERSION}${SUFFIX}-universal.apk"
           {
             echo "base=$BASE"
             echo "version=$VERSION"
@@ -234,7 +237,7 @@ jobs:
             cp "/c/Windows/System32/$dll" "$REL/" || echo "::warning::$dll tidak ditemukan"
           done
           mkdir -p dist
-          powershell -NoProfile -Command "Compress-Archive -Path '$REL/*' -DestinationPath 'dist/${BASE}.zip'"
+          powershell -NoProfile -Command "Compress-Archive -Path '$REL/*' -DestinationPath 'dist/Razarsa-${VERSION}-portable.zip'"
           echo "base=$BASE" >> "$GITHUB_OUTPUT"
 
       # Pemasang satu berkas .exe (Inno Setup). Dipasang untuk pengguna saat ini, tanpa hak admin.
@@ -249,7 +252,7 @@ jobs:
           $ver = ((Select-String -Path pubspec.yaml -Pattern '^version:').Line -replace 'version:\s*','' -replace '\+.*','')
           $src = (Resolve-Path 'build/windows/x64/runner/Release').Path
           $out = (Resolve-Path 'dist').Path
-          & $iscc "/DAppVersion=$ver" "/DOutBase=$env:BASE-setup" "/DSrcDir=$src" "/DOutDir=$out" windows/installer/razarsa.iss
+          & $iscc "/DAppVersion=$ver" "/DOutBase=Razarsa-$ver" "/DSrcDir=$src" "/DOutDir=$out" windows/installer/razarsa.iss
           if ($LASTEXITCODE -ne 0) { throw "ISCC gagal ($LASTEXITCODE)" }
           Get-ChildItem dist
 
@@ -261,7 +264,8 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $dir = Join-Path $env:RUNNER_TEMP 'razarsa-uji'
-          $p = Start-Process -FilePath "dist/$env:BASE-setup.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/DIR=$dir" -Wait -PassThru
+          $ver = ((Select-String -Path pubspec.yaml -Pattern '^version:').Line -replace 'version:\s*','' -replace '\+.*','')
+          $p = Start-Process -FilePath "dist/Razarsa-$ver.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/DIR=$dir" -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "Pemasang gagal (kode $($p.ExitCode))" }
           if (-not (Test-Path "$dir\razarsa.exe")) { throw "razarsa.exe tidak terpasang" }
           $app = Start-Process -FilePath "$dir\razarsa.exe" -PassThru
@@ -363,7 +367,9 @@ jobs:
         run: |
           set -euo pipefail
           ls -l dist
-          ls dist/*-arm64.apk dist/*-universal.apk dist/*-windows-x64.zip dist/*-windows-x64-setup.exe
+          ls dist/Razarsa-*-universal.apk dist/Razarsa-*-portable.zip dist/Razarsa-*.exe
+          # APK arm64 = Razarsa-<versi>.apk (tanpa akhiran)
+          ls dist/Razarsa-*.apk | grep -v -- '-universal.apk' | grep -q .
 
       - name: Buat GitHub Release
         if: steps.rel.outputs.tag != ''

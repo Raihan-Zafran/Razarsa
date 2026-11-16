@@ -10,8 +10,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'helpers.dart';
 
-Future<AppStore> newStore() async {
-  SharedPreferences.setMockInitialValues({});
+Future<AppStore> newStore([Map<String, Object> init = const {}]) async {
+  SharedPreferences.setMockInitialValues(init);
   return AppStore(await SharedPreferences.getInstance(), vault: testVault);
 }
 
@@ -56,11 +56,11 @@ void main() {
   setUp(() => L.lang = 'id');
 
   group('Layar awal = profil lokal (tanpa pura-pura akun online)', () {
-    testWidgets('hanya dua pilihan; tidak ada Google, kata sandi akun, atau lupa kata sandi', (t) async {
+    testWidgets('hanya satu pilihan (buat profil); tidak ada Google, kata sandi akun, atau lupa kata sandi', (t) async {
       final s = await newStore();
       await app(t, s);
       expect(find.text('Buat profil'), findsOneWidget);
-      expect(find.text('Lewati dulu'), findsOneWidget);
+      expect(find.text('Lewati dulu'), findsNothing, reason: 'profil wajib dibuat');
       for (final gone in ['GOOGLE', 'Lupa kata sandi', 'MASUK DENGAN EMAIL', 'Belum punya akun']) {
         expect(find.textContaining(gone), findsNothing, reason: gone);
       }
@@ -81,14 +81,12 @@ void main() {
       await finish(t);
     });
 
-    testWidgets('Lewati dulu: masuk tanpa profil dan tanpa PIN', (t) async {
-      final s = await newStore();
+    testWidgets('tanpa profil tidak bisa masuk: pemilik data lama yang namanya kosong diminta membuat profil', (t) async {
+      final s = await newStore({'loggedIn': true});
       await app(t, s);
-      await t.tap(find.text('Lewati dulu'));
-      await t.pump(const Duration(milliseconds: 900));
       expect(s.loggedIn, isTrue);
-      expect(s.pinEnabled, isFalse);
-      expect(find.text('Transaksi Terbaru', skipOffstage: false), findsOneWidget);
+      expect(find.text('Buat profil'), findsOneWidget, reason: 'nama kosong = layar profil, bukan Beranda');
+      expect(find.text('Transaksi Terbaru', skipOffstage: false), findsNothing);
       await finish(t);
     });
   });

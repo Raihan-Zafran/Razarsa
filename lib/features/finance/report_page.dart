@@ -258,24 +258,17 @@ class _FlowChartCardState extends State<FlowChartCard> {
               ]),
             ])
           else
-          Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
-            Text(tr('Masuk dan keluar'), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: -0.15)),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text.rich(
-                TextSpan(children: [
-                  TextSpan(text: tr('14 hari · rata-rata keluar '), style: TextStyle(fontSize: 11.5, color: z.muted2)),
-                  TextSpan(
-                      text: rpShort(avg),
-                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: z.muted, fontFeatures: const [FontFeature.tabularFigures()])),
-                ]),
-                textAlign: TextAlign.end,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ]),
-          SizedBox(height: widget.desktop ? 14 : 26),
+          Text(tr('Masuk dan keluar'), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: -0.15)),
+          const SizedBox(height: 2),
+          Text.rich(
+            TextSpan(children: [
+              TextSpan(text: tr('14 hari · rata-rata keluar '), style: TextStyle(fontSize: 11.5, color: z.muted2)),
+              TextSpan(text: rpShort(avg), style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: z.muted, fontFeatures: const [FontFeature.tabularFigures()])),
+            ]),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          SizedBox(height: widget.desktop ? 14 : 22),
           Builder(builder: (context) {
             final h = widget.desktop ? 300.0 : 170.0;
             return GestureDetector(
@@ -324,7 +317,8 @@ class _FlowChartCardState extends State<FlowChartCard> {
                     right: 0,
                     top: 0,
                     bottom: 0,
-                    child: Row(children: [
+                    // stretch: tiap kolom setinggi area grafik, supaya batang berpangkal di garis dasar (bukan melayang di tengah).
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                       for (var i = 0; i < n; i++)
                         Expanded(
                           child: Container(

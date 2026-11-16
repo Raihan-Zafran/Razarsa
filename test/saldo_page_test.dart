@@ -339,23 +339,11 @@ void main() {
     expect(find.text('Masuk ke'), findsOneWidget);
   });
 
-  testWidgets('Pengaturan: ada Palet warna, tidak ada Tes notifikasi', (t) async {
+  testWidgets('Pengaturan: tidak ada Palet warna dan tidak ada Tes notifikasi', (t) async {
     final s = await newStore();
     await show(t, s, const Scaffold(body: SettingsPage()));
-    await t.scrollUntilVisible(find.text('Palet warna'), 200, scrollable: find.byType(Scrollable).first);
-    expect(find.text('Zamrud & champagne'), findsOneWidget);
+    expect(find.text('Palet warna'), findsNothing);
     await t.scrollUntilVisible(find.text('Pengingat tagihan'), 200, scrollable: find.byType(Scrollable).first);
     expect(find.text('Tes notifikasi'), findsNothing);
-  });
-
-  testWidgets('Pengaturan: memilih palet mengubah warna tema dan tersimpan', (t) async {
-    final s = await newStore();
-    await show(t, s, const Scaffold(body: SettingsPage()));
-    await t.scrollUntilVisible(find.text('Palet warna'), 200, scrollable: find.byType(Scrollable).first);
-    await t.tap(find.text('Palet warna'));
-    await t.pumpAndSettle();
-    await t.tap(find.text('Tengah malam & emas'));
-    await t.pumpAndSettle();
-    expect(s.palette, 2);
   });
 }

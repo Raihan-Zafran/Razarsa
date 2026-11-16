@@ -23,7 +23,7 @@ Aplikasi Flutter dengan dua mode: **Keuangan** dan **Produktif**. Semua data ter
 - Catatan dengan folder, sematan, dan kunci PIN (terenkripsi)
 
 **Umum**
-- Terang/gelap, Indonesia/English, palet warna yang bisa diatur
+- Terang/gelap dan Indonesia/English
 - Tampilan polos secara bawaan; **Pakai latar** menyalakan ilustrasi Gurun Senja (Keuangan) dan ruang kerja (Produktif) dengan efek kaca
 - **Kurangi efek** mematikan blur dan animasi untuk perangkat lama
 - Foto profil dan sampul dari galeri/berkas sendiri
@@ -59,11 +59,11 @@ Data tiap perangkat terpisah. **Belum ada sinkron otomatis**; untuk memindahkan 
 
 **Android**
 1. Buka halaman [**Releases**](../../releases/latest).
-2. Unduh **`…-arm64.apk`** (hampir semua HP modern) atau `…-universal.apk`.
+2. Unduh **`Razarsa-<versi>.apk`** (hampir semua HP modern) atau `Razarsa-<versi>-universal.apk` (semua HP).
 3. Pasang. Izinkan "sumber tidak dikenal" jika diminta.
 
 **Windows**
-1. Unduh **`…-windows-x64-setup.exe`** dari [Releases](../../releases/latest) lalu jalankan (terpasang untuk pengguna saat ini, tanpa hak admin). Atau unduh **`…-windows-x64.zip`**, ekstrak, dan jalankan `razarsa.exe`.
+1. Unduh **`Razarsa-<versi>.exe`** dari [Releases](../../releases/latest) lalu jalankan (terpasang untuk pengguna saat ini, tanpa hak admin). Atau unduh `Razarsa-<versi>-portable.zip`, ekstrak, dan jalankan `razarsa.exe`.
 2. File belum ditandatangani digital, jadi Windows bisa menampilkan peringatan SmartScreen: pilih "Informasi lebih lanjut" lalu "Tetap jalankan". Kalau Smart App Control aktif, Windows memblokirnya; matikan fitur itu atau tunggu versi bertanda tangan.
 
 ## Pengembangan

@@ -4,6 +4,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../data/photo_service.dart';
+import '../../widgets/profile_widgets.dart';
 import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../data/store.dart';
@@ -71,6 +73,20 @@ class _LoginScreenState extends State<LoginScreen> {
       if (_pw.text != _pw2.text) return tr('PIN dan ulangannya belum sama.');
     }
     return null;
+  }
+
+  Future<void> _pickPhoto(AppStore store) async {
+    final r = await PhotoService.pick(kind: 'avatar', size: PhotoService.avatarSize);
+    if (!mounted) return;
+    final path = r.path;
+    if (path != null) {
+      store.setPhotoPath(path);
+    } else if (r.error != null) {
+      setState(() {
+        _msgOk = false;
+        _msg = r.error == 'big' ? tr('Foto terlalu besar, maksimal 10 MB') : tr('Format foto tidak didukung. Pakai JPG atau PNG.');
+      });
+    }
   }
 
   void _submit(AppStore store) {
@@ -193,8 +209,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: TextStyle(fontSize: 14.5, height: 1.45, color: z.muted)),
             const SizedBox(height: 22),
             _Btn(label: tr('Buat profil'), bg: z.primary, fg: z.onPrimary, onTap: () => _go(_View.form)),
-            const SizedBox(height: 10),
-            _Btn(label: tr('Lewati dulu'), bg: Colors.transparent, fg: z.accentText, border: z.primary, onTap: () => store.login()),
             const SizedBox(height: 16),
             Text(tr('Datamu hanya tersimpan di HP ini. Tidak ada akun online.'),
                 textAlign: TextAlign.center, style: TextStyle(fontSize: 12.5, height: 1.45, color: z.muted2)),
@@ -212,14 +226,23 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Center(
             child: ListenableBuilder(
-              listenable: _name,
+              listenable: Listenable.merge([_name, store]),
               builder: (context, _) {
                 final n = _name.text.trim();
+                if (store.photoPath.isNotEmpty) return const ProfileAvatar(size: 104);
                 return ShapeEmblem(size: 104, child: Text(n.isEmpty ? '?' : String.fromCharCodes(n.runes.take(1)).toUpperCase()));
               },
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 4),
+          Center(
+            child: TextButton.icon(
+              onPressed: _busy ? null : () => _pickPhoto(store),
+              icon: const Icon(Icons.add_a_photo_outlined, size: 18),
+              label: Text(store.photoPath.isEmpty ? tr('Tambah foto (opsional)') : tr('Ganti foto')),
+            ),
+          ),
+          const SizedBox(height: 8),
           Text(tr('Siap mulai?'),
               textAlign: TextAlign.center, style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, letterSpacing: -0.9, color: z.text)),
           const SizedBox(height: 4),
@@ -296,19 +319,15 @@ class _Disc extends StatelessWidget {
 }
 
 class _Btn extends StatelessWidget {
-  const _Btn({required this.label, required this.bg, required this.fg, required this.onTap, this.border});
+  const _Btn({required this.label, required this.bg, required this.fg, required this.onTap});
 
   final String label;
   final Color bg, fg;
-  final Color? border;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(16),
-      side: border == null ? BorderSide.none : BorderSide(color: border!, width: 2),
-    );
+    final shape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(16));
     return Material(
       color: bg,
       shape: shape,

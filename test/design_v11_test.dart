@@ -144,7 +144,7 @@ void main() {
 
   group('Tampilan desain baru', () {
     testWidgets('toggle mode: dua ikon, satu ketukan langsung ganti mode', (t) async {
-      final s = await newStore({'loggedIn': true});
+      final s = await newStore({'loggedIn': true, 'userName': 'Budi'});
       await show(t, s, const ModeShell(mode: 'finance'));
       expect(find.byTooltip('Keuangan'), findsOneWidget);
       expect(find.byTooltip('Produktif'), findsOneWidget);
@@ -160,7 +160,7 @@ void main() {
     });
 
     testWidgets('grafik saldo: sentuh menampilkan saldo harian', (t) async {
-      final s = await newStore({'loggedIn': true});
+      final s = await newStore({'loggedIn': true, 'userName': 'Budi'});
       s.txns.add(txn('gaji', 5000000, DateTime.now()));
       final handle = t.ensureSemantics();
       await show(t, s, const ModeShell(mode: 'finance'));
@@ -199,7 +199,7 @@ void main() {
     });
 
     testWidgets('kartu Fokus: daftar sisa tugas hari ini, ketuk lingkaran untuk menyelesaikan', (t) async {
-      final s = await newStore({'loggedIn': true, 'mode': 'productive'});
+      final s = await newStore({'loggedIn': true, 'userName': 'Budi', 'mode': 'productive'});
       s.addTodo('Belajar', cat: 'Kuliah', tone: 'purple', due: DateTime.now());
       final handle = t.ensureSemantics();
       await show(t, s, const ModeShell(mode: 'productive'));
@@ -215,7 +215,7 @@ void main() {
     });
 
     testWidgets('Pengaturan dengan ikon polos tampil tanpa galat', (t) async {
-      final s = await newStore({'loggedIn': true});
+      final s = await newStore({'loggedIn': true, 'userName': 'Budi'});
       await show(t, s, const ModeShell(mode: 'finance'));
       final state = t.state(find.byType(ModeShell)) as dynamic;
       state.goTo(4);
@@ -232,7 +232,7 @@ void main() {
       await t.pumpWidget(const MaterialApp(
         home: PageStagger(child: StaggerItem(index: 3, child: Text('x'))),
       ));
-      double opacity() => t.widget<Opacity>(find.byType(Opacity)).opacity;
+      double opacity() => t.widget<FadeTransition>(find.descendant(of: find.byType(StaggerItem), matching: find.byType(FadeTransition))).opacity.value;
       expect(opacity(), 0);
       await t.pump(const Duration(milliseconds: 100));
       expect(opacity(), lessThan(0.2), reason: 'elemen ke-4 menunggu 180 ms');
@@ -247,7 +247,7 @@ void main() {
           child: PageStagger(child: StaggerItem(index: 3, child: Text('x'))),
         ),
       ));
-      expect(find.byType(Opacity), findsNothing);
+      expect(find.descendant(of: find.byType(StaggerItem), matching: find.byType(FadeTransition)), findsNothing);
       expect(find.text('x'), findsOneWidget);
     });
 

@@ -237,12 +237,14 @@ class _StaggerItemState extends State<StaggerItem> with SingleTickerProviderStat
   Widget build(BuildContext context) {
     final a = _a;
     if (a == null) return widget.child;
-    return AnimatedBuilder(
-      animation: a,
-      child: widget.child,
-      builder: (context, child) => Opacity(
-        opacity: a.value.clamp(0.0, 1.0),
-        child: Transform.translate(offset: Offset(0, 14 * (1 - a.value)), child: child),
+    // Isi dikemas RepaintBoundary: gambarnya dibuat sekali, lalu hanya digeser dan dipudarkan oleh kompositor.
+    // (Opacity biasa menggambar ulang seluruh isi tiap bingkai, itu yang membuat animasi di Windows patah-patah.)
+    return FadeTransition(
+      opacity: a,
+      child: AnimatedBuilder(
+        animation: a,
+        child: RepaintBoundary(child: widget.child),
+        builder: (context, child) => Transform.translate(offset: Offset(0, 14 * (1 - a.value)), child: child),
       ),
     );
   }

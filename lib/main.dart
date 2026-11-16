@@ -49,8 +49,8 @@ class RazarsaApp extends StatelessWidget {
         builder: (context, _) => MaterialApp(
           title: 'Razarsa',
           debugShowCheckedModeBanner: false,
-          theme: buildTheme(Brightness.light, palette: store.palette, plain: !store.useBg),
-          darkTheme: buildTheme(Brightness.dark, palette: store.palette, plain: !store.useBg),
+          theme: buildTheme(Brightness.light, plain: !store.useBg),
+          darkTheme: buildTheme(Brightness.dark, plain: !store.useBg),
           themeMode: store.themeMode,
           themeAnimationDuration: const Duration(milliseconds: 300),
           locale: store.lang == 'en' ? const Locale('en', 'US') : const Locale('id', 'ID'),
@@ -75,7 +75,7 @@ class RazarsaApp extends StatelessWidget {
           },
           home: AnimatedSwitcher(
             duration: const Duration(milliseconds: 400),
-            child: store.loggedIn ? const LockGate(key: ValueKey('app'), child: AppShell()) : const LoginScreen(key: ValueKey('login')),
+            child: store.loggedIn && store.userName.isNotEmpty ? const LockGate(key: ValueKey('app'), child: AppShell()) : const LoginScreen(key: ValueKey('login')),
           ),
         ),
       ),
