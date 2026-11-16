@@ -24,7 +24,7 @@ Future<void> app(WidgetTester t, AppStore s, {Size size = const Size(390, 844)})
 }
 
 Future<void> toForm(WidgetTester t) async {
-  await t.tap(find.text('BUAT PROFIL'));
+  await t.tap(find.text('Buat profil'));
   await t.pump(const Duration(milliseconds: 900));
 }
 
@@ -37,7 +37,7 @@ Future<void> fill(WidgetTester t, {String name = '', String email = '', String p
 }
 
 Future<void> submit(WidgetTester t) async {
-  await t.tap(find.text('MULAI'));
+  await t.tap(find.text('Ayo mulai!'));
   await t.pump();
   await t.pump(const Duration(milliseconds: 2000)); // pewaktu ekspresi karakter (1,5 dtk)
   await t.pump(const Duration(milliseconds: 600));
@@ -59,8 +59,8 @@ void main() {
     testWidgets('hanya dua pilihan; tidak ada Google, kata sandi akun, atau lupa kata sandi', (t) async {
       final s = await newStore();
       await app(t, s);
-      expect(find.text('BUAT PROFIL'), findsOneWidget);
-      expect(find.text('LEWATI DULU'), findsOneWidget);
+      expect(find.text('Buat profil'), findsOneWidget);
+      expect(find.text('Lewati dulu'), findsOneWidget);
       for (final gone in ['GOOGLE', 'Lupa kata sandi', 'MASUK DENGAN EMAIL', 'Belum punya akun']) {
         expect(find.textContaining(gone), findsNothing, reason: gone);
       }
@@ -81,10 +81,10 @@ void main() {
       await finish(t);
     });
 
-    testWidgets('LEWATI DULU: masuk tanpa profil dan tanpa PIN', (t) async {
+    testWidgets('Lewati dulu: masuk tanpa profil dan tanpa PIN', (t) async {
       final s = await newStore();
       await app(t, s);
-      await t.tap(find.text('LEWATI DULU'));
+      await t.tap(find.text('Lewati dulu'));
       await t.pump(const Duration(milliseconds: 900));
       expect(s.loggedIn, isTrue);
       expect(s.pinEnabled, isFalse);

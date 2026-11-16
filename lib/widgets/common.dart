@@ -3,26 +3,24 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 
 import '../core/theme.dart';
+import 'shape_art.dart';
 import '../data/models.dart';
 import '../data/store.dart';
 import '../core/i18n.dart';
 
 class Assets {
-  static const mascotCelebrate = 'assets/images/mascot_celebrate.webp';
-  static const mascotThinking = 'assets/images/mascot_thinking.webp';
-  static const mascotWorried = 'assets/images/mascot_worried.webp';
-  static const mascotWallet = 'assets/images/mascot_wallet.webp';
   static const sceneDay = 'assets/images/scene_day.webp';
   static const sceneNight = 'assets/images/scene_night.webp';
-  static const dragonHappy = 'assets/images/dragon_happy.webp';
-  static const dragonWin = 'assets/images/dragon_win.webp';
-  static const dragonCurious = 'assets/images/dragon_curious.webp';
   static const logo = 'assets/images/logo.png';
 }
 
 /// Tingkat efek kaca dari pengaturan (0 mati, 1 halus, 2 kuat). Tanpa store (misalnya di tes) dianggap mati.
-int glassLevelOf(BuildContext context) =>
-    context.dependOnInheritedWidgetOfExactType<StoreScope>()?.notifier?.glassLevel ?? 0;
+/// Kaca hanya berarti di atas latar ilustrasi, jadi mati juga saat "Pakai latar" atau "Kurangi efek" diubah.
+int glassLevelOf(BuildContext context) {
+  final s = context.dependOnInheritedWidgetOfExactType<StoreScope>()?.notifier;
+  if (s == null || !s.useBg || s.lite) return 0;
+  return s.glassLevel;
+}
 
 /// Permukaan kartu: warna biasa, atau kaca (tembus pandang + buram) kalau efek kaca menyala,
 /// supaya latar bergerak di belakangnya tetap terlihat.
@@ -311,11 +309,11 @@ class ZChip extends StatelessWidget {
 
 /// Tampilan kosong dengan maskot.
 class EmptyState extends StatelessWidget {
-  const EmptyState({super.key, required this.title, required this.message, this.image = Assets.mascotThinking, this.action});
+  const EmptyState({super.key, required this.title, required this.message, this.icon = Icons.inbox_rounded, this.action});
 
   final String title;
   final String message;
-  final String image;
+  final IconData icon;
   final Widget? action;
 
   @override
@@ -325,8 +323,8 @@ class EmptyState extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
       child: Column(
         children: [
-          Image.asset(image, width: 130),
-          const SizedBox(height: 10),
+          ShapeEmblem(size: 104, child: Icon(icon)),
+          const SizedBox(height: 8),
           Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
           Text(message, textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: z.muted, height: 1.45)),

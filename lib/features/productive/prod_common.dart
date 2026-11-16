@@ -8,28 +8,38 @@ import '../../data/productive_models.dart';
 import '../../data/store.dart';
 import '../../shell/app_shell.dart' show staggered;
 import '../../shell/classroom_background.dart';
+import '../../shell/layout.dart';
 import '../../widgets/common.dart';
 
 /// Halaman mode Produktif: judul di atas, lalu ruang kosong supaya kelas di latar terlihat.
 class ProdScroll extends StatelessWidget {
-  const ProdScroll({super.key, required this.header, required this.children});
+  const ProdScroll({super.key, required this.header, required this.children, this.wideHeader});
 
   final Widget header;
+
+  /// Judul untuk layar lebar kalau [header] berisi tombol mode/tema/profil (yang di desktop sudah ada di bilah atas).
+  final Widget? wideHeader;
   final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
     final mq = MediaQuery.of(context);
+    final wide = isWide(context);
     final scene = ClassroomBackground.heightFor(mq.size.width);
-    final gap = (scene - mq.padding.top - 12 - 48 - 4).clamp(16.0, 400.0);
-    return ListView(
-      padding: EdgeInsets.fromLTRB(20, mq.padding.top + 12, 20, mq.padding.bottom + 120),
-      children: [
-        ...staggered(context, [SizedBox(height: 48, child: header)]),
-        SizedBox(height: gap),
-        ...staggered(context, children, start: 1),
-      ],
-    );
+    final gap = !wide && StoreScope.of(context).useBg ? (scene - mq.padding.top - 12 - 48 - 4).clamp(16.0, 400.0) : 12.0;
+    return LayoutBuilder(builder: (context, box) {
+      final gutter = wide ? sideGutter(box.maxWidth, 820, min: 28) : 20.0;
+      return ListView(
+        padding: EdgeInsets.fromLTRB(gutter, wide ? 28 : mq.padding.top + 12, gutter, wide ? 36 : mq.padding.bottom + 120),
+        children: [
+          // Di desktop tombol mode, tema, dan profil sudah ada di bilah atas.
+          if (!wide) ...staggered(context, [SizedBox(height: 48, child: header)]),
+          if (wide) ...staggered(context, [SizedBox(height: 48, child: wideHeader ?? (header is ProdTitle ? header : const SizedBox.shrink()))]),
+          SizedBox(height: gap),
+          ...staggered(context, children, start: 1),
+        ],
+      );
+    });
   }
 }
 

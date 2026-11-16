@@ -2,19 +2,20 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
-import '../../data/store.dart';
-import '../../widgets/common.dart';
-import 'characters.dart';
 import '../../core/i18n.dart';
+import '../../core/theme.dart';
+import '../../data/store.dart';
+import '../../shell/layout.dart';
+import '../../widgets/common.dart';
+import '../../widgets/shape_art.dart';
 
 enum _View { welcome, form }
 
-/// Layar awal "Mulai pakai" dengan empat karakter kawaii: membuat profil LOKAL (nama, email opsional)
-/// dan, kalau mau, PIN. Tidak ada akun online dan tidak ada kata sandi akun: data hanya ada di HP ini,
-/// dan PIN adalah satu-satunya kunci aplikasi.
+/// Layar awal "Mulai pakai": membuat profil LOKAL (nama, email opsional) dan, kalau mau, PIN.
+/// Tidak ada akun online dan tidak ada kata sandi akun: data hanya ada di HP ini,
+/// dan PIN adalah satu-satunya kunci aplikasi. Ilustrasinya dari bentuk saja dan mengikuti tema.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -22,102 +23,26 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
+class _LoginScreenState extends State<LoginScreen> {
   _View _view = _View.welcome;
-  final _rig = CharacterRig();
-  late final Ticker _ticker;
-  Duration _last = Duration.zero;
 
   final _name = TextEditingController();
   final _email = TextEditingController();
   final _pw = TextEditingController();
   final _pw2 = TextEditingController();
-  final _nameF = FocusNode();
-  final _emailF = FocusNode();
-  final _pwF = FocusNode();
-  final _pw2F = FocusNode();
   bool _showPw = false;
   String _msg = '';
   bool _msgOk = false;
   bool _busy = false;
-  Timer? _greetT, _blinkT, _moodT;
-
-  @override
-  void initState() {
-    super.initState();
-    _ticker = createTicker(_tick)..start();
-    for (final f in [_nameF, _emailF, _pwF, _pw2F]) {
-      f.addListener(_syncFocus);
-    }
-    for (final c in [_name, _email, _pw, _pw2]) {
-      c.addListener(_syncFocus);
-    }
-    _greet();
-    _blinkT = Timer.periodic(const Duration(milliseconds: 2200), (_) {
-      _rig.blink = math.Random().nextInt(4);
-      Future.delayed(const Duration(milliseconds: 150), () => _rig.blink = -1);
-    });
-  }
+  Timer? _doneT;
 
   @override
   void dispose() {
-    _ticker.dispose();
-    _greetT?.cancel();
-    _blinkT?.cancel();
-    _moodT?.cancel();
+    _doneT?.cancel();
     for (final x in [_name, _email, _pw, _pw2]) {
       x.dispose();
     }
-    for (final x in [_nameF, _emailF, _pwF, _pw2F]) {
-      x.dispose();
-    }
     super.dispose();
-  }
-
-  void _tick(Duration elapsed) {
-    final dt = (elapsed - _last).inMicroseconds / 1e6;
-    _last = elapsed;
-    _rig.step(elapsed.inMicroseconds / 1e6, dt);
-    setState(() {});
-  }
-
-  void _greet() {
-    _rig.greeting = true;
-    _greetT?.cancel();
-    _greetT = Timer(const Duration(milliseconds: 3200), () => _rig.greeting = false);
-  }
-
-  // Posisi kolom isian dalam kanvas 390 x 844.
-  double get _fieldsTop => 372;
-  double _rowY(int i) => _fieldsTop + 26 + i * 66;
-
-  void _syncFocus() {
-    String focus = 'none';
-    TextEditingController? ctrl;
-    var row = 0;
-    if (_nameF.hasFocus) {
-      focus = 'name';
-      ctrl = _name;
-      row = 0;
-    } else if (_emailF.hasFocus) {
-      focus = 'email';
-      ctrl = _email;
-      row = 1;
-    } else if (_pwF.hasFocus) {
-      focus = 'pw'; // karakter menutup mata saat PIN diketik
-      ctrl = _pw;
-      row = 2;
-    } else if (_pw2F.hasFocus) {
-      focus = 'pw';
-      ctrl = _pw2;
-      row = 3;
-    }
-    _rig.focus = focus;
-    _rig.showPw = _showPw;
-    if (ctrl != null) {
-      final len = ctrl.selection.baseOffset < 0 ? ctrl.text.length : ctrl.selection.baseOffset;
-      _rig.target = Offset(math.min(24 + 50 + len * 8.4, 340), _rowY(row));
-    }
   }
 
   void _go(_View v) {
@@ -130,12 +55,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       _email.clear();
       _pw.clear();
       _pw2.clear();
-      _rig.mood = 'none';
-      _rig.focus = 'none';
-      _rig.target = const Offset(195, 420);
-      _rig.welcome = v == _View.welcome;
     });
-    if (v == _View.welcome) _greet();
   }
 
   /// Hasil pemeriksaan isian profil: null = valid, selain itu pesan kesalahan.
@@ -160,308 +80,244 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     final name = _name.text.trim().length > 30 ? _name.text.trim().substring(0, 30) : _name.text.trim();
     FocusScope.of(context).unfocus();
     setState(() {
-      _rig.mood = ok ? 'yay' : 'sad';
-      _rig.focus = 'none';
       _msgOk = ok;
       _msg = ok ? trf('Selamat datang, {0}!', [name]) : error;
       _busy = ok;
     });
-    _moodT?.cancel();
-    _moodT = Timer(const Duration(milliseconds: 1500), () {
+    if (!ok) return;
+    _doneT?.cancel();
+    _doneT = Timer(const Duration(milliseconds: 900), () {
       if (!mounted) return;
-      setState(() => _rig.mood = 'none');
-      if (ok) {
-        // PIN dipasang dulu: begitu masuk, sesi ini sudah terbuka (tidak diminta PIN yang baru dibuat).
-        if (_pw.text.isNotEmpty) store.setPin(_pw.text);
-        store.login(name: name, mail: _email.text.trim());
-      }
+      // PIN dipasang dulu: begitu masuk, sesi ini sudah terbuka (tidak diminta PIN yang baru dibuat).
+      if (_pw.text.isNotEmpty) store.setPin(_pw.text);
+      store.login(name: name, mail: _email.text.trim());
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final store = StoreScope.read(context);
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final c = _LoginColors(dark);
-    final grey = _view == _View.form && !(_msgOk && _busy);
-    // Dibaca di sini (di atas Scaffold): Scaffold menghapus inset keyboard dari MediaQuery untuk isinya.
-    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
-
-    return Scaffold(
-      // Tata letak keyboard diatur sendiri (lihat _fitCanvas): kanvas tidak boleh ikut mengecil.
-      resizeToAvoidBottomInset: false,
-      body: AnimatedContainer(
-        duration: const Duration(milliseconds: 600),
-        color: grey ? c.bgGrey : c.bg,
-        child: SafeArea(
-          child: Listener(
-            onPointerDown: (e) {
-              if (_rig.focus == 'none' && _view == _View.welcome && !_rig.greeting) _greet();
-            },
-            child: _fitCanvas(
-              inset: keyboard,
-              canvas: SizedBox(
-                key: const ValueKey('login-canvas'),
-                width: 390,
-                height: 844,
-                child: Stack(children: [
-                    // Logo
-                    Positioned(
-                      top: 44,
-                      left: 0,
-                      right: 0,
-                      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        const AppLogo(size: 42),
-                        const SizedBox(width: 8),
-                        Text('razarsa', style: TextStyle(fontSize: 38, fontWeight: FontWeight.w800, letterSpacing: -1.1, color: c.ink)),
-                      ]),
-                    ),
-                    // Karakter
-                    Positioned.fill(child: IgnorePointer(child: CustomPaint(painter: CharacterPainter(_rig)))),
-                    // Isi halaman
-                    Positioned.fill(
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 300),
-                        transitionBuilder: (child, a) => FadeTransition(
-                          opacity: a,
-                          child: SlideTransition(
-                            position: Tween(begin: const Offset(0, 0.02), end: Offset.zero).animate(a),
-                            child: child,
-                          ),
-                        ),
-                        child: KeyedSubtree(
-                          key: ValueKey(_view),
-                          child: _view == _View.welcome ? _welcome(c, store) : _form(c, store),
-                        ),
-                      ),
-                    ),
-                  ]),
-              ),
-            ),
-          ),
-        ),
+    final z = ZColors.of(context);
+    final wide = isWide(context);
+    final switcher = AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      transitionBuilder: (child, a) => FadeTransition(
+        opacity: a,
+        child: SlideTransition(position: Tween(begin: const Offset(0, 0.02), end: Offset.zero).animate(a), child: child),
       ),
+      child: KeyedSubtree(
+        key: ValueKey(_view),
+        child: _view == _View.welcome ? _welcome(z, store, wide: wide) : _form(z, store),
+      ),
+    );
+    // Jendela lebar (Windows): panel kiri berwarna utama berisi ilustrasi, panel kanan berisi isi.
+    if (wide) {
+      return Scaffold(
+        backgroundColor: z.bg,
+        body: Row(children: [
+          Expanded(flex: 11, child: _artPanel(z)),
+          Expanded(
+            flex: 10,
+            child: Stack(children: [
+              Positioned(right: -70, top: -70, child: _Disc(250, const Color(0xFFE8C86A), 0.28)),
+              Positioned(left: -70, bottom: -70, child: _Disc(220, z.primary, 0.07)),
+              Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 440), child: SafeArea(child: switcher))),
+            ]),
+          ),
+        ]),
+      );
+    }
+    return Scaffold(
+      backgroundColor: z.bg,
+      body: Stack(children: [
+        // Bentuk-bentuk dekoratif: lingkaran emas di kanan atas, lingkaran tema di kiri bawah.
+        Positioned(right: -70, top: -70, child: _Disc(230, const Color(0xFFE8C86A), 0.3)),
+        Positioned(left: -80, bottom: -80, child: _Disc(240, z.primary, 0.07)),
+        Positioned(right: 46, top: 112, child: _Disc(16, z.primary, 1)),
+        Positioned(left: 34, bottom: 210, child: _Disc(12, const Color(0xFF7FD6DE), 1)),
+        SafeArea(child: switcher),
+      ]),
     );
   }
 
-  /// Menempatkan kanvas 390x844. Tanpa keyboard: seluruh kanvas muat di layar (seperti semula).
-  /// Keyboard terbuka: hanya bagian isian + tombol yang ditampilkan, tetap berukuran hampir normal
-  /// dan berada di atas keyboard (sebelumnya seluruh kanvas ikut mengecil jadi sangat kecil).
-  Widget _fitCanvas({required Widget canvas, required double inset}) {
-    return LayoutBuilder(builder: (context, bc) {
-      final w = bc.maxWidth, h = bc.maxHeight;
-      // Bagian kanvas yang harus terlihat saat mengetik (daftar punya satu isian lebih banyak).
-      // Karakter (y≈135–320) ikut terlihat selama skalanya masih nyaman; di layar sangat pendek
-      // hanya bagian bawah karakter yang menyembul di atas isian, lalu hanya isian.
-      const bottom = 740.0;
-      final avail = math.max(h - inset, 160.0);
-      final sFull = math.min(w / 390, h / 844);
-      var top = 340.0;
-      var sKb = math.min(w / 390, avail / (bottom - top));
-      for (final cand in const [125.0, 290.0]) {
-        final sc = math.min(w / 390, avail / (bottom - cand));
-        if (sc >= 0.72) {
-          top = cand;
-          sKb = sc;
-          break;
-        }
-      }
-      return TweenAnimationBuilder<double>(
-        tween: Tween(end: inset > 0 ? 1.0 : 0.0),
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOut,
-        builder: (context, t, _) {
-          final s = sFull + (sKb - sFull) * t;
-          final dx = (w - 390 * s) / 2;
-          final dyFull = (h - 844 * sFull) / 2;
-          final dyKb = -top * sKb + (avail - (bottom - top) * sKb) / 2;
-          final dy = dyFull + (dyKb - dyFull) * t;
-          return ClipRect(
-            child: OverflowBox(
-              alignment: Alignment.topLeft,
-              minWidth: 0,
-              maxWidth: double.infinity,
-              minHeight: 0,
-              maxHeight: double.infinity,
-              child: Transform(
-                transform: Matrix4.identity()
-                  ..translateByDouble(dx, dy, 0, 1)
-                  ..scaleByDouble(s, s, 1, 1),
-                child: canvas,
-              ),
+  /// Panel ilustrasi untuk jendela lebar.
+  Widget _artPanel(ZColors z) {
+    return Container(
+      color: z.primary,
+      child: Stack(children: [
+        Positioned(left: -120, top: -120, child: _Disc(320, const Color(0xFFE8C86A), 0.16)),
+        Positioned(right: -90, bottom: -110, child: _Disc(300, z.onPrimary, 0.06)),
+        Center(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              const AppLogo(size: 54),
+              const SizedBox(width: 12),
+              Text('razarsa', style: TextStyle(fontSize: 40, fontWeight: FontWeight.w800, letterSpacing: -1.4, color: z.onPrimary)),
+            ]),
+            const SizedBox(height: 18),
+            HeroArt(width: 420, color: z.onPrimary),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: 380,
+              child: Text(tr('Catat uang dan kegiatanmu dalam satu aplikasi. Datamu tidak keluar dari komputer ini.'),
+                  textAlign: TextAlign.center, style: TextStyle(fontSize: 15, height: 1.55, color: z.onPrimary.withValues(alpha: 0.82))),
             ),
-          );
-        },
+          ]),
+        ),
+      ]),
+    );
+  }
+
+  Widget _welcome(ZColors z, AppStore store, {bool wide = false}) {
+    return LayoutBuilder(builder: (context, bc) {
+      final art = math.min(360.0, bc.maxWidth - 30);
+      return SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(28, 18, 28, 24),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: bc.maxHeight - 42),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            if (!wide) ...[
+              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                const AppLogo(size: 38),
+                const SizedBox(width: 8),
+                Text('razarsa', style: TextStyle(fontSize: 27, fontWeight: FontWeight.w800, letterSpacing: -0.9, color: z.text)),
+              ]),
+              const SizedBox(height: 6),
+              Center(child: HeroArt(width: art)),
+              const SizedBox(height: 4),
+            ],
+            Text(tr('Catat uang dan kegiatanmu,\nsantai aja.'),
+                style: TextStyle(fontSize: 30, height: 1.1, fontWeight: FontWeight.w800, letterSpacing: -1, color: z.text)),
+            const SizedBox(height: 10),
+            Text(tr('Uang, tugas, dan jadwal dalam satu aplikasi. Datamu tetap di HP ini.'),
+                style: TextStyle(fontSize: 14.5, height: 1.45, color: z.muted)),
+            const SizedBox(height: 22),
+            _Btn(label: tr('Buat profil'), bg: z.primary, fg: z.onPrimary, onTap: () => _go(_View.form)),
+            const SizedBox(height: 10),
+            _Btn(label: tr('Lewati dulu'), bg: Colors.transparent, fg: z.accentText, border: z.primary, onTap: () => store.login()),
+            const SizedBox(height: 16),
+            Text(tr('Datamu hanya tersimpan di HP ini. Tidak ada akun online.'),
+                textAlign: TextAlign.center, style: TextStyle(fontSize: 12.5, height: 1.45, color: z.muted2)),
+          ]),
+        ),
       );
     });
   }
 
-  Widget _welcome(_LoginColors c, AppStore store) {
-    return Stack(children: [
-      Positioned(
-        left: 24,
-        right: 24,
-        top: 516,
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          _PillButton(label: tr('BUAT PROFIL'), icon: Icons.person_add_alt_1_rounded, bg: c.priBg, fg: c.priFg, onTap: () => _go(_View.form)),
-          const SizedBox(height: 14),
-          _PillButton(
-            label: tr('LEWATI DULU'),
-            icon: Icons.arrow_forward_rounded,
-            bg: Colors.transparent,
-            fg: c.ink,
-            border: c.ink,
-            onTap: () => store.login(),
-          ),
-          const SizedBox(height: 18),
-          Text(
-            tr('Datamu hanya tersimpan di HP ini. Tidak ada akun online.'),
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, height: 1.45, color: c.muted),
-          ),
-        ]),
-      ),
-      Positioned(
-        left: 40,
-        right: 40,
-        bottom: 36,
-        child: Text.rich(
-          TextSpan(style: TextStyle(fontSize: 12, height: 1.5, color: c.muted), children: [
-            TextSpan(text: tr('Dengan melanjutkan, kamu menyetujui\n')),
-            TextSpan(text: tr('Ketentuan'), style: TextStyle(fontWeight: FontWeight.w800, color: c.ink)),
-            const TextSpan(text: ' & '),
-            TextSpan(text: tr('Kebijakan Privasi'), style: TextStyle(fontWeight: FontWeight.w800, color: c.ink)),
-          ]),
-          textAlign: TextAlign.center,
-        ),
-      ),
-    ]);
-  }
-
-  Widget _form(_LoginColors c, AppStore store) {
+  Widget _form(ZColors z, AppStore store) {
     final pinFormatters = [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(6)];
     return Stack(children: [
-      Positioned(
-        left: 8,
-        top: 42,
-        child: IconButton(
-          onPressed: () => _go(_View.welcome),
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: c.ink),
-          tooltip: tr('Kembali'),
-        ),
-      ),
-      Positioned(
-        top: 98,
-        left: 0,
-        right: 0,
-        child: Text(tr('Buat profilmu :)'),
-            textAlign: TextAlign.center, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w500, color: c.ink)),
-      ),
-      Positioned(
-        left: 24,
-        right: 24,
-        top: _fieldsTop,
+      SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(28, 40, 28, 24),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          _Field(controller: _name, focus: _nameF, hint: tr('Nama panggilan'), icon: Icons.person_outline_rounded, c: c),
-          const SizedBox(height: 14),
-          _Field(
-            controller: _email,
-            focus: _emailF,
-            hint: tr('Email (opsional)'),
-            icon: Icons.mail_outline_rounded,
-            c: c,
-            keyboard: TextInputType.emailAddress,
+          Center(
+            child: ListenableBuilder(
+              listenable: _name,
+              builder: (context, _) {
+                final n = _name.text.trim();
+                return ShapeEmblem(size: 104, child: Text(n.isEmpty ? '?' : String.fromCharCodes(n.runes.take(1)).toUpperCase()));
+              },
+            ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
+          Text(tr('Siap mulai?'),
+              textAlign: TextAlign.center, style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, letterSpacing: -0.9, color: z.text)),
+          const SizedBox(height: 4),
+          Text(tr('Cukup nama panggilan. Sisanya boleh dikosongkan.'),
+              textAlign: TextAlign.center, style: TextStyle(fontSize: 13.5, color: z.muted)),
+          const SizedBox(height: 20),
+          _Field(controller: _name, hint: tr('Nama panggilan'), icon: Icons.person_outline_rounded, z: z),
+          const SizedBox(height: 11),
+          _Field(controller: _email, hint: tr('Email (opsional)'), icon: Icons.mail_outline_rounded, z: z, keyboard: TextInputType.emailAddress),
+          const SizedBox(height: 11),
           _Field(
             controller: _pw,
-            focus: _pwF,
             hint: tr('PIN 6 angka (disarankan)'),
             icon: Icons.key_outlined,
-            c: c,
+            z: z,
             obscure: !_showPw,
             keyboard: TextInputType.number,
             formatters: pinFormatters,
             suffix: IconButton(
               tooltip: _showPw ? tr('Sembunyikan PIN') : tr('Tampilkan PIN'),
-              icon: Icon(_showPw ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: c.muted, size: 20),
-              onPressed: () => setState(() {
-                _showPw = !_showPw;
-                _rig.showPw = _showPw;
-              }),
+              icon: Icon(_showPw ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: z.muted2, size: 20),
+              onPressed: () => setState(() => _showPw = !_showPw),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 11),
           _Field(
             controller: _pw2,
-            focus: _pw2F,
             hint: tr('Ulangi PIN'),
             icon: Icons.key_outlined,
-            c: c,
+            z: z,
             obscure: !_showPw,
             keyboard: TextInputType.number,
             formatters: pinFormatters,
+            action: TextInputAction.done,
             onSubmit: () => _submit(store),
           ),
-          const SizedBox(height: 14),
-          _PillButton(label: tr('MULAI'), bg: c.priBg, fg: c.priFg, onTap: () => _submit(store)),
+          const SizedBox(height: 20),
+          _Btn(label: tr('Ayo mulai!'), bg: z.primary, fg: z.onPrimary, onTap: () => _submit(store)),
           Padding(
-            padding: const EdgeInsets.only(top: 10),
+            padding: const EdgeInsets.only(top: 12),
             child: Text(
               _msg.isNotEmpty ? _msg : tr('PIN tidak bisa dipulihkan kalau lupa. Kosongkan kalau belum mau dikunci.'),
               textAlign: TextAlign.center,
               style: _msg.isNotEmpty
-                  ? TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: _msgOk ? c.ok : c.err)
-                  : TextStyle(fontSize: 12.5, height: 1.4, color: c.muted),
+                  ? TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: _msgOk ? z.pos : z.warn)
+                  : TextStyle(fontSize: 12.5, height: 1.4, color: z.muted2),
             ),
           ),
         ]),
+      ),
+      Positioned(
+        left: 8,
+        top: 4,
+        child: IconButton(
+          onPressed: () => _go(_View.welcome),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: z.text),
+          tooltip: tr('Kembali'),
+        ),
       ),
     ]);
   }
 }
 
-class _LoginColors {
-  _LoginColors(bool d)
-      : bg = d ? const Color(0xFF0A100D) : const Color(0xFFF4F7F5),
-        bgGrey = d ? const Color(0xFF111A15) : const Color(0xFFE3EEE7),
-        ink = d ? const Color(0xFFEEF5F0) : const Color(0xFF111827),
-        muted = d ? const Color(0xFFA3B4AA) : const Color(0xFF4B5563),
-        field = d ? const Color(0xFF1B2721) : Colors.white,
-        line = d ? const Color(0xFF2C3E33) : const Color(0xFFD1DDD5),
-        focus = d ? const Color(0xFF4ADE80) : const Color(0xFF15803D),
-        priBg = d ? const Color(0xFF22C55E) : const Color(0xFF15803D),
-        priFg = d ? const Color(0xFF052E16) : Colors.white,
-        accent = d ? const Color(0xFF4ADE80) : const Color(0xFF15803D),
-        ok = d ? const Color(0xFF7DD3A0) : const Color(0xFF1F7A3A),
-        err = d ? const Color(0xFFFF8A80) : const Color(0xFFB3261E);
+class _Disc extends StatelessWidget {
+  const _Disc(this.size, this.color, this.alpha);
 
-  final Color bg, bgGrey, ink, muted, field, line, focus, priBg, priFg, accent, ok, err;
+  final double size;
+  final Color color;
+  final double alpha;
+
+  @override
+  Widget build(BuildContext context) =>
+      IgnorePointer(child: Container(width: size, height: size, decoration: BoxDecoration(shape: BoxShape.circle, color: color.withValues(alpha: alpha))));
 }
 
-class _PillButton extends StatelessWidget {
-  const _PillButton({required this.label, required this.bg, required this.fg, required this.onTap, this.icon, this.border});
+class _Btn extends StatelessWidget {
+  const _Btn({required this.label, required this.bg, required this.fg, required this.onTap, this.border});
 
   final String label;
-  final IconData? icon;
   final Color bg, fg;
   final Color? border;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+      side: border == null ? BorderSide.none : BorderSide(color: border!, width: 2),
+    );
     return Material(
       color: bg,
-      shape: StadiumBorder(side: border == null ? BorderSide.none : BorderSide(color: border!, width: 2)),
+      shape: shape,
       child: InkWell(
-        customBorder: const StadiumBorder(),
+        customBorder: shape,
         onTap: onTap,
         child: SizedBox(
           height: 52,
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            if (icon != null) ...[Icon(icon, color: fg, size: 20), const SizedBox(width: 12)],
-            Text(label, style: TextStyle(color: fg, fontWeight: FontWeight.w700, fontSize: 13, letterSpacing: 1.5)),
-          ]),
+          child: Center(child: Text(label, style: TextStyle(color: fg, fontWeight: FontWeight.w800, fontSize: 15))),
         ),
       ),
     );
@@ -471,67 +327,70 @@ class _PillButton extends StatelessWidget {
 class _Field extends StatelessWidget {
   const _Field({
     required this.controller,
-    required this.focus,
     required this.hint,
     required this.icon,
-    required this.c,
+    required this.z,
     this.obscure = false,
     this.suffix,
     this.keyboard,
     this.formatters,
     this.onSubmit,
+    this.action = TextInputAction.next,
   });
 
   final TextEditingController controller;
-  final FocusNode focus;
   final String hint;
   final IconData icon;
-  final _LoginColors c;
+  final ZColors z;
   final bool obscure;
   final Widget? suffix;
   final TextInputType? keyboard;
   final List<TextInputFormatter>? formatters;
   final VoidCallback? onSubmit;
+  final TextInputAction action;
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: focus,
-      builder: (context, _) => AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        height: 52,
-        padding: EdgeInsets.only(left: 18, right: suffix == null ? 18 : 4),
-        decoration: BoxDecoration(
-          color: c.field,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: focus.hasFocus ? c.focus : c.line, width: 2),
-        ),
-        child: Row(children: [
-          Icon(icon, color: c.muted, size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              focusNode: focus,
-              obscureText: obscure,
-              keyboardType: keyboard,
-              inputFormatters: formatters,
-              autocorrect: false,
-              enableSuggestions: false,
-              onSubmitted: (_) => onSubmit?.call(),
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: c.ink),
-              cursorColor: c.focus,
-              decoration: InputDecoration(
-                isCollapsed: true,
-                border: InputBorder.none,
-                hintText: hint,
-                hintStyle: TextStyle(color: c.muted.withValues(alpha: 0.7)),
+    return Focus(
+      child: Builder(builder: (context) {
+        final focused = Focus.of(context).hasFocus;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          height: 50,
+          padding: EdgeInsets.only(left: 16, right: suffix == null ? 16 : 4),
+          decoration: BoxDecoration(
+            color: z.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: focused ? z.primary : z.border, width: 1.5),
+          ),
+          child: Row(children: [
+            Icon(icon, color: z.muted2, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: TextField(
+                controller: controller,
+                obscureText: obscure,
+                keyboardType: keyboard,
+                inputFormatters: formatters,
+                autocorrect: false,
+                enableSuggestions: false,
+                textInputAction: action,
+                scrollPadding: const EdgeInsets.fromLTRB(20, 20, 20, 56),
+                onSubmitted: (_) => onSubmit?.call(),
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: z.text),
+                cursorColor: z.primary,
+                decoration: InputDecoration(
+                  isCollapsed: true,
+                  border: InputBorder.none,
+                  hintText: hint,
+                  hintStyle: TextStyle(color: z.muted2),
+                ),
               ),
             ),
-          ),
-          ?suffix,
-        ]),
-      ),
+            ?suffix,
+          ]),
+        );
+      }),
     );
   }
 }

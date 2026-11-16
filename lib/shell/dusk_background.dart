@@ -159,7 +159,7 @@ class _DuskImages {
       load(n, 'assets/dusk/$n.webp');
     }
     for (final n in _shared) {
-      load(n, 'assets/sky/$n.webp');
+      load(n, 'assets/dusk/$n.webp');
     }
   }
 }

@@ -4,6 +4,7 @@ import '../../core/format.dart';
 import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../data/store.dart';
+import '../../shell/layout.dart';
 import '../../widgets/common.dart';
 import 'prod_common.dart';
 
@@ -91,7 +92,7 @@ class _CalendarPageState extends State<CalendarPage> {
                 crossAxisCount: 7,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                childAspectRatio: 0.95,
+                childAspectRatio: isWide(context) ? 1.7 : 0.95,
                 children: [
                   for (final d in cells)
                     d == null ? const SizedBox() : _DayCell(day: d, selected: d == _sel, today: d == today, dots: store.agendaOn(d).take(3).map((a) => a.tone).toList(),
@@ -126,7 +127,7 @@ class _CalendarPageState extends State<CalendarPage> {
         ]),
         const SizedBox(height: 12),
         if (items.isEmpty)
-          EmptyState(image: Assets.dragonCurious, title: tr('Tidak ada agenda'), message: tr('Santai dulu, atau tekan + untuk menambah.'))
+          EmptyState(icon: Icons.event_available_outlined, title: tr('Tidak ada agenda'), message: tr('Santai dulu, atau tekan + untuk menambah.'))
         else ...[
           for (final a in items) AgendaRow(item: a),
           const SizedBox(height: 4),

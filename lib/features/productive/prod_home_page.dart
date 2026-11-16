@@ -30,6 +30,7 @@ class ProdHomePage extends StatelessWidget {
     final pinned = store.sortedNotes.where((n) => n.pinned).toList();
 
     return ProdScroll(
+      wideHeader: PageTitle(tr('Hari ini')),
       header: Row(children: [
         const Expanded(child: Align(alignment: Alignment.centerLeft, child: ModeSwitch())),
         const ThemeToggle(),
@@ -93,7 +94,7 @@ class ProdHomePage extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
           child: next.isEmpty
               ? EmptyState(
-                  image: Assets.dragonWin,
+                  icon: Icons.task_alt_rounded,
                   title: tr('Semua tugas selesai!'),
                   message: tr('Tambah tugas baru lewat kolom di atas.'),
                 )

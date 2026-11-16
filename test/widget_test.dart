@@ -134,13 +134,15 @@ void main() {
     final store = AppStore(await SharedPreferences.getInstance(), vault: testVault);
     await tester.pumpWidget(RazarsaApp(store: store));
     await tester.pump(const Duration(milliseconds: 500));
-    expect(find.text('BUAT PROFIL'), findsOneWidget);
-    expect(find.text('LEWATI DULU'), findsOneWidget);
+    expect(find.text('Buat profil'), findsOneWidget);
+    expect(find.text('Lewati dulu'), findsOneWidget);
     // Tidak ada yang berpura-pura jadi akun online.
     expect(find.textContaining('GOOGLE'), findsNothing);
     expect(find.textContaining('kata sandi', findRichText: true), findsNothing);
 
-    await tester.tap(find.text('LEWATI DULU'));
+    await tester.ensureVisible(find.text('Lewati dulu'));
+    await tester.pump();
+    await tester.tap(find.text('Lewati dulu'));
     await tester.pump(const Duration(milliseconds: 800));
     expect(find.text('Transaksi Terbaru'), findsOneWidget);
     expect(find.text('Belum ada transaksi'), findsOneWidget);
@@ -210,16 +212,16 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     final a = AppStore(prefs, vault: testVault);
-    expect(a.financeBg, 'sky');
+    expect(a.useBg, isFalse);
     expect(a.quickItems, isNotEmpty);
     final today = DateTime.now().day.clamp(1, 28);
     a.addRecurring(name: 'Netflix', cat: 'fun', amount: -54000, day: today);
     expect(a.txns.where((t) => t.name == 'Netflix').length, DateTime.now().day >= today ? 1 : 0);
     expect(a.postRecurring(), 0); // tidak dicatat dua kali di bulan yang sama
-    a.setFinanceBg('sky');
+    a.setUseBg(true);
     await Future<void>.delayed(Duration.zero);
     final b = AppStore(prefs, vault: testVault);
-    expect(b.financeBg, 'sky');
+    expect(b.useBg, isTrue);
     expect(b.recurring.single.name, 'Netflix');
   });
 

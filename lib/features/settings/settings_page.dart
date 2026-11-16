@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 
 import '../../core/palettes.dart';
@@ -18,7 +19,7 @@ import '../security/lock.dart';
 import 'manage_pages.dart';
 import 'profile_page.dart';
 import '../../shell/classroom_background.dart';
-import '../../shell/sky_background.dart';
+import '../../shell/dusk_background.dart';
 import '../../core/i18n.dart';
 
 /// Pengaturan dipakai bersama untuk semua mode Razarsa.
@@ -38,12 +39,13 @@ class SettingsPage extends StatelessWidget {
 
     return PageScroll(children: [
       PageTitle(tr('Pengaturan')),
-      // Ruang kosong supaya latar (gurun / kelas) terlihat.
+      // Ruang kosong supaya latar (gurun / kelas) terlihat; polos kalau "Pakai latar" mati.
       Builder(builder: (context) {
         final mq = MediaQuery.of(context);
+        if (!store.useBg) return const SizedBox(height: 8);
         final scene = store.mode == 'productive'
             ? ClassroomBackground.heightFor(mq.size.width) - 4
-            : SkyBackground.heightFor(mq.size.width) * 0.76;
+            : DuskBackground.heightFor(mq.size.width) * 0.76;
         return SizedBox(height: (scene - mq.padding.top - 12 - 48).clamp(12.0, 400.0));
       }),
       Material(
@@ -71,26 +73,28 @@ class SettingsPage extends StatelessWidget {
           ),
         ),
       ),
-      _Group(tr('Umum'), [
+      _Group(tr('Tampilan'), [
         _Row(icon: Icons.dark_mode_outlined, tone: 'purple', label: tr('Tampilan'), value: themeLabel, onTap: () => _pickTheme(context, store)),
-        _Row(icon: Icons.landscape_outlined, tone: 'amber', label: tr('Latar Keuangan'), value: store.financeBg == 'dusk' ? tr('Gurun Senja') : tr('Langit'),
-            onTap: () => _pick(context, tr('Latar Keuangan'), [('sky', tr('Langit')), ('dusk', tr('Gurun Senja'))], store.financeBg, store.setFinanceBg)),
-        _Row(icon: Icons.blur_on_rounded, tone: 'teal', label: tr('Efek kaca'),
-            value: const ['Mati', 'Halus', 'Kuat'].map(tr).toList()[store.glassLevel],
-            sub: tr('Kartu tembus pandang di atas latar'),
-            onTap: () => _pick(context, tr('Efek kaca'), [('0', tr('Mati')), ('1', tr('Halus')), ('2', tr('Kuat'))],
-                '${store.glassLevel}', (v) => store.setGlassLevel(int.parse(v)))),
         _Row(icon: Icons.palette_outlined, tone: 'pink', label: tr('Palet warna'), value: tr(kPalettes[store.palette].name),
             onTap: () => _pickPalette(context, store)),
+        _ToggleRow(Icons.wallpaper_rounded, tr('Pakai latar'), tr('Ilustrasi di Keuangan dan Produktif. Mati = polos'),
+            value: store.useBg, onChanged: store.setUseBg),
+        if (store.useBg)
+          _Row(icon: Icons.blur_on_rounded, tone: 'teal', label: tr('Efek kaca'),
+              value: const ['Mati', 'Halus', 'Kuat'].map(tr).toList()[store.glassLevel],
+              sub: tr('Kartu tembus pandang di atas latar'),
+              onTap: () => _pick(context, tr('Efek kaca'), [('0', tr('Mati')), ('1', tr('Halus')), ('2', tr('Kuat'))],
+                  '${store.glassLevel}', (v) => store.setGlassLevel(int.parse(v)))),
+        _ToggleRow(Icons.speed_rounded, tr('Kurangi efek'), tr('Matikan blur dan animasi supaya lebih ringan di HP lama'),
+            value: store.lite, onChanged: store.setLite),
+      ]),
+      _Group(tr('Umum'), [
         _Row(icon: Icons.language_rounded, tone: 'blue', label: tr('Bahasa'), value: store.lang == 'en' ? 'English' : 'Indonesia',
             onTap: () => _pick(context, tr('Bahasa'), [('id', 'Indonesia'), ('en', 'English')], store.lang, store.setLang)),
-        _Row(icon: Icons.calendar_month_outlined, tone: 'green', label: tr('Awal bulan anggaran'), value: trf('Tanggal {0}', [store.monthStartDay]),
-            sub: tr('Samakan dengan tanggal gajian'), onTap: () => _pickMonthStart(context, store)),
-        _Row(icon: Icons.view_week_outlined, tone: 'teal', label: tr('Awal minggu'), value: store.weekStartMonday ? tr('Senin') : tr('Hari Minggu'),
-            onTap: () => _pick(context, tr('Awal minggu'), [('mon', tr('Senin')), ('sun', tr('Hari Minggu'))],
-                store.weekStartMonday ? 'mon' : 'sun', (v) => store.setWeekStartMonday(v == 'mon'))),
       ]),
       _Group(tr('Keuangan'), [
+        _Row(icon: Icons.calendar_month_outlined, tone: 'green', label: tr('Awal bulan anggaran'), value: trf('Tanggal {0}', [store.monthStartDay]),
+            sub: tr('Samakan dengan tanggal gajian'), onTap: () => _pickMonthStart(context, store)),
         _Row(icon: Icons.sell_outlined, tone: 'orange', label: tr('Kategori'), value: trf('{0} kategori', [store.categoryCount]),
             onTap: () => pushPage(context, const CategoriesPage())),
         _Row(icon: Icons.bar_chart_rounded, tone: 'green', label: tr('Anggaran bulanan'), value: rpShort(store.monthlyBudget),
@@ -104,6 +108,13 @@ class SettingsPage extends StatelessWidget {
         _Row(icon: Icons.bolt_rounded, tone: 'amber', label: tr('Catat Cepat'), value: trf('{0} tombol', [store.quickItems.length]),
             onTap: () => pushPage(context, const QuickItemsPage())),
       ]),
+      _Group(tr('Produktif'), [
+        _Row(icon: Icons.view_week_outlined, tone: 'teal', label: tr('Awal minggu'), value: store.weekStartMonday ? tr('Senin') : tr('Hari Minggu'),
+            onTap: () => _pick(context, tr('Awal minggu'), [('mon', tr('Senin')), ('sun', tr('Hari Minggu'))],
+                store.weekStartMonday ? 'mon' : 'sun', (v) => store.setWeekStartMonday(v == 'mon'))),
+      ]),
+      // Pengingat dan layar aman memakai fitur Android; di Windows barisnya disembunyikan (bukan pura-pura jalan).
+      if (defaultTargetPlatform == TargetPlatform.android)
       _Group(tr('Notifikasi'), [
         _Switch(store, 'daily', Icons.notifications_none_rounded, 'purple', tr('Pengingat harian'), tr('Setiap hari pukul 20.00'),
             onChanged: (v) async {
@@ -140,12 +151,13 @@ class SettingsPage extends StatelessWidget {
         if (store.pinEnabled)
           _Row(icon: Icons.lock_clock_rounded, tone: 'blue', label: tr('Kunci sekarang'), sub: tr('Lihat layar kunci tanpa menutup aplikasi'),
               onTap: store.requestLock),
-        _Switch(store, 'bio', Icons.fingerprint_rounded, 'green', tr('Buka dengan sidik jari'), null, onChanged: (v) => _toggleBio(context, store, v)),
-        _Switch(store, 'secure', Icons.screenshot_monitor_rounded, 'purple', tr('Cegah tangkapan layar'),
-            tr('Isi aplikasi disembunyikan dari tangkapan layar dan daftar aplikasi terbaru saat PIN aktif')),
+        _Switch(store, 'bio', Icons.fingerprint_rounded, 'green', defaultTargetPlatform == TargetPlatform.windows ? tr('Buka dengan Windows Hello') : tr('Buka dengan sidik jari'), null, onChanged: (v) => _toggleBio(context, store, v)),
+        if (defaultTargetPlatform == TargetPlatform.android)
+          _Switch(store, 'secure', Icons.screenshot_monitor_rounded, 'purple', tr('Cegah tangkapan layar'),
+              tr('Isi aplikasi disembunyikan dari tangkapan layar dan daftar aplikasi terbaru saat PIN aktif')),
         _Switch(store, 'hide', Icons.visibility_off_outlined, 'gray', tr('Sembunyikan saldo'), tr('Saldo di Beranda tampil sebagai ••••')),
       ]),
-      _Group('Data', [
+      _Group(tr('Data dan cadangan'), [
         _Row(icon: Icons.cloud_upload_outlined, tone: 'blue', label: tr('Backup & Pulihkan'), sub: store.lastBackup.isEmpty ? tr('Belum pernah backup') : trf('Backup terakhir: {0}', [shortDate(DateTime.parse(store.lastBackup))]),
             onTap: () => _backupSheet(context, store)),
         _Row(icon: Icons.file_upload_outlined, tone: 'green', label: tr('Ekspor data'), value: 'CSV / Excel', onTap: () => _exportCsv(context, store)),
@@ -687,6 +699,43 @@ class _Row extends StatelessWidget {
               child: Text(value!, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.end, style: TextStyle(fontSize: 13, color: z.muted2)),
             ),
           if (!danger) Icon(Icons.chevron_right_rounded, color: z.muted2, size: 20),
+        ]),
+      ),
+    );
+  }
+}
+
+/// Baris saklar yang nilainya dari store (bukan peta [AppStore.switches]).
+class _ToggleRow extends StatelessWidget {
+  const _ToggleRow(this.icon, this.label, this.sub, {required this.value, required this.onChanged});
+
+  final IconData icon;
+  final String label;
+  final String sub;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final z = ZColors.of(context);
+    return InkWell(
+      onTap: () => onChanged(!value),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 58),
+        child: Row(children: [
+          SizedBox(width: 34, height: 34, child: Icon(icon, size: 21, color: z.text2)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 2),
+                Text(sub, style: TextStyle(fontSize: 12, color: z.muted2)),
+              ]),
+            ),
+          ),
+          Switch(value: value, onChanged: onChanged, activeThumbColor: Colors.white, activeTrackColor: z.primary),
         ]),
       ),
     );

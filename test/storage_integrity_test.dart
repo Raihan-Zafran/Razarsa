@@ -219,7 +219,7 @@ void main() {
       s.setMonthStart(25);
       s.setWeekStartMonday(false);
       s.setLang('en');
-      s.setFinanceBg('sky');
+      s.setUseBg(true);
       final file = s.exportJson();
       final other = await open(seed: {});
       expect(other.monthStartDay, 1);
@@ -227,7 +227,7 @@ void main() {
       expect(other.monthStartDay, 25);
       expect(other.weekStartMonday, isFalse);
       expect(other.lang, 'en');
-      expect(other.financeBg, 'sky');
+      expect(other.useBg, isTrue);
       s.setLang('id');
     });
 
@@ -306,14 +306,15 @@ void main() {
     test('nilai pengaturan di file diperiksa (tidak percaya begitu saja)', () async {
       final s = await open(seed: {});
       final bad = backupWith([], extra: {
-        'settings': {'monthStartDay': 99, 'currency': 'EUR', 'lang': 'xx', 'financeBg': 5, 'weekStartMonday': 'ya'},
+        'settings': {'monthStartDay': 99, 'currency': 'EUR', 'lang': 'xx', 'useBg': 5, 'lite': 'ya', 'weekStartMonday': 'ya'},
         'profile': {'bio': 12345, 'joinedAt': 'bukan-tanggal', 'activeDays': ['2026-01-01', 'sampah', 7]},
       });
       expect(await s.importBackup(jsonEncode(bad)), BackupResult.ok);
       expect(s.monthStartDay, inInclusiveRange(1, 28));
       expect(s.currency, 'IDR');
       expect(s.lang, 'id');
-      expect(s.financeBg, 'sky'); // nilai tidak dikenal -> latar bawaan
+      expect(s.useBg, isFalse); // nilai tidak dikenal -> polos (bawaan)
+      expect(s.lite, isFalse);
       expect(s.activeDays.where((d) => d == 'sampah'), isEmpty);
     });
 

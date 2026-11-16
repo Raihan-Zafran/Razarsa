@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/i18n.dart';
 import '../../core/theme.dart';
+import '../../data/photo_service.dart';
 import '../../data/profile_items.dart';
 import '../../data/store.dart';
 import '../../widgets/profile_widgets.dart';
@@ -27,6 +28,31 @@ class _ProfileStyleSheetState extends State<ProfileStyleSheet> {
   /// Petunjuk bingkai terkunci. Ditampilkan di dalam lembar (toast akan tertutup lembar ini).
   String? _hint;
 
+  /// Pesan hasil unggah foto (gagal / terlalu besar). Ditampilkan di dalam lembar, bukan toast.
+  String? _photoMsg;
+  bool _busy = false;
+
+  Future<void> _upload(AppStore store, {required bool cover}) async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _photoMsg = null;
+    });
+    final r = await PhotoService.pick(kind: cover ? 'cover' : 'avatar', size: cover ? PhotoService.coverSize : PhotoService.avatarSize);
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _photoMsg = switch (r.error) {
+        'big' => tr('Foto terlalu besar, maksimal 10 MB'),
+        'bad' => tr('Format foto tidak didukung. Pakai JPG atau PNG.'),
+        _ => null,
+      };
+    });
+    final path = r.path;
+    if (path == null) return;
+    cover ? store.setCoverPhotoPath(path) : store.setPhotoPath(path);
+  }
+
   @override
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
@@ -50,12 +76,25 @@ class _ProfileStyleSheetState extends State<ProfileStyleSheet> {
               child: Text(tr('Ubah tampilan profil'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
             ),
           ),
-          label(tr('Avatar')),
+          _PhotoActions(
+            key: const ValueKey('avatar-photo'),
+            title: tr('Avatar'),
+            hasPhoto: store.photoPath.isNotEmpty,
+            busy: _busy,
+            onUpload: () => _upload(store, cover: false),
+            onRemove: () => store.setPhotoPath(''),
+          ),
+          if (_photoMsg != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(_photoMsg!, key: const ValueKey('photo-msg'), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: z.warn)),
+            ),
+          const SizedBox(height: 10),
           Wrap(spacing: 12, runSpacing: 12, children: [
             for (final a in kAvatars)
               _Choice(
                 key: ValueKey('avatar-${a.id}'),
-                selected: store.avatar == a.id,
+                selected: store.photoPath.isEmpty && store.avatar == a.id,
                 semantics: a.label,
                 onTap: () => store.setAvatar(a.id),
                 child: Padding(padding: const EdgeInsets.all(4), child: Image.asset(a.asset, fit: BoxFit.contain)),
@@ -95,7 +134,15 @@ class _ProfileStyleSheetState extends State<ProfileStyleSheet> {
                 ),
               ]),
             ),
-          label(tr('Cover')),
+          _PhotoActions(
+            key: const ValueKey('cover-photo'),
+            title: tr('Cover'),
+            hasPhoto: store.coverPhotoPath.isNotEmpty,
+            busy: _busy,
+            onUpload: () => _upload(store, cover: true),
+            onRemove: () => store.setCoverPhotoPath(''),
+          ),
+          const SizedBox(height: 10),
           Row(children: [
             for (final c in kCovers) ...[
               Expanded(
@@ -113,7 +160,7 @@ class _ProfileStyleSheetState extends State<ProfileStyleSheet> {
                         clipBehavior: Clip.antiAlias,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(9),
-                          border: Border.all(color: store.cover == c.id ? z.primary : z.cardBorder, width: store.cover == c.id ? 3 : 1),
+                          border: Border.all(color: store.coverPhotoPath.isEmpty && store.cover == c.id ? z.primary : z.cardBorder, width: store.coverPhotoPath.isEmpty && store.cover == c.id ? 3 : 1),
                         ),
                         child: Image.asset(dark ? c.nightAsset : c.dayAsset, fit: BoxFit.cover, width: double.infinity),
                       ),
@@ -192,6 +239,39 @@ class _Choice extends StatelessWidget {
           ]),
         ),
       ),
+    );
+  }
+}
+
+/// Judul bagian (Avatar / Cover) dengan tombol unggah foto sendiri dan hapus foto.
+class _PhotoActions extends StatelessWidget {
+  const _PhotoActions({super.key, required this.title, required this.hasPhoto, required this.busy, required this.onUpload, required this.onRemove});
+
+  final String title;
+  final bool hasPhoto;
+  final bool busy;
+  final VoidCallback onUpload;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final z = ZColors.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: Row(children: [
+        Expanded(child: Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: z.muted))),
+        if (hasPhoto)
+          TextButton.icon(
+            onPressed: busy ? null : onRemove,
+            icon: const Icon(Icons.delete_outline_rounded, size: 18),
+            label: Text(tr('Hapus foto')),
+          ),
+        OutlinedButton.icon(
+          onPressed: busy ? null : onUpload,
+          icon: Icon(title == tr('Cover') ? Icons.add_photo_alternate_outlined : Icons.add_a_photo_outlined, size: 18),
+          label: Text(tr('Unggah foto')),
+        ),
+      ]),
     );
   }
 }

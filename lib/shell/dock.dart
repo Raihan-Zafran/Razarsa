@@ -1,8 +1,10 @@
 import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 
 import '../core/theme.dart';
+import '../data/store.dart';
 
 class DockItem {
   const DockItem(this.icon, this.label);
@@ -11,7 +13,39 @@ class DockItem {
   final String label;
 }
 
-/// Menu bawah: bar gelap dengan lekukan; bola hijau melompat ke menu yang dipilih.
+/// Pusat menu ke-[i] dari [n] pada bar selebar [w] (jarak sama, 54 px dari tepi).
+double dockCenterOf(int i, int n, double w) => 54 + (w - 108) / (n - 1) * i;
+
+/// Jalur bar dock selebar [size] dengan lekukan melingkar di titik [cx]. Lingkaran lekukan
+/// sepusat dengan bola aktif (jari-jari 26, pusat 6 px di bawah tepi atas), jadi bola
+/// duduk pas di dalamnya. Sudut bar membulat 20 px.
+Path dockPath(Size size, double cx) {
+  final w = size.width, h = size.height;
+  const r = 26.0, c = 6.0;
+  final xe = math.sqrt(r * r - c * c);
+  final a0 = math.atan2(-c, -xe) + 2 * math.pi;
+  const da = 0.42;
+  Offset pt(double a) => Offset(cx + r * math.cos(a), c + r * math.sin(a));
+  final l1 = pt(a0 - da);
+  final r1 = Offset(2 * cx - l1.dx, l1.dy);
+  return Path()
+    ..moveTo(20, 0)
+    ..lineTo(cx - xe - 9, 0)
+    ..quadraticBezierTo(cx - xe, 0, l1.dx, l1.dy)
+    ..arcToPoint(r1, radius: const Radius.circular(r), clockwise: false)
+    ..quadraticBezierTo(cx + xe, 0, cx + xe + 9, 0)
+    ..lineTo(w - 20, 0)
+    ..arcToPoint(Offset(w, 20), radius: const Radius.circular(20))
+    ..lineTo(w, h - 20)
+    ..arcToPoint(Offset(w - 20, h), radius: const Radius.circular(20))
+    ..lineTo(20, h)
+    ..arcToPoint(Offset(0, h - 20), radius: const Radius.circular(20))
+    ..lineTo(0, 20)
+    ..arcToPoint(const Offset(20, 0), radius: const Radius.circular(20))
+    ..close();
+}
+
+/// Menu bawah: bar kaca tipis dengan lekukan melingkar; bola aktif melompat ke menu yang dipilih.
 class ZDock extends StatefulWidget {
   const ZDock({super.key, required this.items, required this.index, required this.onTap});
 
@@ -43,28 +77,29 @@ class _ZDockState extends State<ZDock> with SingleTickerProviderStateMixin {
     super.dispose();
   }
 
-  static const double barH = 66;
-  static const double ball = 58;
+  static const double barH = 52;
+  static const double ball = 40;
+  static const double top = 26; // ruang di atas bar untuk bola yang melompat
 
   @override
   Widget build(BuildContext context) {
     final z = ZColors.of(context);
     final n = widget.items.length;
+    final lite = context.dependOnInheritedWidgetOfExactType<StoreScope>()?.notifier?.lite ?? false;
     return SizedBox(
-      height: barH + 26,
+      height: barH + top,
       child: LayoutBuilder(builder: (context, box) {
         final w = box.maxWidth;
-        // Ujung kiri/kanan diberi jarak supaya lekukan tidak memotong sudut bar.
-        const pad = 32.0;
-        final slot = (w - pad * 2) / n;
+        final step = (w - 108) / (n - 1);
         return AnimatedBuilder(
           animation: _c,
           builder: (context, _) {
             final t = Curves.easeInOutCubic.transform(_c.value);
-            final fromX = pad + slot * (_from + 0.5);
-            final toX = pad + slot * (widget.index + 0.5);
+            final fromX = dockCenterOf(_from, n, w);
+            final toX = dockCenterOf(widget.index, n, w);
             final cx = fromX + (toX - fromX) * t;
-            final hop = (widget.index == _from) ? 0.0 : math.sin(math.pi * _c.value) * 16;
+            final hop = (widget.index == _from) ? 0.0 : math.sin(math.pi * _c.value) * 14;
+            final path = dockPath(Size(w, barH), cx);
             return Stack(
               clipBehavior: Clip.none,
               children: [
@@ -73,55 +108,62 @@ class _ZDockState extends State<ZDock> with SingleTickerProviderStateMixin {
                   right: 0,
                   bottom: 0,
                   height: barH,
-                  child: CustomPaint(painter: _DockPainter(cx: cx, color: z['dock'], shadow: z['dockShadow'])),
+                  child: Stack(fit: StackFit.expand, children: [
+                    CustomPaint(painter: _DockShadow(path, z['dockShadow'])),
+                    ClipPath(
+                      clipper: _PathClipper(path),
+                      child: lite
+                          ? ColoredBox(color: z.card)
+                          : BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                              child: ColoredBox(color: z.card.withValues(alpha: 0.62)),
+                            ),
+                    ),
+                    CustomPaint(painter: _DockStroke(path, z.border)),
+                  ]),
                 ),
-                // Bola aktif
+                // Bola aktif: pusatnya sama dengan pusat lekukan (6 px di bawah tepi atas bar).
                 Positioned(
                   left: cx - ball / 2,
-                  bottom: barH - 34 + hop,
+                  bottom: barH - 26 + hop,
                   child: Container(
                     width: ball,
                     height: ball,
                     decoration: BoxDecoration(
                       color: z['ball'],
                       shape: BoxShape.circle,
-                      boxShadow: [BoxShadow(color: z['ball'].withValues(alpha: 0.3), blurRadius: 14, offset: const Offset(0, 6))],
+                      boxShadow: [
+                        BoxShadow(color: z['ball'].withValues(alpha: 0.28), spreadRadius: 3),
+                        BoxShadow(color: z['ballGlow'], blurRadius: 12, offset: const Offset(0, 5)),
+                      ],
                     ),
-                    child: Icon(widget.items[widget.index].icon, color: z['ballFg'], size: 24),
+                    child: Icon(widget.items[widget.index].icon, color: z['ballFg'], size: 20),
                   ),
                 ),
-                // Ikon-ikon
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  height: barH,
-                  child: Row(
-                    children: [
-                      const SizedBox(width: pad),
-                      for (var i = 0; i < n; i++)
-                        Expanded(
-                          child: Semantics(
-                            button: true,
-                            selected: i == widget.index,
-                            label: widget.items[i].label,
-                            child: InkResponse(
-                              onTap: () => widget.onTap(i),
-                              radius: 28,
-                              child: SizedBox.expand(
-                                child: AnimatedOpacity(
-                                  duration: const Duration(milliseconds: 250),
-                                  opacity: i == widget.index ? 0 : 1,
-                                  child: Icon(widget.items[i].icon, color: z['dockMuted'], size: 23),
-                                ),
-                              ),
-                            ),
+                // Ikon-ikon (yang aktif disembunyikan karena sudah ada di dalam bola)
+                for (var i = 0; i < n; i++)
+                  Positioned(
+                    left: dockCenterOf(i, n, w) - step / 2,
+                    width: step,
+                    bottom: 0,
+                    height: barH,
+                    child: Semantics(
+                      button: true,
+                      selected: i == widget.index,
+                      label: widget.items[i].label,
+                      child: InkResponse(
+                        onTap: () => widget.onTap(i),
+                        radius: 28,
+                        child: SizedBox.expand(
+                          child: AnimatedOpacity(
+                            duration: const Duration(milliseconds: 250),
+                            opacity: i == widget.index ? 0 : 1,
+                            child: Icon(widget.items[i].icon, color: z.muted2, size: 22),
                           ),
                         ),
-                      const SizedBox(width: pad),
-                    ],
+                      ),
+                    ),
                   ),
-                ),
               ],
             );
           },
@@ -131,31 +173,44 @@ class _ZDockState extends State<ZDock> with SingleTickerProviderStateMixin {
   }
 }
 
-class _DockPainter extends CustomPainter {
-  _DockPainter({required this.cx, required this.color, required this.shadow});
+class _PathClipper extends CustomClipper<Path> {
+  _PathClipper(this.path);
 
-  final double cx;
+  final Path path;
+
+  @override
+  Path getClip(Size size) => path;
+
+  @override
+  bool shouldReclip(covariant _PathClipper old) => old.path != path;
+}
+
+class _DockShadow extends CustomPainter {
+  _DockShadow(this.path, this.color);
+
+  final Path path;
   final Color color;
-  final Color shadow;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final bar = Path()..addRRect(RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(22)));
-    // Lekukan halus (bentuk sama dengan desain).
-    final notch = Path()
-      ..moveTo(cx - 56, -1)
-      ..lineTo(cx - 56, 0)
-      ..cubicTo(cx - 43, 0, cx - 39, 5, cx - 35.5, 13)
-      ..cubicTo(cx - 27, 32, cx - 17, 44, cx, 44)
-      ..cubicTo(cx + 17, 44, cx + 27, 32, cx + 35.5, 13)
-      ..cubicTo(cx + 39, 5, cx + 43, 0, cx + 56, 0)
-      ..lineTo(cx + 56, -1)
-      ..close();
-    final shape = Path.combine(PathOperation.difference, bar, notch);
-    canvas.drawShadow(shape, shadow, 10, false);
-    canvas.drawPath(shape, Paint()..color = color);
+    canvas.drawPath(path.shift(const Offset(0, 6)), Paint()..color = color.withValues(alpha: color.a * 0.5)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10));
   }
 
   @override
-  bool shouldRepaint(covariant _DockPainter old) => old.cx != cx || old.color != color;
+  bool shouldRepaint(covariant _DockShadow old) => old.path != path || old.color != color;
+}
+
+class _DockStroke extends CustomPainter {
+  _DockStroke(this.path, this.color);
+
+  final Path path;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawPath(path, Paint()..style = PaintingStyle.stroke..strokeWidth = 1..color = color);
+  }
+
+  @override
+  bool shouldRepaint(covariant _DockStroke old) => old.path != path || old.color != color;
 }

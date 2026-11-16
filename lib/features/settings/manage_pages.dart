@@ -8,8 +8,9 @@ import '../../data/models.dart';
 import '../../data/store.dart';
 import '../../shell/app_shell.dart';
 import '../../widgets/common.dart';
+import '../../widgets/count_up.dart';
 
-const kAppVersion = '1.3.1';
+const kAppVersion = '2.0.0';
 
 InputDecoration _input(BuildContext context, String hint, {String? prefix}) {
   final z = ZColors.of(context);
@@ -87,7 +88,7 @@ class QuickItemsPage extends StatelessWidget {
             style: TextStyle(fontSize: 13, color: z.muted, height: 1.45)),
         const SizedBox(height: 14),
         if (store.quickItems.isEmpty)
-          ZCard(child: EmptyState(title: tr('Belum ada tombol'), message: tr('Tekan + untuk menambah tombol Catat Cepat.')))
+          ZCard(child: EmptyState(icon: Icons.bolt_rounded, title: tr('Belum ada tombol'), message: tr('Tekan + untuk menambah tombol Catat Cepat.')))
         else
           ZCard(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
@@ -211,7 +212,7 @@ class RecurringPage extends StatelessWidget {
             style: TextStyle(fontSize: 13, color: z.muted, height: 1.45)),
         const SizedBox(height: 14),
         if (list.isEmpty)
-          ZCard(child: EmptyState(title: tr('Belum ada transaksi berulang'), message: tr('Tekan + untuk menambah, misalnya gaji tanggal 25.')))
+          ZCard(child: EmptyState(icon: Icons.repeat_rounded, title: tr('Belum ada transaksi berulang'), message: tr('Tekan + untuk menambah, misalnya gaji tanggal 25.')))
         else
           ZCard(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
@@ -633,12 +634,15 @@ class CategoryBudgetsPage extends StatelessWidget {
                 const SizedBox(height: 4),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(6),
-                  child: LinearProgressIndicator(
-                    key: ValueKey('bar-${c.id}'),
+                  child: FillIn(
                     value: pct.clamp(0, 1).toDouble(),
-                    minHeight: 6,
-                    backgroundColor: z.divider,
-                    color: over ? z.warn : (pct >= 0.9 ? Colors.orange : z.primary),
+                    builder: (_, v) => LinearProgressIndicator(
+                      key: ValueKey('bar-${c.id}'),
+                      value: v,
+                      minHeight: 6,
+                      backgroundColor: z.divider,
+                      color: over ? z.warn : (pct >= 0.9 ? Colors.orange : z.primary),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 4),

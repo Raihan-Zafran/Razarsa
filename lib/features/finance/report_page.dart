@@ -8,6 +8,7 @@ import '../../core/theme.dart';
 import '../../data/store.dart';
 import '../../shell/app_shell.dart';
 import '../../widgets/common.dart';
+import '../../widgets/count_up.dart';
 import '../../core/i18n.dart';
 
 enum Period { week, month, year }
@@ -90,11 +91,9 @@ class _ReportPageState extends State<ReportPage> {
           const SizedBox(height: 14),
           ClipRRect(
             borderRadius: BorderRadius.circular(99),
-            child: TweenAnimationBuilder<double>(
-              tween: Tween(end: pct.clamp(0, 1).toDouble()),
-              duration: const Duration(milliseconds: 600),
-              curve: Curves.easeOutCubic,
-              builder: (_, v, _) => LinearProgressIndicator(
+            child: FillIn(
+              value: pct.clamp(0, 1).toDouble(),
+              builder: (_, v) => LinearProgressIndicator(
                 value: v,
                 minHeight: 10,
                 backgroundColor: z.heroInner,
@@ -172,7 +171,7 @@ class _ReportPageState extends State<ReportPage> {
       SectionTitle(tr('Rincian per Kategori')),
       const SizedBox(height: 10),
       if (byCat.isEmpty)
-        ZCard(child: EmptyState(title: tr('Belum ada pengeluaran'), message: tr('Rincian kategori muncul setelah kamu mencatat pengeluaran.')))
+        ZCard(child: EmptyState(icon: Icons.donut_small_rounded, title: tr('Belum ada pengeluaran'), message: tr('Rincian kategori muncul setelah kamu mencatat pengeluaran.')))
       else
         ZCard(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
@@ -232,8 +231,16 @@ class _BudgetMood extends StatelessWidget {
         border: Border.all(color: warn ? z['warnBorder'] : z['tipBorder']),
       ),
       child: Row(children: [
-        Image.asset(warn ? Assets.mascotWorried : Assets.mascotCelebrate, width: 76),
-        const SizedBox(width: 10),
+        Padding(
+          padding: const EdgeInsets.only(left: 6),
+          child: Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: (warn ? z['warnTitle'] : z['tipTitle']).withValues(alpha: 0.14)),
+            child: Icon(warn ? Icons.warning_amber_rounded : Icons.emoji_events_outlined, color: warn ? z['warnTitle'] : z['tipTitle'], size: 26),
+          ),
+        ),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: warn ? z['warnTitle'] : z['tipTitle'])),

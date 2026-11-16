@@ -49,8 +49,8 @@ class RazarsaApp extends StatelessWidget {
         builder: (context, _) => MaterialApp(
           title: 'Razarsa',
           debugShowCheckedModeBanner: false,
-          theme: buildTheme(Brightness.light, palette: store.palette),
-          darkTheme: buildTheme(Brightness.dark, palette: store.palette),
+          theme: buildTheme(Brightness.light, palette: store.palette, plain: !store.useBg),
+          darkTheme: buildTheme(Brightness.dark, palette: store.palette, plain: !store.useBg),
           themeMode: store.themeMode,
           themeAnimationDuration: const Duration(milliseconds: 300),
           locale: store.lang == 'en' ? const Locale('en', 'US') : const Locale('id', 'ID'),
@@ -62,10 +62,15 @@ class RazarsaApp extends StatelessWidget {
           ],
           builder: (context, child) {
             final dark = Theme.of(context).brightness == Brightness.dark;
-            return AnnotatedRegion<SystemUiOverlayStyle>(
-              value: (dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark)
-                  .copyWith(statusBarColor: Colors.transparent),
-              child: child!,
+            final mq = MediaQuery.of(context);
+            // "Kurangi efek": semua animasi yang menghormati disableAnimations ikut mati.
+            return MediaQuery(
+              data: store.lite ? mq.copyWith(disableAnimations: true) : mq,
+              child: AnnotatedRegion<SystemUiOverlayStyle>(
+                value: (dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark)
+                    .copyWith(statusBarColor: Colors.transparent),
+                child: child!,
+              ),
             );
           },
           home: AnimatedSwitcher(

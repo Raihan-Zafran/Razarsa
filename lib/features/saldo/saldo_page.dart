@@ -39,7 +39,10 @@ String walletTypeLabel(String type) => switch (type) {
 
 /// "Saldo per sumber": graph bulat sumber → kategori → transaksi, lalu daftar sumber per jenis.
 class SaldoPage extends StatefulWidget {
-  const SaldoPage({super.key});
+  const SaldoPage({super.key, this.embedded = false});
+
+  /// true: ditampilkan di dalam kerangka desktop (tanpa tombol kembali, isi dipusatkan).
+  final bool embedded;
 
   @override
   State<SaldoPage> createState() => _SaldoPageState();
@@ -94,14 +97,12 @@ class _SaldoPageState extends State<SaldoPage> {
     String money(int v) => hidden ? rpHidden : rpNeg(v);
     final total = store.balance;
 
-    return Scaffold(
-      backgroundColor: z.bg,
-      body: ListView(
+    final list = ListView(
         padding: EdgeInsets.only(top: pad.top + 12, bottom: pad.bottom + 40),
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: PageTitle(tr('Saldo per sumber'), onBack: () => Navigator.of(context).pop()),
+            child: PageTitle(tr('Saldo per sumber'), onBack: widget.embedded ? null : () => Navigator.of(context).pop()),
           ),
           const SizedBox(height: 10),
           Stack(children: [
@@ -199,7 +200,10 @@ class _SaldoPageState extends State<SaldoPage> {
             ]),
           ),
         ],
-      ),
+      );
+    return Scaffold(
+      backgroundColor: z.bg,
+      body: widget.embedded ? Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 560), child: list)) : list,
     );
   }
 

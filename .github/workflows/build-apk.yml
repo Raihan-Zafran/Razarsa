@@ -1,6 +1,6 @@
 name: Build APK
 
-# Alur: verify (analyze + test, tanpa secret) -> build (APK) -> release (hanya kalau versi baru).
+# Alur: verify (analyze + test, tanpa secret) -> build (APK) + build-windows (zip) -> release (hanya kalau versi baru).
 # Push hanya di main dan tag; PR hanya menjalankan cek kode & tes (tanpa membangun APK).
 # Rilis dibuat kalau: push tag v*, push ke branch utama dengan versi baru di pubspec.yaml,
 # atau dijalankan manual dengan isian "rilis".
@@ -160,9 +160,60 @@ jobs:
           path: dist/*
           retention-days: 30
 
+  build-windows:
+    name: Build Windows
+    needs: verify
+    if: github.event_name != 'pull_request'
+    runs-on: windows-latest
+    timeout-minutes: 45
+    outputs:
+      base: ${{ steps.zip.outputs.base }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Unduh paket (sesuai pubspec.lock)
+        run: flutter pub get --enforce-lockfile
+
+      - name: Build Windows
+        run: flutter build windows --release
+
+      # Salin pustaka runtime Visual C++ supaya aplikasi jalan di PC yang belum memasang
+      # "Microsoft Visual C++ Redistributable".
+      - name: Kemas ZIP
+        id: zip
+        shell: bash
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //; s/+.*//')
+          BASE="razarsa-v${VERSION}-build${RUN_NUMBER}-windows-x64"
+          REL="build/windows/x64/runner/Release"
+          for dll in msvcp140.dll vcruntime140.dll vcruntime140_1.dll; do
+            cp "/c/Windows/System32/$dll" "$REL/" || echo "::warning::$dll tidak ditemukan"
+          done
+          mkdir -p dist
+          powershell -NoProfile -Command "Compress-Archive -Path '$REL/*' -DestinationPath 'dist/${BASE}.zip'"
+          echo "base=$BASE" >> "$GITHUB_OUTPUT"
+
+      - name: Simpan ZIP Windows (tab Actions > Artifacts)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ steps.zip.outputs.base }}
+          path: dist/*
+          retention-days: 30
+
   release:
     name: Buat GitHub Release
-    needs: build
+    needs: [build, build-windows]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # Hanya push (bukan PR) atau jalan manual. Detail tag ditentukan di langkah pertama.
@@ -229,6 +280,13 @@ jobs:
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
           name: ${{ needs.build.outputs.base }}
+          path: dist
+
+      - name: Ambil ZIP Windows dari build
+        if: steps.rel.outputs.tag != ''
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: ${{ needs.build-windows.outputs.base }}
           path: dist
 
       - name: Buat GitHub Release

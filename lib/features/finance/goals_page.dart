@@ -8,7 +8,9 @@ import '../../core/theme.dart';
 import '../../data/models.dart';
 import '../../data/store.dart';
 import '../../shell/app_shell.dart';
+import '../../shell/layout.dart';
 import '../../widgets/common.dart';
+import '../../widgets/count_up.dart';
 import '../../core/i18n.dart';
 
 class GoalsPage extends StatelessWidget {
@@ -43,6 +45,7 @@ class GoalsPage extends StatelessWidget {
       if (store.goals.isEmpty)
         ZCard(
           child: EmptyState(
+            icon: Icons.flag_rounded,
             title: tr('Belum ada target'),
             message: tr('Contoh: dana darurat, liburan, laptop baru, atau DP rumah.'),
             action: FilledButton.icon(
@@ -52,10 +55,19 @@ class GoalsPage extends StatelessWidget {
             ),
           ),
         ),
-      for (final g in store.goals) ...[
-        _GoalCard(goal: g, icon: iconFor(g.name)),
-        const SizedBox(height: 10),
-      ],
+      if (isWide(context) && store.goals.length > 1)
+        LayoutBuilder(builder: (context, box) {
+          final w = (box.maxWidth - 14) / 2;
+          return Wrap(spacing: 14, runSpacing: 14, children: [
+            for (final g in store.goals) SizedBox(width: w, child: _GoalCard(goal: g, icon: iconFor(g.name))),
+          ]);
+        })
+      else
+        for (final g in store.goals) ...[
+          _GoalCard(goal: g, icon: iconFor(g.name)),
+          const SizedBox(height: 10),
+        ],
+      if (isWide(context) && store.goals.length > 1) const SizedBox(height: 16),
       if (store.goals.isNotEmpty)
         Text(tr('Tap target untuk menambah atau mengurangi tabungan, tekan lama untuk mengubah atau menghapus.'),
             textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: z.muted2)),
@@ -135,7 +147,9 @@ class _GoalSummary extends StatelessWidget {
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
-                  child: Text(rp(saved),
+                  child: CountUp(
+                      value: saved,
+                      format: rp,
                       style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.5, fontFeatures: [FontFeature.tabularFigures()])),
                 ),
                 const SizedBox(height: 2),
@@ -147,11 +161,10 @@ class _GoalSummary extends StatelessWidget {
             SizedBox(
               width: 68,
               height: 68,
-              child: TweenAnimationBuilder<double>(
-                tween: Tween(end: progress),
-                duration: const Duration(milliseconds: 600),
-                curve: Curves.easeOut,
-                builder: (_, v, _) => CustomPaint(
+              child: FillIn(
+                value: progress,
+                duration: const Duration(milliseconds: 1100),
+                builder: (_, v) => CustomPaint(
                   painter: _RingPainter(v),
                   child: Center(child: Text(pct, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white))),
                 ),
@@ -242,11 +255,9 @@ class _GoalCard extends StatelessWidget {
           // Bar tipis (5 px); perkiraan selesai ada di baris bawahnya.
           ClipRRect(
             borderRadius: BorderRadius.circular(99),
-            child: TweenAnimationBuilder<double>(
-              tween: Tween(end: goal.progress),
-              duration: const Duration(milliseconds: 600),
-              curve: Curves.easeOut,
-              builder: (_, v, _) => LinearProgressIndicator(value: v, minHeight: 5, backgroundColor: z.track, color: z.primary),
+            child: FillIn(
+              value: goal.progress,
+              builder: (_, v) => LinearProgressIndicator(value: v, minHeight: 5, backgroundColor: z.track, color: z.primary),
             ),
           ),
           const SizedBox(height: 10),

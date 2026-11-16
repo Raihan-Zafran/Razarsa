@@ -14,9 +14,10 @@ import '../features/productive/todo_page.dart';
 import '../features/settings/settings_page.dart';
 import '../data/store.dart';
 import 'classroom_background.dart';
+import 'desktop_shell.dart';
 import 'dock.dart';
+import 'layout.dart';
 import 'dusk_background.dart';
-import 'sky_background.dart';
 import '../core/i18n.dart';
 import '../widgets/mode_widgets.dart' show ModeReveal;
 
@@ -41,6 +42,8 @@ class AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Jendela lebar (Windows): kerangka desktop dengan sidebar.
+    if (isWide(context)) return const DesktopShell();
     final mode = StoreScope.of(context).mode;
     final size = MediaQuery.sizeOf(context);
     // Transisi ganti mode: bulatan melebar dari tombol mode sampai memenuhi layar,
@@ -153,11 +156,11 @@ class _ModeShellState extends State<ModeShell> {
             top: 0,
             left: 0,
             right: 0,
-            child: _prod
-                ? ClassroomBackground(dark: dark, tab: _tab, name: StoreScope.of(context).userName)
-                : (StoreScope.of(context).financeBg == 'dusk'
-                    ? DuskBackground(dark: dark, tab: _tab)
-                    : SkyBackground(dark: dark, tab: _tab)),
+            child: !StoreScope.of(context).useBg
+                ? const SizedBox.shrink()
+                : (_prod
+                    ? ClassroomBackground(dark: dark, tab: _tab, name: StoreScope.of(context).userName)
+                    : DuskBackground(dark: dark, tab: _tab)),
           ),
           // Pindah tab: halaman baru muncul seketika, lalu elemen-elemennya naik satu per satu
           // (lihat [PageStagger]). Dock dan latar tidak ikut bergerak.
@@ -167,7 +170,7 @@ class _ModeShellState extends State<ModeShell> {
           Positioned(
             left: 16,
             right: 16,
-            bottom: 14 + bottomInset,
+            bottom: 10 + bottomInset,
             child: ZDock(items: _items, index: _tab, onTap: goTo),
           ),
         ],
@@ -254,25 +257,33 @@ List<Widget> staggered(BuildContext context, List<Widget> children, {int start =
 }
 
 /// Isi halaman yang bisa digulir dengan jarak aman atas dan bawah (untuk dock).
+/// Di layar lebar (desktop) isi dipusatkan dalam kolom selebar [maxWidth] dan tanpa ruang dock.
 class PageScroll extends StatelessWidget {
-  const PageScroll({super.key, required this.children, this.withDock = true});
+  const PageScroll({super.key, required this.children, this.withDock = true, this.maxWidth = 820});
 
   final List<Widget> children;
   final bool withDock;
+  final double maxWidth;
 
   @override
   Widget build(BuildContext context) {
     final pad = MediaQuery.of(context).padding;
-    return ListView(
-      padding: EdgeInsets.fromLTRB(20, pad.top + 12, 20, pad.bottom + (withDock ? 120 : 28)),
-      children: staggered(context, children),
-    );
+    final wide = isWide(context);
+    return LayoutBuilder(builder: (context, box) {
+      final gutter = wide ? sideGutter(box.maxWidth, maxWidth, min: 28) : 20.0;
+      return ListView(
+        padding: EdgeInsets.fromLTRB(gutter, wide ? 28 : pad.top + 12, gutter, wide ? 36 : pad.bottom + (withDock ? 120 : 28)),
+        children: staggered(context, children),
+      );
+    });
   }
 }
 
 /// Tutup pop-up lalu buka halaman pendukung.
 Future<T?> pushPage<T>(BuildContext context, Widget page) {
   ScaffoldMessenger.of(context).hideCurrentSnackBar();
+  // Jendela lebar: halaman pendukung tampil sebagai panel di tengah, bukan memenuhi layar.
+  if (isWide(context)) return Navigator.of(context).push<T>(panelRoute<T>(page));
   return Navigator.of(context).push<T>(slideUpRoute<T>(page));
 }
 
@@ -289,6 +300,37 @@ Route<T> slideUpRoute<T>(Widget page) => PageRouteBuilder<T>(
             position: Tween(begin: const Offset(0, 0.06), end: Offset.zero).animate(a),
             child: child,
           ),
+        );
+      },
+    );
+
+/// Rute panel untuk jendela lebar: halaman di dalam kartu bersudut membulat di tengah, latar digelapkan.
+Route<T> panelRoute<T>(Widget page) => PageRouteBuilder<T>(
+      opaque: false,
+      barrierDismissible: true,
+      barrierColor: Colors.black.withValues(alpha: 0.45),
+      transitionDuration: const Duration(milliseconds: 240),
+      reverseTransitionDuration: const Duration(milliseconds: 200),
+      pageBuilder: (context, _, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 620),
+            child: Material(
+              color: ZColors.of(context).bg,
+              elevation: 16,
+              borderRadius: BorderRadius.circular(20),
+              clipBehavior: Clip.antiAlias,
+              child: page,
+            ),
+          ),
+        ),
+      ),
+      transitionsBuilder: (_, anim, _, child) {
+        final a = CurvedAnimation(parent: anim, curve: const Cubic(0.22, 0.8, 0.3, 1), reverseCurve: Curves.easeIn);
+        return FadeTransition(
+          opacity: a,
+          child: ScaleTransition(scale: Tween(begin: 0.97, end: 1.0).animate(a), child: child),
         );
       },
     );

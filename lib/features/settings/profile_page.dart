@@ -29,7 +29,6 @@ class ProfilePage extends StatelessWidget {
 
     final badges = [for (final b in kBadges) (b, b.check(store))];
     final unlocked = badges.where((b) => b.$2).length;
-    final cover = kCovers.firstWhere((c) => c.id == store.cover, orElse: () => kCovers.first);
     final open = store.todayTodos;
 
     return Scaffold(
@@ -49,14 +48,7 @@ class ProfilePage extends StatelessWidget {
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             SizedBox(
               height: 128,
-              child: Stack(fit: StackFit.expand, children: [
-                Image.asset(cover.dayAsset, fit: BoxFit.cover),
-                AnimatedOpacity(
-                  duration: const Duration(milliseconds: 450),
-                  opacity: dark ? 1 : 0,
-                  child: Image.asset(cover.nightAsset, fit: BoxFit.cover),
-                ),
-              ]),
+              child: ProfileCover(coverId: store.cover, dark: dark),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),

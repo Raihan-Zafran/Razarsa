@@ -60,7 +60,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
       if (groups.isEmpty)
         Padding(
           padding: EdgeInsets.only(top: 24),
-          child: EmptyState(title: tr('Belum ada transaksi'), message: tr('Transaksi yang kamu catat akan muncul di sini.')),
+          child: EmptyState(icon: Icons.receipt_long_rounded, title: tr('Belum ada transaksi'), message: tr('Transaksi yang kamu catat akan muncul di sini.')),
         ),
       for (final e in groups.entries) ...[
         const SizedBox(height: 12),

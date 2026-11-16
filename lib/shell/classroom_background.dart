@@ -115,21 +115,6 @@ class _ClassroomBackgroundState extends State<ClassroomBackground> with TickerPr
                     ),
                   ),
                 ),
-                Positioned(
-                  right: 14 * s,
-                  top: 130 * s,
-                  width: 112 * s,
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 400),
-                    opacity: widget.tab == 0 ? 1 : 0,
-                    child: ValueListenableBuilder<double>(
-                      valueListenable: _time,
-                      builder: (context, t, child) =>
-                          Transform.translate(offset: Offset(0, -4 * s * math.sin(t * math.pi / 2)), child: child),
-                      child: Image.asset(Assets.dragonHappy),
-                    ),
-                  ),
-                ),
               ]),
             ),
           ),

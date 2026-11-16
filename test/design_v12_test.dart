@@ -44,23 +44,25 @@ void main() {
   setUp(() => L.lang = 'id');
 
   group('Latar dan efek kaca (data)', () {
-    test('bawaan: Langit dan kaca halus', () async {
+    test('bawaan: latar mati (polos), kaca halus, efek penuh', () async {
       final s = await newStore();
-      expect(s.financeBg, 'sky');
+      expect(s.useBg, isFalse);
+      expect(s.lite, isFalse);
       expect(s.glassLevel, 1);
     });
 
-    test('latar Gurun lama otomatis menjadi Langit; Gurun Senja dipertahankan', () async {
-      expect((await newStore({'financeBg': 'desert'})).financeBg, 'sky');
-      expect((await newStore({'financeBg': 'dusk'})).financeBg, 'dusk');
-      expect(AppStore.normalizeFinanceBg('desert'), 'sky');
-      expect(AppStore.normalizeFinanceBg(null), 'sky');
-      expect(AppStore.normalizeFinanceBg(5), 'sky');
+    test('data lama: Gurun Senja menyala, Langit/Gurun lama menjadi polos', () async {
+      expect((await newStore({'financeBg': 'desert'})).useBg, isFalse);
+      expect((await newStore({'financeBg': 'sky'})).useBg, isFalse);
+      expect((await newStore({'financeBg': 'dusk'})).useBg, isTrue);
+      expect((await newStore({'financeBg': 5})).useBg, isFalse);
+      // Kunci baru menang atas yang lama.
+      expect((await newStore({'financeBg': 'dusk', 'useBg': false})).useBg, isFalse);
       final s = await newStore();
-      s.setFinanceBg('desert'); // tidak bisa dipilih lagi
-      expect(s.financeBg, 'sky');
-      s.setFinanceBg('dusk');
-      expect(s.financeBg, 'dusk');
+      s.setUseBg(true);
+      expect(s.useBg, isTrue);
+      s.setLite(true);
+      expect(s.lite, isTrue);
     });
 
     test('tingkat kaca dibatasi 0..2 dan ikut tersimpan', () async {
@@ -78,30 +80,40 @@ void main() {
 
     test('backup membawa latar dan efek kaca; nilai rusak diabaikan', () async {
       final s = await newStore();
-      s.setFinanceBg('dusk');
+      s.setUseBg(true);
+      s.setLite(true);
       s.setGlassLevel(2);
       final file = s.exportJson();
       final other = await newStore();
       expect(await other.importBackup(file), BackupResult.ok);
-      expect(other.financeBg, 'dusk');
+      expect(other.useBg, isTrue);
+      expect(other.lite, isTrue);
       expect(other.glassLevel, 2);
-      // File lama berisi Gurun: dipindah ke Langit.
+      // File lama hanya punya 'financeBg': 'dusk' menyala, 'desert' polos; nilai rusak diabaikan.
       final m = jsonDecode(file) as Map<String, dynamic>;
       (m['settings'] as Map<String, dynamic>)
-        ..['financeBg'] = 'desert'
+        ..remove('useBg')
+        ..remove('lite')
+        ..['financeBg'] = 'dusk'
         ..['glassLevel'] = 'x';
-      final old = jsonEncode(m);
       final third = await newStore();
       third.setGlassLevel(0);
-      expect(await third.importBackup(old), BackupResult.ok);
-      expect(third.financeBg, 'sky');
+      expect(await third.importBackup(jsonEncode(m)), BackupResult.ok);
+      expect(third.useBg, isTrue);
+      expect(third.lite, isFalse);
       expect(third.glassLevel, 0);
+      (m['settings'] as Map<String, dynamic>)['financeBg'] = 'desert';
+      final fourth = await newStore();
+      fourth.setUseBg(true);
+      expect(await fourth.importBackup(jsonEncode(m)), BackupResult.ok);
+      expect(fourth.useBg, isFalse);
     });
   });
 
   group('Efek kaca (tampilan)', () {
     Future<void> pumpCard(WidgetTester t, int level) async {
       final s = await newStore();
+      s.setUseBg(true); // kaca hanya berlaku di atas latar
       s.setGlassLevel(level);
       await show(t, s, const Scaffold(body: Center(child: ZCard(child: Text('isi')))));
     }

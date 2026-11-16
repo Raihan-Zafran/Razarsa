@@ -197,17 +197,55 @@ class ZColors extends ThemeExtension<ZColors> {
 
 const kFont = 'PlusJakartaSans';
 
-/// Warna untuk satu mode dan palet: warna dasar, lalu ditimpa oleh palet yang dipilih.
-ZColors zColorsFor(Brightness brightness, int palette) {
-  final base = brightness == Brightness.dark ? ZColors.dark : ZColors.light;
+/// Warna dasar saat "Pakai latar" mati: terang abu kehijauan (mist), gelap biru petrol.
+/// Ditimpa di atas palet yang dipilih supaya halaman polos tetap sejuk dan terbaca.
+const _plainLight = <String, Color>{
+  'bg': Color(0xFFEDF3F1),
+  'card': Color(0xFFFFFFFF),
+  'cardBorder': Color(0x00FFFFFF),
+  'divider': Color(0xFFE1EAE7),
+  'border': Color(0xFFD8E3DF),
+  'chipBorder': Color(0xFFC6D5D0),
+  'track': Color(0xFFE2EBE8),
+  'grayBg': Color(0xFFE6EEEB),
+  'disabledBg': Color(0xFFDBE5E1),
+  'tipBg': Color(0xFFE6F0EC),
+};
+
+const _plainDark = <String, Color>{
+  'bg': Color(0xFF0F171E),
+  'card': Color(0xFF16222C),
+  'cardBorder': Color(0xFF243441),
+  'divider': Color(0xFF243441),
+  'border': Color(0xFF2A3B49),
+  'chipBorder': Color(0xFF35495B),
+  'track': Color(0xFF1C2B37),
+  'grayBg': Color(0xFF1C2B37),
+  'disabledBg': Color(0xFF213240),
+  'tipBg': Color(0xFF182633),
+  'dock': Color(0xFF1B2A36),
+  'dockShadow': Color(0x8C000000),
+  'dockMuted': Color(0xFF8FA3B3),
+};
+
+/// Warna untuk satu mode dan palet: warna dasar, ditimpa palet yang dipilih,
+/// lalu (kalau [plain], yaitu "Pakai latar" mati) ditimpa warna polos mist/petrol.
+ZColors zColorsFor(Brightness brightness, int palette, {bool plain = false}) {
+  final dark = brightness == Brightness.dark;
+  final base = dark ? ZColors.dark : ZColors.light;
   final p = kPalettes[clampPalette(palette)];
-  final over = brightness == Brightness.dark ? p.dark : p.light;
-  if (over.isEmpty) return base;
-  return ZColors({...base.c, for (final e in over.entries) if (base.c.containsKey(e.key)) e.key: e.value});
+  final over = dark ? p.dark : p.light;
+  var c = base.c;
+  if (over.isNotEmpty) c = {...c, for (final e in over.entries) if (c.containsKey(e.key)) e.key: e.value};
+  if (plain) {
+    final pl = dark ? _plainDark : _plainLight;
+    c = {...c, for (final e in pl.entries) if (c.containsKey(e.key)) e.key: e.value};
+  }
+  return identical(c, base.c) ? base : ZColors(c);
 }
 
-ThemeData buildTheme(Brightness brightness, {int palette = kDefaultPalette}) {
-  final z = zColorsFor(brightness, palette);
+ThemeData buildTheme(Brightness brightness, {int palette = kDefaultPalette, bool plain = false}) {
+  final z = zColorsFor(brightness, palette, plain: plain);
   final base = ThemeData(
     useMaterial3: true,
     brightness: brightness,
@@ -242,6 +280,7 @@ ThemeData buildTheme(Brightness brightness, {int palette = kDefaultPalette}) {
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: z.card,
       showDragHandle: true,
+      constraints: const BoxConstraints(maxWidth: 560), // di jendela lebar lembar tetap rapi di tengah
     ),
   );
 }

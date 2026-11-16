@@ -7,7 +7,6 @@ import 'package:razarsa/data/models.dart';
 import 'package:razarsa/data/store.dart';
 import 'package:razarsa/features/finance/goals_page.dart';
 import 'package:razarsa/shell/app_shell.dart';
-import 'package:razarsa/shell/sky_background.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'helpers.dart';
@@ -264,31 +263,6 @@ void main() {
       expect(items.whereType<StaggerItem>().length, StaggerItem.maxItems);
       expect(items.length, 10);
     });
-  });
-
-  group('Latar Langit', () {
-    for (final dark in [false, true]) {
-      for (final reduce in [false, true]) {
-        testWidgets('semua halaman tergambar tanpa galat (gelap=$dark, kurangi animasi=$reduce)', (t) async {
-          t.view.physicalSize = const Size(390 * 2, 844 * 2);
-          t.view.devicePixelRatio = 2;
-          addTearDown(t.view.reset);
-          for (var tab = 0; tab < 5; tab++) {
-            await t.pumpWidget(MaterialApp(
-              home: MediaQuery(
-                data: MediaQueryData(disableAnimations: reduce),
-                child: Scaffold(body: SkyBackground(dark: dark, tab: tab)),
-              ),
-            ));
-            await t.pump(const Duration(milliseconds: 500));
-            await t.pump(const Duration(seconds: 2));
-            expect(tester(t), isNull);
-          }
-          await t.pumpWidget(const SizedBox());
-          await t.pump(const Duration(seconds: 1));
-        });
-      }
-    }
   });
 }
 

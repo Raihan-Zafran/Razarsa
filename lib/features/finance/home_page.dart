@@ -7,7 +7,9 @@ import '../../core/theme.dart';
 import '../../data/models.dart';
 import '../../data/store.dart';
 import '../../shell/app_shell.dart';
+import '../../shell/layout.dart';
 import '../../widgets/common.dart';
+import '../../widgets/count_up.dart';
 import '../settings/profile_page.dart';
 import '../saldo/saldo_page.dart';
 import 'add_transaction_page.dart';
@@ -25,20 +27,24 @@ class HomePage extends StatelessWidget {
     final z = ZColors.of(context);
     final recent = store.txns.take(4).toList();
 
-    return PageScroll(children: [
-      // Header: logo, tombol mode, profil
-      Row(children: [
-        const Expanded(child: Align(alignment: Alignment.centerLeft, child: ModeSwitch())),
-        const ThemeToggle(),
-        const SizedBox(width: 8),
-        RoundIconButton(
-          icon: Icons.person_outline_rounded,
-          tooltip: tr('Buka profil'),
-          filled: true,
-          onTap: () => pushPage(context, const ProfilePage()),
-        ),
-      ]),
-      const SizedBox(height: 18),
+    final wide = isWide(context);
+
+    final greet = <Widget>[
+      // Header: tombol mode, tema, profil (di desktop sudah ada di bilah atas)
+      if (!wide) ...[
+        Row(children: [
+          const Expanded(child: Align(alignment: Alignment.centerLeft, child: ModeSwitch())),
+          const ThemeToggle(),
+          const SizedBox(width: 8),
+          RoundIconButton(
+            icon: Icons.person_outline_rounded,
+            tooltip: tr('Buka profil'),
+            filled: true,
+            onTap: () => pushPage(context, const ProfilePage()),
+          ),
+        ]),
+        const SizedBox(height: 18),
+      ],
       Text('${greeting()},', style: TextStyle(fontSize: 13, color: z.muted)),
       const SizedBox(height: 2),
       Text(
@@ -46,6 +52,9 @@ class HomePage extends StatelessWidget {
         style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.4),
       ),
       const SizedBox(height: 18),
+    ];
+
+    final main = <Widget>[
       _BalanceCard(store: store),
       const SizedBox(height: 12),
       Row(children: [
@@ -73,13 +82,15 @@ class HomePage extends StatelessWidget {
         height: scaledHeight(context, 52),
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
-          clipBehavior: Clip.none,
+          clipBehavior: wide ? Clip.hardEdge : Clip.none,
           itemCount: store.quickItems.length,
           separatorBuilder: (_, _) => const SizedBox(width: 8),
           itemBuilder: (context, i) => _QuickChip(item: store.quickItems[i]),
         ),
       ),
-      const SizedBox(height: 22),
+    ];
+
+    final latest = <Widget>[
       SectionTitle(tr('Transaksi Terbaru'),
           trailing: TextButton(
             onPressed: onSeeAll,
@@ -89,6 +100,7 @@ class HomePage extends StatelessWidget {
       if (recent.isEmpty)
         ZCard(
           child: EmptyState(
+            icon: Icons.receipt_long_rounded,
             title: tr('Belum ada transaksi'),
             message: tr('Catat pengeluaran atau pemasukan pertamamu lewat tombol di atas.'),
           ),
@@ -108,6 +120,24 @@ class HomePage extends StatelessWidget {
               ),
           ]),
         ),
+    ];
+
+    // Jendela lebar: saldo dan Catat Cepat di kiri, transaksi terbaru di kanan.
+    if (wide) {
+      return PageScroll(maxWidth: 1120, children: [
+        ...greet,
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Expanded(flex: 11, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: main)),
+          const SizedBox(width: 28),
+          Expanded(flex: 9, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: latest)),
+        ]),
+      ]);
+    }
+    return PageScroll(children: [
+      ...greet,
+      ...main,
+      const SizedBox(height: 22),
+      ...latest,
     ]);
   }
 }
@@ -143,10 +173,13 @@ class _BalanceCard extends StatelessWidget {
               FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
-                child: Text(
-                  store.hideBalance ? rpHidden : (store.balance < 0 ? '-' : '') + rp(store.balance),
-                  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.6),
-                ),
+                child: store.hideBalance
+                    ? Text(rpHidden, style: _balanceStyle)
+                    : CountUp(
+                        value: store.balance.abs(),
+                        format: (n) => (store.balance < 0 ? '-' : '') + rp(n),
+                        style: _balanceStyle,
+                      ),
               ),
             ]),
           ),
@@ -154,9 +187,9 @@ class _BalanceCard extends StatelessWidget {
         ]),
         const SizedBox(height: 16),
         Row(children: [
-          Expanded(child: _MiniStat(label: tr('Pemasukan'), value: rp(store.monthIncome()), up: false)),
+          Expanded(child: _MiniStat(label: tr('Pemasukan'), value: store.monthIncome(), up: false)),
           const SizedBox(width: 10),
-          Expanded(child: _MiniStat(label: tr('Pengeluaran'), value: rp(store.monthExpense()), up: true)),
+          Expanded(child: _MiniStat(label: tr('Pengeluaran'), value: store.monthExpense(), up: true)),
         ]),
       ]),
         ),
@@ -165,11 +198,13 @@ class _BalanceCard extends StatelessWidget {
   }
 }
 
+const _balanceStyle = TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.6);
+
 class _MiniStat extends StatelessWidget {
   const _MiniStat({required this.label, required this.value, required this.up});
 
   final String label;
-  final String value;
+  final num value;
   final bool up;
 
   @override
@@ -191,7 +226,7 @@ class _MiniStat extends StatelessWidget {
         FittedBox(
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
-          child: Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white)),
+          child: CountUp(value: value, format: rp, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white)),
         ),
       ]),
     );

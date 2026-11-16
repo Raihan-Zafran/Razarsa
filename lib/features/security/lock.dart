@@ -10,9 +10,9 @@ import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../data/store.dart';
 import '../../shell/dusk_background.dart';
-import '../../shell/sky_background.dart';
 import '../../widgets/common.dart';
 import '../../widgets/profile_widgets.dart';
+import '../../widgets/shape_art.dart';
 
 final _auth = LocalAuthentication();
 
@@ -80,9 +80,7 @@ class _LockGateState extends State<LockGate> with WidgetsBindingObserver {
     // Tanpa PIN, sesi dianggap terbuka: PIN yang baru dibuat tidak langsung diminta lagi.
     if (!store.pinEnabled) _unlocked = true;
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final Widget? scene = store.mode == 'productive'
-        ? null
-        : (store.financeBg == 'dusk' ? DuskBackground(dark: dark) : SkyBackground(dark: dark));
+    final Widget? scene = store.mode == 'productive' || !store.useBg ? null : DuskBackground(dark: dark);
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 350),
       child: _unlocked
@@ -406,12 +404,7 @@ class _PinPadState extends State<PinPad> with SingleTickerProviderStateMixin {
         const SizedBox(height: 2),
         Text(widget.nameText ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
       ] else ...[
-        Container(
-          width: 68,
-          height: 68,
-          decoration: BoxDecoration(shape: BoxShape.circle, color: z.toneBg('blue')),
-          child: Icon(widget.step == 2 ? Icons.verified_user_rounded : Icons.lock_rounded, size: 32, color: z.toneFg('blue')),
-        ),
+        ShapeEmblem(size: 110, child: Icon(widget.step == 2 ? Icons.verified_user_rounded : Icons.lock_rounded)),
         if (widget.step != null) ...[
           const SizedBox(height: 14),
           Row(mainAxisSize: MainAxisSize.min, children: [

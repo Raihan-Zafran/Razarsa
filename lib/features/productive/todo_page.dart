@@ -24,10 +24,10 @@ class _TodoPageState extends State<TodoPage> {
 
     Widget empty() {
       if (_filter == 'open' && allDone) {
-        return EmptyState(image: Assets.dragonWin, title: tr('Semua tugas selesai!'), message: tr('Kerja bagus. Waktunya istirahat.'));
+        return EmptyState(icon: Icons.task_alt_rounded, title: tr('Semua tugas selesai!'), message: tr('Kerja bagus. Waktunya istirahat.'));
       }
       return EmptyState(
-        image: Assets.dragonCurious,
+        icon: Icons.checklist_rounded,
         title: tr('Belum ada tugas di sini'),
         message: tr('Tekan + untuk menambah tugas.'),
       );

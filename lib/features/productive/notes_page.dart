@@ -203,7 +203,7 @@ class _NotesPageState extends State<NotesPage> {
             const SizedBox(height: 12),
             if (list.isEmpty)
               EmptyState(
-                image: Assets.dragonCurious,
+                icon: Icons.sticky_note_2_outlined,
                 title: store.notes.isEmpty ? tr('Belum ada catatan') : tr('Catatan tidak ditemukan'),
                 message: store.notes.isEmpty ? tr('Tekan + untuk menulis catatan pertamamu.') : tr('Coba kata kunci lain.'),
               )

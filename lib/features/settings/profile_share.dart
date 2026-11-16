@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -24,7 +25,6 @@ class ProfileShareCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cover = kCovers.firstWhere((c) => c.id == store.cover, orElse: () => kCovers.first);
     final bg = dark ? const Color(0xFF111A15) : Colors.white;
     final ink = dark ? Colors.white : const Color(0xFF14211A);
     final muted = dark ? const Color(0xFFA8B8AE) : const Color(0xFF5B6B62);
@@ -51,7 +51,7 @@ class ProfileShareCard extends StatelessWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),
             child: Stack(children: [
-              Positioned(top: 0, left: 0, right: 0, height: 130, child: Image.asset(dark ? cover.nightAsset : cover.dayAsset, fit: BoxFit.cover)),
+              Positioned(top: 0, left: 0, right: 0, height: 130, child: ProfileCover(coverId: store.cover, dark: dark, photoPath: store.coverPhotoPath)),
               Positioned(
                 top: 70,
                 left: 0,
@@ -153,6 +153,10 @@ Future<Uint8List?> renderProfileCard(BuildContext context, AppStore store, {requ
     for (final a in shareCardAssets(store)) {
       if (!context.mounted) return null;
       await precacheImage(AssetImage(a), context);
+    }
+    for (final f in [store.photoPath, store.coverPhotoPath]) {
+      if (f.isEmpty || !context.mounted) continue;
+      await precacheImage(FileImage(File(f)), context).catchError((_) {}); // berkas hilang: kartu memakai bawaan
     }
     await WidgetsBinding.instance.endOfFrame;
     await WidgetsBinding.instance.endOfFrame;

@@ -12,6 +12,7 @@ import '../core/format.dart';
 import '../core/i18n.dart';
 import 'backup.dart';
 import 'models.dart';
+import 'photo_service.dart';
 import 'productive_models.dart';
 import 'profile_items.dart';
 
@@ -83,9 +84,12 @@ class AppStore extends ChangeNotifier {
   /// Mode aktif: 'finance' atau 'productive'.
   String mode = 'finance';
 
-  /// Latar mode Keuangan: 'sky' (Langit, bawaan) atau 'dusk' (Gurun Senja).
-  /// Nilai lama 'desert' (Gurun, sudah dihapus) otomatis menjadi 'sky'.
-  String financeBg = 'sky';
+  /// Pakai latar ilustrasi (Gurun Senja di Keuangan, ruang kerja di Produktif). Mati = polos (bawaan).
+  /// Data lama: 'financeBg' = 'dusk' menjadi menyala; 'sky' (Langit, sudah dihapus) menjadi mati.
+  bool useBg = false;
+
+  /// Kurangi efek: tanpa blur kaca dan tanpa animasi, supaya ringan di HP lama.
+  bool lite = false;
 
   /// Efek kaca pada kartu: 0 mati, 1 halus (bawaan), 2 kuat.
   int glassLevel = 1;
@@ -106,6 +110,10 @@ class AppStore extends ChangeNotifier {
   String avatar = kDefaultAvatar;
   String frame = kNoFrame;
   String cover = kDefaultCover;
+
+  /// Foto sendiri (jalur berkas di HP ini). Kosong = pakai avatar/sampul bawaan. Tidak ikut backup.
+  String photoPath = '';
+  String coverPhotoPath = '';
 
   /// Tanggal-tanggal (yyyy-mm-dd) saat aplikasi dipakai.
   List<String> activeDays = [];
@@ -216,7 +224,9 @@ class AppStore extends ChangeNotifier {
     notes = _readList('notes', _noteFromStorage);
     noteFolders = _getStrings('noteFolders');
     mode = _get('mode', 'finance') == 'productive' ? 'productive' : 'finance';
-    financeBg = normalizeFinanceBg(_get<Object?>('financeBg', 'sky'));
+    final ub = _get<Object?>('useBg', null);
+    useBg = ub is bool ? ub : _get<Object?>('financeBg', 'sky') == 'dusk';
+    lite = _get<Object?>('lite', false) == true;
     glassLevel = _get<int>('glassLevel', 1).clamp(0, 2);
     recurring = _readList('recurring', Recurring.fromJson);
     quickItems = _rawString('quickItems') == null ? _defaultQuickItems() : _readList('quickItems', QuickEntry.fromJson);
@@ -228,6 +238,8 @@ class AppStore extends ChangeNotifier {
     avatar = isValidAvatar(av) ? av : kDefaultAvatar;
     frame = isValidFrame(fr) ? fr : kNoFrame;
     cover = isValidCover(cv) ? cv : kDefaultCover;
+    photoPath = _get<Object?>('photoPath', '') is String ? _get<String>('photoPath', '') : '';
+    coverPhotoPath = _get<Object?>('coverPhotoPath', '') is String ? _get<String>('coverPhotoPath', '') : '';
     activeDays = _getStrings('activeDays');
     final sw = _rawString('switches');
     if (sw != null) {
@@ -489,7 +501,8 @@ class AppStore extends ChangeNotifier {
     await _put('notes', list(notes, _noteToStorage));
     await _put('noteFolders', noteFolders);
     await _put('mode', mode);
-    await _put('financeBg', financeBg);
+    await _put('useBg', useBg);
+    await _put('lite', lite);
     await _put('glassLevel', glassLevel);
     await _put('recurring', list(recurring, (e) => e.toJson()));
     await _put('quickItems', list(quickItems, (e) => e.toJson()));
@@ -498,6 +511,8 @@ class AppStore extends ChangeNotifier {
     await _put('avatar', avatar);
     await _put('frame', frame);
     await _put('cover', cover);
+    await _put('photoPath', photoPath);
+    await _put('coverPhotoPath', coverPhotoPath);
     await _put('activeDays', activeDays);
     // Versi ditandai terakhir: kalau penulisan terputus di tengah, migrasi diulang dengan aman.
     await _put('dataVersion', dataVersion);
@@ -790,7 +805,8 @@ class AppStore extends ChangeNotifier {
           'weekStartMonday': weekStartMonday,
           'currency': currency,
           'lang': lang,
-          'financeBg': financeBg,
+          'useBg': useBg,
+          'lite': lite,
           'glassLevel': glassLevel,
           'palette': palette,
           'themeMode': themeMode.index,
@@ -990,7 +1006,8 @@ class AppStore extends ChangeNotifier {
       final emailOk = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
       final newName = pn is String && pn.trim().isNotEmpty && pn.trim().length <= 30 ? pn.trim() : userName;
       final newEmail = pe is String && (pe.isEmpty || (pe.length <= 120 && emailOk.hasMatch(pe))) && pn is String ? pe : email;
-      final newBg = st['financeBg'] is String ? normalizeFinanceBg(st['financeBg']) : financeBg;
+      final newBg = st['useBg'] is bool ? st['useBg'] as bool : (st['financeBg'] is String ? st['financeBg'] == 'dusk' : useBg);
+      final newLite = st['lite'] is bool ? st['lite'] as bool : lite;
       final newGlass = st['glassLevel'] is num ? (st['glassLevel'] as num).toInt().clamp(0, 2) : glassLevel;
       final newPalette = st['palette'] is int ? clampPalette(st['palette']) : palette;
       final newBio = pf['bio'] is String && (pf['bio'] as String).length <= 1000 ? pf['bio'] as String : bio;
@@ -1026,7 +1043,8 @@ class AppStore extends ChangeNotifier {
       lang = newLang;
       L.currency = newCurrency;
       L.lang = newLang;
-      financeBg = newBg;
+      useBg = newBg;
+      lite = newLite;
       glassLevel = newGlass;
       palette = newPalette;
       themeMode = newTheme;
@@ -1118,6 +1136,10 @@ class AppStore extends ChangeNotifier {
     quickItems = _defaultQuickItems();
     // Profil dan kemajuan (XP, hari aktif) juga data pengguna. Akun (nama, email) dan pengaturan tampilan tetap.
     bio = '';
+    PhotoService.delete(photoPath);
+    PhotoService.delete(coverPhotoPath);
+    photoPath = '';
+    coverPhotoPath = '';
     avatar = kDefaultAvatar;
     frame = kNoFrame;
     cover = kDefaultCover;
@@ -1492,11 +1514,13 @@ class AppStore extends ChangeNotifier {
   }
 
   // ---------- Latar, Catat Cepat, transaksi berulang ----------
-  /// Hanya 'sky' dan 'dusk' yang dikenal; nilai lain (termasuk 'desert' versi lama) menjadi 'sky'.
-  static String normalizeFinanceBg(Object? v) => v == 'dusk' ? 'dusk' : 'sky';
+  void setUseBg(bool v) {
+    useBg = v;
+    _changed();
+  }
 
-  void setFinanceBg(String v) {
-    financeBg = normalizeFinanceBg(v);
+  void setLite(bool v) {
+    lite = v;
     _changed();
   }
 
@@ -1602,8 +1626,34 @@ class AppStore extends ChangeNotifier {
   bool setAvatar(String id) {
     if (!isValidAvatar(id)) return false;
     avatar = id;
+    _dropPhoto(cover: false);
     _changed();
     return true;
+  }
+
+  /// Memakai foto sendiri sebagai avatar (berkas lama dihapus). Kosong = kembali ke avatar bawaan.
+  void setPhotoPath(String path) {
+    if (path == photoPath) return;
+    PhotoService.delete(photoPath);
+    photoPath = path;
+    _changed();
+  }
+
+  void setCoverPhotoPath(String path) {
+    if (path == coverPhotoPath) return;
+    PhotoService.delete(coverPhotoPath);
+    coverPhotoPath = path;
+    _changed();
+  }
+
+  void _dropPhoto({required bool cover}) {
+    if (cover) {
+      PhotoService.delete(coverPhotoPath);
+      coverPhotoPath = '';
+    } else {
+      PhotoService.delete(photoPath);
+      photoPath = '';
+    }
   }
 
   /// false kalau id tidak dikenal atau bingkai belum terbuka di level sekarang.
@@ -1617,6 +1667,7 @@ class AppStore extends ChangeNotifier {
   bool setCover(String id) {
     if (!isValidCover(id)) return false;
     cover = id;
+    _dropPhoto(cover: true);
     _changed();
     return true;
   }
