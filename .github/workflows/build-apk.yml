@@ -308,11 +308,13 @@ jobs:
             echo "notes=$NOTES"
           } >> "$GITHUB_OUTPUT"
 
+      # Nama artefak APK dihitung di sini, bukan lewat output job "build": GitHub membuang output yang
+      # memuat nilai secret (alias kunci muncul di nama berkas), sehingga nama kosong dan SEMUA artefak terunduh.
       - name: Ambil APK dari build
         if: steps.rel.outputs.tag != ''
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
-          name: ${{ needs.build.outputs.base }}
+          name: razarsa-v${{ needs.build.outputs.version }}-build${{ github.run_number }}
           path: dist
 
       - name: Ambil ZIP Windows dari build
@@ -321,6 +323,13 @@ jobs:
         with:
           name: ${{ needs.build-windows.outputs.base }}
           path: dist
+
+      - name: Pastikan semua berkas rilis ada
+        if: steps.rel.outputs.tag != ''
+        run: |
+          set -euo pipefail
+          ls -l dist
+          ls dist/*-arm64.apk dist/*-universal.apk dist/*-windows-x64.zip
 
       - name: Buat GitHub Release
         if: steps.rel.outputs.tag != ''
