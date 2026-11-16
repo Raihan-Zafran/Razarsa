@@ -1421,6 +1421,25 @@ class AppStore extends ChangeNotifier {
     return out;
   }
 
+  /// Pengeluaran, pemasukan, dan jumlah transaksi tiap hari selama [days] hari terakhir (hari ini terakhir).
+  List<({int exp, int inc, int n})> dailyFlow(int days, [DateTime? now]) {
+    final today = dayOnly(now ?? DateTime.now());
+    final first = DateTime(today.year, today.month, today.day - (days - 1));
+    final exp = List<int>.filled(days, 0), inc = List<int>.filled(days, 0), n = List<int>.filled(days, 0);
+    for (final t in txns) {
+      final d = dayOnly(t.at);
+      if (d.isBefore(first) || d.isAfter(today)) continue;
+      final i = _daysBetween(first, d);
+      n[i]++;
+      if (t.isExpense) {
+        exp[i] += t.amount.abs();
+      } else {
+        inc[i] += t.amount;
+      }
+    }
+    return [for (var i = 0; i < days; i++) (exp: exp[i], inc: inc[i], n: n[i])];
+  }
+
   /// Awal periode bulan anggaran yang memuat [ref] (mengikuti tanggal gajian).
   DateTime periodStart([DateTime? ref]) {
     final r = ref ?? DateTime.now();

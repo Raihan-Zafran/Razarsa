@@ -262,6 +262,13 @@ ThemeData buildTheme(Brightness brightness, {int palette = kDefaultPalette, bool
   );
   return base.copyWith(
     textTheme: base.textTheme.apply(bodyColor: z.text, displayColor: z.text),
+    // Saklar seperti prototipe: 52x32, tombol kecil abu saat mati, tombol besar krem saat hidup.
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.selected) ? z.onPrimary : z.muted2),
+      trackColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.selected) ? z.primary : z['disabledBg']),
+      trackOutlineColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.selected) ? z.primary : z['chipBorder']),
+      trackOutlineWidth: const WidgetStatePropertyAll(2),
+    ),
     snackBarTheme: SnackBarThemeData(
       backgroundColor: z['toastBg'],
       contentTextStyle: TextStyle(

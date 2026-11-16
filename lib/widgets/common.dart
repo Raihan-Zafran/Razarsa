@@ -90,7 +90,7 @@ class GlassPane extends StatelessWidget {
 
 /// Kartu dasar: putih di mode terang, hijau gelap bergaris di mode gelap.
 class ZCard extends StatelessWidget {
-  const ZCard({super.key, required this.child, this.padding = const EdgeInsets.all(16), this.radius = 12});
+  const ZCard({super.key, required this.child, this.padding = const EdgeInsets.all(16), this.radius = 18});
 
   final Widget child;
   final EdgeInsetsGeometry padding;
@@ -99,12 +99,24 @@ class ZCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final z = ZColors.of(context);
-    return GlassPane(
-      color: z.card,
-      radius: radius,
-      border: Border.all(color: z.cardBorder),
-      padding: padding,
-      child: child,
+    final light = Theme.of(context).brightness == Brightness.light;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(radius),
+        boxShadow: light
+            ? const [
+                BoxShadow(color: Color(0x0A0F1E14), blurRadius: 2, offset: Offset(0, 1)),
+                BoxShadow(color: Color(0x330F1E14), blurRadius: 30, spreadRadius: -20, offset: Offset(0, 14)),
+              ]
+            : null,
+      ),
+      child: GlassPane(
+        color: z.card,
+        radius: radius,
+        border: Border.all(color: z.cardBorder),
+        padding: padding,
+        child: child,
+      ),
     );
   }
 }
@@ -151,7 +163,7 @@ class SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: Text(text, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700))),
+        Expanded(child: Text(text, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: -0.15))),
         ?trailing,
       ],
     );
@@ -195,29 +207,35 @@ class PageTitle extends StatelessWidget {
 
 /// Tombol bulat 44px bergaris (untuk aksi di header).
 class RoundIconButton extends StatelessWidget {
-  const RoundIconButton({super.key, required this.icon, required this.onTap, required this.tooltip, this.filled = false});
+  const RoundIconButton({super.key, required this.icon, required this.onTap, required this.tooltip, this.filled = false, this.size = 44});
 
   final IconData icon;
   final VoidCallback onTap;
   final String tooltip;
   final bool filled;
 
+  /// Diameter tampilan. Area ketuk tetap minimal 44 px.
+  final double size;
+
   @override
   Widget build(BuildContext context) {
     final z = ZColors.of(context);
+    final hit = size < 44 ? 44.0 : size;
     return Tooltip(
       message: tooltip,
-      child: GlassPane(
-        color: filled ? z.track : z.card,
-        circle: true,
-        border: Border.all(color: filled ? Colors.transparent : z.border),
-        child: Material(
-          type: MaterialType.transparency,
-          shape: const CircleBorder(),
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: onTap,
-            child: SizedBox(width: 44, height: 44, child: Icon(icon, size: 21, color: filled ? z.muted : z.text)),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: SizedBox(
+          width: hit,
+          height: hit,
+          child: Center(
+            child: GlassPane(
+              color: filled ? z.track : z.card,
+              circle: true,
+              border: Border.all(color: filled ? Colors.transparent : z.border),
+              child: SizedBox(width: size, height: size, child: Icon(icon, size: size * 0.55, color: filled ? z.muted : z.text)),
+            ),
           ),
         ),
       ),
@@ -274,35 +292,55 @@ class Segmented<T> extends StatelessWidget {
 }
 
 class ZChip extends StatelessWidget {
-  const ZChip({super.key, required this.label, required this.selected, required this.onTap});
+  const ZChip({super.key, required this.label, required this.selected, required this.onTap, this.icon});
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
 
+  /// Ikon kecil di depan teks (misalnya jenis sumber saldo).
+  final IconData? icon;
+
   @override
   Widget build(BuildContext context) {
     final z = ZColors.of(context);
-    return GestureDetector(
-      onTap: onTap,
-      child: selected
-          ? AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-              decoration: BoxDecoration(
-                color: z.primary,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: z.primary),
-              ),
-              child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: z.onPrimary)),
-            )
-          : GlassPane(
-              color: z.card,
-              radius: 999,
-              border: Border.all(color: z.chipBorder),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-              child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: z.text2)),
-            ),
+    final fg = selected ? z.onPrimary : z.text2;
+    final content = Row(mainAxisSize: MainAxisSize.min, children: [
+      if (icon != null) ...[Icon(icon, size: 17, color: fg), const SizedBox(width: 7)],
+      Text(label, maxLines: 1, style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: fg)),
+    ]);
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Center(
+            widthFactor: 1,
+            child: selected
+                ? AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    height: 36,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: z.primary,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: z.primary),
+                    ),
+                    child: Center(widthFactor: 1, child: content),
+                  )
+                : GlassPane(
+                    color: z.card,
+                    radius: 999,
+                    border: Border.all(color: z.chipBorder),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: SizedBox(height: 34, child: Center(widthFactor: 1, child: content)),
+                  ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -362,7 +400,7 @@ class TxnRow extends StatelessWidget {
     return InkWell(
       onLongPress: onLongPress,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
           border: Border(bottom: BorderSide(color: showDivider ? z.divider : Colors.transparent)),
         ),
@@ -375,17 +413,17 @@ class TxnRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 2),
-                  Text(subtitle, style: TextStyle(fontSize: 12, color: z.muted2)),
+                  Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: z.muted2)),
                 ],
               ),
             ),
             const SizedBox(width: 8),
             Text(amountText,
                 style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
                     fontFeatures: const [FontFeature.tabularFigures()],
                     color: isIncome ? z.accentText : z.text)),
           ],

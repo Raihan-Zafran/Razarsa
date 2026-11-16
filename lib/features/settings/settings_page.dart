@@ -50,22 +50,22 @@ class SettingsPage extends StatelessWidget {
       }),
       Material(
         color: z.card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: z.cardBorder)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: BorderSide(color: z.cardBorder)),
         child: InkWell(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(18),
           onTap: () => pushPage(context, const ProfilePage()),
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Row(children: [
-              ProfileAvatar(avatarId: store.avatar, frameId: store.effectiveFrame, size: 56),
+              ProfileAvatar(avatarId: store.avatar, frameId: store.effectiveFrame, size: 50),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(store.userName.isEmpty ? tr('Pengguna Razarsa') : store.userName,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
                   const SizedBox(height: 3),
                   Text(store.email.isEmpty ? tr('Atur profil & akun') : store.email,
-                      style: TextStyle(fontSize: 12, color: z.muted2)),
+                      style: TextStyle(fontSize: 13, color: z.muted2)),
                 ]),
               ),
               Icon(Icons.chevron_right_rounded, color: z.muted2),
@@ -626,16 +626,15 @@ class _Group extends StatelessWidget {
   Widget build(BuildContext context) {
     final z = ZColors.of(context);
     return Padding(
-      padding: const EdgeInsets.only(top: 18),
+      padding: const EdgeInsets.only(top: 22),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 8),
           child: Text(title.toUpperCase(),
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.6, color: z.muted)),
+              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, letterSpacing: 1.05, color: z.muted2)),
         ),
         ZCard(
-          radius: 11,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
           child: Column(children: [
             for (var i = 0; i < rows.length; i++) ...[
               rows[i],
@@ -667,7 +666,7 @@ class _Row extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 58),
+        constraints: const BoxConstraints(minHeight: 64),
         child: Row(children: [
           // Ikon polos tanpa ubin warna; hanya baris berbahaya ("Hapus semua data") tetap berubin oranye.
           SizedBox(
@@ -683,9 +682,9 @@ class _Row extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: 9),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: danger ? z.warn : z.text)),
+                Text(label, style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: danger ? z.warn : z.text)),
                 if (sub != null) ...[
                   const SizedBox(height: 2),
                   Text(sub!, style: TextStyle(fontSize: 12, color: z.muted2)),
@@ -721,21 +720,21 @@ class _ToggleRow extends StatelessWidget {
     return InkWell(
       onTap: () => onChanged(!value),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 58),
+        constraints: const BoxConstraints(minHeight: 64),
         child: Row(children: [
           SizedBox(width: 34, height: 34, child: Icon(icon, size: 21, color: z.text2)),
           const SizedBox(width: 12),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: 9),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                Text(label, style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 2),
                 Text(sub, style: TextStyle(fontSize: 12, color: z.muted2)),
               ]),
             ),
           ),
-          Switch(value: value, onChanged: onChanged, activeThumbColor: Colors.white, activeTrackColor: z.primary),
+          Switch(value: value, onChanged: onChanged),
         ]),
       ),
     );
@@ -762,15 +761,15 @@ class _Switch extends StatelessWidget {
     return InkWell(
       onTap: () => setV(!on),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 58),
+        constraints: const BoxConstraints(minHeight: 64),
         child: Row(children: [
           SizedBox(width: 34, height: 34, child: Icon(icon, size: 21, color: z.text2)),
           const SizedBox(width: 12),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: 9),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                Text(label, style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700)),
                 if (sub != null) ...[
                   const SizedBox(height: 2),
                   Text(sub!, style: TextStyle(fontSize: 12, color: z.muted2)),
@@ -781,8 +780,6 @@ class _Switch extends StatelessWidget {
           Switch(
             value: on,
             onChanged: setV,
-            activeThumbColor: Colors.white,
-            activeTrackColor: z.primary,
           ),
         ]),
       ),

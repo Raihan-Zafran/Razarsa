@@ -61,11 +61,11 @@ void main() {
       for (final label in ['Beranda', 'Transaksi', 'Saldo', 'Laporan', 'Target', 'Hari ini', 'Tugas', 'Kalender', 'Catatan', 'Kunci', 'Pengaturan', 'Buat baru']) {
         expect(find.text(label), findsWidgets, reason: 'sidebar tanpa "$label"');
       }
-      expect(find.text('Halo, Budi!'), findsOneWidget);
+      expect(find.text('Halo, Budi'), findsOneWidget);
       await close(t);
       await openApp(t, s, size: const Size(390, 844));
       expect(find.text('Buat baru'), findsNothing);
-      expect(find.text('Halo, Budi!'), findsOneWidget);
+      expect(find.text('Halo, Budi'), findsOneWidget);
       await close(t);
     });
 
@@ -80,7 +80,7 @@ void main() {
       expect(find.text('Belum').evaluate().isNotEmpty || find.text('Semua').evaluate().isNotEmpty, isTrue);
       await ctrl(t, LogicalKeyboardKey.digit1);
       expect(s.mode, 'finance');
-      expect(find.text('Halo, Budi!'), findsOneWidget);
+      expect(find.text('Halo, Budi'), findsOneWidget);
       await ctrl(t, LogicalKeyboardKey.comma);
       expect(find.text('Pakai latar'), findsOneWidget);
       await close(t);

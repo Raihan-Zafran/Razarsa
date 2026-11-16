@@ -39,12 +39,12 @@ void main() {
     final s = await seeded();
     await show(t, s);
     await t.tap(find.text('Laptop baru'));
-    await t.pumpAndSettle();
+    await t.pump(); await t.pump(const Duration(milliseconds: 700));
     expect(find.text('Kurangi'), findsOneWidget);
     expect(find.textContaining('Tabungan saat ini'), findsOneWidget);
     await t.enterText(find.byType(TextField), '500000');
     await t.tap(find.text('Tambah'));
-    await t.pumpAndSettle();
+    await t.pump(); await t.pump(const Duration(milliseconds: 700));
     expect(s.goals.single.saved, 3500000);
   });
 
@@ -52,10 +52,10 @@ void main() {
     final s = await seeded();
     await show(t, s);
     await t.tap(find.text('Laptop baru'));
-    await t.pumpAndSettle();
+    await t.pump(); await t.pump(const Duration(milliseconds: 700));
     await t.enterText(find.byType(TextField), '1000000');
     await t.tap(find.text('Kurangi'));
-    await t.pumpAndSettle();
+    await t.pump(); await t.pump(const Duration(milliseconds: 700));
     expect(s.goals.single.saved, 2000000);
   });
 
@@ -63,7 +63,7 @@ void main() {
     final s = await seeded();
     await show(t, s);
     await t.tap(find.text('Laptop baru'));
-    await t.pumpAndSettle();
+    await t.pump(); await t.pump(const Duration(milliseconds: 700));
     await t.enterText(find.byType(TextField), '9000000');
     await t.tap(find.text('Kurangi'));
     await t.pump();
@@ -76,7 +76,7 @@ void main() {
     final s = await seeded(saved: 0);
     await show(t, s);
     await t.tap(find.text('Laptop baru'));
-    await t.pumpAndSettle();
+    await t.pump(); await t.pump(const Duration(milliseconds: 700));
     expect(find.text('Kurangi'), findsNothing);
   });
 
@@ -84,16 +84,16 @@ void main() {
     final s = await seeded();
     await show(t, s);
     await t.longPress(find.text('Laptop baru'));
-    await t.pumpAndSettle();
+    await t.pump(); await t.pump(const Duration(milliseconds: 700));
     expect(find.text('Ubah target'), findsOneWidget);
     expect(find.text('Hapus'), findsOneWidget);
     await t.tap(find.text('Ubah target'));
-    await t.pumpAndSettle();
+    await t.pump(); await t.pump(const Duration(milliseconds: 700));
     final fields = find.byType(TextField);
     await t.enterText(fields.at(0), 'Laptop kerja');
     await t.enterText(fields.at(1), '12000000');
     await t.tap(find.text('Simpan'));
-    await t.pumpAndSettle();
+    await t.pump(); await t.pump(const Duration(milliseconds: 700));
     expect(s.goals.single.name, 'Laptop kerja');
     expect(s.goals.single.target, 12000000);
     expect(s.goals.single.saved, 3000000);
@@ -103,9 +103,9 @@ void main() {
     final s = await seeded();
     await show(t, s);
     await t.longPress(find.text('Laptop baru'));
-    await t.pumpAndSettle();
+    await t.pump(); await t.pump(const Duration(milliseconds: 700));
     await t.tap(find.text('Ubah target'));
-    await t.pumpAndSettle();
+    await t.pump(); await t.pump(const Duration(milliseconds: 700));
     await t.enterText(find.byType(TextField).at(1), '');
     await t.tap(find.text('Simpan'));
     await t.pump();
@@ -118,12 +118,12 @@ void main() {
     final s = await seeded();
     await show(t, s);
     await t.longPress(find.text('Laptop baru'));
-    await t.pumpAndSettle();
+    await t.pump(); await t.pump(const Duration(milliseconds: 700));
     await t.tap(find.text('Hapus'));
-    await t.pumpAndSettle();
+    await t.pump(); await t.pump(const Duration(milliseconds: 700));
     expect(find.text('Hapus target?'), findsOneWidget);
     await t.tap(find.text('Hapus').last);
-    await t.pumpAndSettle();
+    await t.pump(); await t.pump(const Duration(milliseconds: 700));
     expect(s.goals, isEmpty);
   });
 }

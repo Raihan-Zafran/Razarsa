@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../data/store.dart';
 import '../../shell/app_shell.dart';
 import '../../widgets/common.dart';
+import '../saldo/saldo_page.dart' show walletIcon;
 import '../../core/i18n.dart';
 
 class AddTransactionPage extends StatefulWidget {
@@ -80,7 +81,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
       backgroundColor: z.bg,
       body: PageScroll(withDock: false, children: [
         PageTitle(tr('Tambah Transaksi'), onBack: () => Navigator.of(context).pop(), backIcon: Icons.close_rounded),
-        const SizedBox(height: 14),
+        const SizedBox(height: 6),
         Segmented<bool>(
           items: [(false, tr('Pengeluaran')), (true, tr('Pemasukan'))],
           value: _income,
@@ -92,11 +93,11 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
         ),
         const SizedBox(height: 16),
         ZCard(
-          padding: const EdgeInsets.fromLTRB(18, 14, 18, 10),
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(tr('Jumlah'), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: z.muted)),
             Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-              Text(currencySymbol, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: z.muted)),
+              Text(currencySymbol, style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: z.muted, letterSpacing: -0.8)),
               const SizedBox(width: 8),
               Expanded(
                 child: TextField(
@@ -105,9 +106,11 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly, _ThousandsFormatter()],
                   onChanged: (_) => setState(() {}),
-                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: z.text, letterSpacing: -0.8),
+                  style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: z.text, letterSpacing: -0.8),
                   decoration: InputDecoration(
                     border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
                     hintText: '0',
                     hintStyle: TextStyle(color: z.muted.withValues(alpha: 0.45)),
                   ),
@@ -116,40 +119,31 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
             ]),
           ]),
         ),
-        const SizedBox(height: 14),
-        _WalletPicker(
-          label: _income ? tr('Masuk ke') : tr('Bayar dari'),
-          store: store,
-          selected: _wallet ?? store.defaultWallet.id,
-          onChanged: (id) => setState(() => _wallet = id),
-        ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 22),
         SectionTitle(tr('Kategori'),
             trailing: Text(
               _income ? tr('Sumber pemasukan') : (_expanded ? tr('Semua kategori') : tr('Paling sering dipakai')),
               style: TextStyle(fontSize: 12, color: z.muted2),
             )),
         const SizedBox(height: 10),
-        GridView.count(
-          crossAxisCount: 4,
+        GridView(
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4, mainAxisSpacing: 8, crossAxisSpacing: 8, mainAxisExtent: scaledHeight(context, 88)),
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 8,
-          crossAxisSpacing: 8,
-          childAspectRatio: 0.9,
           children: [
             for (final c in shown)
               _CatButton(
                 label: c.label,
                 selected: _cat == c.id,
-                tile: CategoryTile(category: c, size: 38),
+                tile: CategoryTile(category: c, size: 36),
                 onTap: () => setState(() => _cat = c.id),
               ),
             if (!_income && !_expanded)
               _CatButton(
                 label: tr('Semua'),
                 selected: false,
-                tile: _DashedTile(icon: Icons.grid_view_rounded),
+                tile: _DashedTile(icon: Icons.apps_rounded),
                 onTap: () => setState(() => _expanded = true),
               ),
             if (_income || _expanded)
@@ -204,7 +198,14 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
             ),
           ]),
         ],
-        const SizedBox(height: 18),
+        const SizedBox(height: 22),
+        _WalletPicker(
+          label: _income ? tr('Masuk ke') : tr('Bayar dari'),
+          store: store,
+          selected: _wallet ?? store.defaultWallet.id,
+          onChanged: (id) => setState(() => _wallet = id),
+        ),
+        const SizedBox(height: 14),
         SectionTitle(tr('Tanggal')),
         const SizedBox(height: 10),
         Wrap(spacing: 8, runSpacing: 8, children: [
@@ -286,10 +287,20 @@ class _WalletPicker extends StatelessWidget {
           style: TextStyle(fontSize: 12, color: z.muted2),
         ),
       ),
-      const SizedBox(height: 10),
-      Wrap(spacing: 8, runSpacing: 8, children: [
-        for (final w in store.wallets) ZChip(label: w.name, selected: w.id == cur.id, onTap: () => onChanged(w.id)),
-      ]),
+      const SizedBox(height: 2),
+      // Satu baris yang bisa digeser, supaya berapa pun jumlah sumbernya tetap rapi.
+      SizedBox(
+        height: 44,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: store.wallets.length,
+          separatorBuilder: (_, _) => const SizedBox(width: 8),
+          itemBuilder: (_, i) {
+            final w = store.wallets[i];
+            return ZChip(label: w.name, icon: walletIcon(w.type), selected: w.id == cur.id, onTap: () => onChanged(w.id));
+          },
+        ),
+      ),
     ]);
   }
 }
@@ -314,18 +325,19 @@ class _CatButton extends StatelessWidget {
           duration: const Duration(milliseconds: 180),
           decoration: BoxDecoration(
             color: z.card,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: selected ? z.primary : z.cardBorder, width: 2),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: selected ? z.primary : Colors.transparent, width: 2),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 2),
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              tile,
-              const SizedBox(height: 6),
-              Text(label, maxLines: 1, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: z.text2)),
-            ]),
-          ),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            tile,
+            const SizedBox(height: 8),
+            Text(label,
+                maxLines: 2,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, height: 1.15, color: z.text2)),
+          ]),
         ),
       ),
     );
@@ -341,13 +353,10 @@ class _DashedTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final z = ZColors.of(context);
     return Container(
-      width: 38,
-      height: 38,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: z.chipBorder, width: 1.5),
-      ),
-      child: Icon(icon, size: 19, color: z.muted),
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(color: z.track, borderRadius: BorderRadius.circular(10)),
+      child: Icon(icon, size: 19, color: z.text2),
     );
   }
 }

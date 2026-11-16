@@ -46,7 +46,7 @@ void main() {
         final s = await newStore();
         await view(t, s, ModeShell(mode: mode));
         final state = t.state(find.byType(ModeShell)) as dynamic;
-        final home = find.text(mode == 'finance' ? 'Total Saldo' : 'Tambah Cepat');
+        final home = mode == 'finance' ? find.textContaining('Total saldo') : find.text('Tambah Cepat');
         expect(home, findsOneWidget);
         state.goTo(2);
         await step(t);
@@ -66,10 +66,10 @@ void main() {
       final state = t.state(find.byType(ModeShell)) as dynamic;
       state.goTo(4);
       await step(t);
-      expect(find.text('Total Saldo'), findsNothing);
+      expect(find.textContaining('Total saldo'), findsNothing);
       await t.binding.handlePopRoute();
       await step(t);
-      expect(find.text('Total Saldo'), findsOneWidget);
+      expect(find.textContaining('Total saldo'), findsOneWidget);
       await t.pumpWidget(const SizedBox());
       await t.pump(const Duration(seconds: 3));
     });

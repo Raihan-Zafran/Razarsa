@@ -196,8 +196,6 @@ class AgendaRow extends StatelessWidget {
                       child: Switch(
                         value: item.on,
                         onChanged: (_) => store.toggleAgenda(item.id),
-                        activeThumbColor: Colors.white,
-                        activeTrackColor: z.primary,
                       ),
                     ),
                 ]),

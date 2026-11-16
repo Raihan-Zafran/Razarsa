@@ -11,6 +11,7 @@ import '../../shell/app_shell.dart';
 import '../../shell/layout.dart';
 import '../../widgets/common.dart';
 import '../../widgets/count_up.dart';
+import '../../widgets/water_jar.dart';
 import '../../core/i18n.dart';
 
 class GoalsPage extends StatelessWidget {
@@ -137,7 +138,7 @@ class _GoalSummary extends StatelessWidget {
         color: z.hero,
         radius: 14,
         border: Border.all(color: z.heroBorder),
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
         child: Column(children: [
           Row(children: [
             Expanded(
@@ -158,20 +159,16 @@ class _GoalSummary extends StatelessWidget {
               ]),
             ),
             const SizedBox(width: 12),
-            SizedBox(
-              width: 68,
-              height: 68,
-              child: FillIn(
-                value: progress,
-                duration: const Duration(milliseconds: 1100),
-                builder: (_, v) => CustomPaint(
-                  painter: _RingPainter(v),
-                  child: Center(child: Text(pct, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white))),
-                ),
-              ),
+            WaterJar(
+              progress: progress,
+              width: 62,
+              back: const Color(0x1FFFFFFF),
+              water: z.hi,
+              outline: const Color(0xBFFFFFFF),
+              label: pct,
             ),
           ]),
-          const SizedBox(height: 14),
+          const SizedBox(height: 8),
           Row(children: [
             pill(Icons.check_circle_rounded, trf('{0} dari {1} tercapai', [done, goals.length])),
             const SizedBox(width: 8),
@@ -182,37 +179,6 @@ class _GoalSummary extends StatelessWidget {
       ),
     );
   }
-}
-
-class _RingPainter extends CustomPainter {
-  _RingPainter(this.value);
-
-  final double value;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const stroke = 7.0;
-    final rect = Offset.zero & size;
-    final arc = rect.deflate(stroke / 2);
-    final base = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke
-      ..color = const Color(0x2EFFFFFF);
-    canvas.drawArc(arc, 0, math.pi * 2, false, base);
-    if (value <= 0) return;
-    canvas.drawArc(
-      arc,
-      -math.pi / 2,
-      math.pi * 2 * value,
-      false,
-      base
-        ..strokeCap = StrokeCap.round
-        ..color = const Color(0xFF86EFAC),
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _RingPainter old) => old.value != value;
 }
 
 /// 0.3333 -> "33,3%", 0.4 -> "40%"
@@ -239,32 +205,23 @@ class _GoalCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(children: [
           Row(children: [
-            IconTile(icon: icon, tone: goal.tone, size: 40, radius: 13),
-            const SizedBox(width: 12),
+            WaterJar(progress: goal.progress, width: 44, back: z.track, water: z.primary, outline: z['chipBorder']),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(goal.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                Text(goal.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 2),
                 Text(trf('{0} dari {1}', [rp(goal.saved), rp(goal.target)]),
-                    style: TextStyle(fontSize: 12, color: z.muted2, fontFeatures: const [FontFeature.tabularFigures()])),
+                    style: TextStyle(fontSize: 12.5, color: z.muted2, fontFeatures: const [FontFeature.tabularFigures()])),
               ]),
             ),
-            Text(_pct(goal.progress), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: z.accentText)),
+            Text(_pct(goal.progress), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: z.accentText)),
           ]),
-          const SizedBox(height: 14),
-          // Bar tipis (5 px); perkiraan selesai ada di baris bawahnya.
-          ClipRRect(
-            borderRadius: BorderRadius.circular(99),
-            child: FillIn(
-              value: goal.progress,
-              builder: (_, v) => LinearProgressIndicator(value: v, minHeight: 5, backgroundColor: z.track, color: z.primary),
-            ),
-          ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Row(children: [
             Icon(done ? Icons.check_circle_outline_rounded : Icons.schedule_rounded, size: 16, color: z.accentText),
             const SizedBox(width: 6),
-            Expanded(child: Text(_etaText(), style: TextStyle(fontSize: 12, color: z.text2, height: 1.3))),
+            Expanded(child: Text(_etaText(), style: TextStyle(fontSize: 12.5, color: z.text2, height: 1.3))),
           ]),
         ]),
       ),

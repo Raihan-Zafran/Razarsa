@@ -6,7 +6,10 @@ import '../data/store.dart';
 
 /// Tombol terang/gelap: satu tombol bulat berisi matahari (terang) atau bulan (gelap).
 class ThemeToggle extends StatelessWidget {
-  const ThemeToggle({super.key});
+  const ThemeToggle({super.key, this.size = 44});
+
+  /// Diameter tampilan; area ketuk tetap minimal 44 px.
+  final double size;
 
   @override
   Widget build(BuildContext context) {
@@ -17,26 +20,29 @@ class ThemeToggle extends StatelessWidget {
       button: true,
       toggled: dark,
       label: dark ? tr('Ganti ke mode terang') : tr('Ganti ke mode gelap'),
-      child: Material(
-        color: z.card,
-        shape: CircleBorder(side: BorderSide(color: z.border)),
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: () => store.setThemeMode(dark ? ThemeMode.light : ThemeMode.dark),
-          child: SizedBox(
-            width: 44,
-            height: 44,
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 350),
-              transitionBuilder: (child, anim) => RotationTransition(
-                turns: Tween(begin: 0.75, end: 1.0).animate(anim),
-                child: FadeTransition(opacity: anim, child: child),
-              ),
-              child: Icon(
-                dark ? Icons.nightlight_round : Icons.wb_sunny_rounded,
-                key: ValueKey(dark),
-                size: 24,
-                color: dark ? const Color(0xFFA5B4FC) : const Color(0xFFD97706),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => store.setThemeMode(dark ? ThemeMode.light : ThemeMode.dark),
+        child: SizedBox(
+          width: size < 44 ? 44 : size,
+          height: size < 44 ? 44 : size,
+          child: Center(
+            child: Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(color: z.card, shape: BoxShape.circle, border: Border.all(color: z.border)),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 350),
+                transitionBuilder: (child, anim) => RotationTransition(
+                  turns: Tween(begin: 0.75, end: 1.0).animate(anim),
+                  child: FadeTransition(opacity: anim, child: child),
+                ),
+                child: Icon(
+                  dark ? Icons.nightlight_round : Icons.wb_sunny_rounded,
+                  key: ValueKey(dark),
+                  size: size * 0.55,
+                  color: dark ? const Color(0xFFA5B4FC) : const Color(0xFFD97706),
+                ),
               ),
             ),
           ),
@@ -77,21 +83,26 @@ class ModeSwitch extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
     final z = ZColors.of(context);
+    // Tampilan pil 34 px (seperti desain), area ketuk tiap segmen 46x44.
     return Semantics(
       container: true,
       label: tr('Mode aplikasi'),
-      child: Container(
+      child: SizedBox(
         height: 44,
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        decoration: BoxDecoration(
-          color: z.card,
-          borderRadius: BorderRadius.circular(99),
-          border: Border.all(color: z.border),
-        ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          _ModeSegment(id: 'finance', wallet: true, label: tr('Mode Keuangan'), tip: tr('Keuangan'), active: store.mode == 'finance'),
-          const SizedBox(width: 4),
-          _ModeSegment(id: 'productive', wallet: false, label: tr('Mode Produktif'), tip: tr('Produktif'), active: store.mode == 'productive'),
+        child: Stack(alignment: Alignment.center, children: [
+          Container(
+            width: 98,
+            height: 34,
+            decoration: BoxDecoration(
+              color: z.card,
+              borderRadius: BorderRadius.circular(99),
+              border: Border.all(color: z.border),
+            ),
+          ),
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            _ModeSegment(id: 'finance', wallet: true, label: tr('Mode Keuangan'), tip: tr('Keuangan'), active: store.mode == 'finance'),
+            _ModeSegment(id: 'productive', wallet: false, label: tr('Mode Produktif'), tip: tr('Produktif'), active: store.mode == 'productive'),
+          ]),
         ]),
       ),
     );
@@ -127,23 +138,23 @@ class _ModeSegment extends StatelessWidget {
             ScaffoldMessenger.of(context).hideCurrentSnackBar();
             StoreScope.read(context).setMode(id);
           },
-          // Area ketuk 52x44 (minimal 44 px), tampilannya 52x36.
+          // Area ketuk 49x44 (minimal 44 px), tampilannya 44x28.
           child: SizedBox(
-            width: 52,
+            width: 49,
             height: 44,
             child: Center(
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeOut,
-                width: 52,
-                height: 36,
+                width: 44,
+                height: 28,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(color: active ? z.primary : Colors.transparent, borderRadius: BorderRadius.circular(99)),
                 child: TweenAnimationBuilder<Color?>(
                   tween: ColorTween(end: fg),
                   duration: const Duration(milliseconds: 200),
                   builder: (_, c, _) => CustomPaint(
-                    size: const Size.square(24),
+                    size: const Size.square(19),
                     painter: ModeIconPainter(wallet: wallet, color: c ?? fg, dot: z.card),
                   ),
                 ),

@@ -88,7 +88,7 @@ void main() {
       await t.pump(const Duration(milliseconds: 900));
       expect(s.loggedIn, isTrue);
       expect(s.pinEnabled, isFalse);
-      expect(find.text('Transaksi Terbaru'), findsOneWidget);
+      expect(find.text('Transaksi Terbaru', skipOffstage: false), findsOneWidget);
       await finish(t);
     });
   });
@@ -168,7 +168,7 @@ void main() {
       expect(s.userName, 'Budi');
       expect(s.email, isEmpty);
       expect(s.pinEnabled, isFalse);
-      expect(find.text('Transaksi Terbaru'), findsOneWidget);
+      expect(find.text('Transaksi Terbaru', skipOffstage: false), findsOneWidget);
       await finish(t);
     });
 
@@ -183,7 +183,7 @@ void main() {
       expect(s.pinEnabled, isTrue);
       expect(s.pinLength, 6);
       expect(find.text('Masukkan PIN'), findsNothing, reason: 'sesi pertama sudah terbuka');
-      expect(find.text('Transaksi Terbaru'), findsOneWidget);
+      expect(find.text('Transaksi Terbaru', skipOffstage: false), findsOneWidget);
       await finish(t);
     });
 

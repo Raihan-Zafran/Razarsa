@@ -47,7 +47,7 @@ void main() {
   testWidgets('Beranda: mengetuk Total Saldo membuka halaman Saldo per sumber', (t) async {
     final s = await newStore();
     await show(t, s, HomePage(onSeeAll: () {}));
-    await t.tap(find.text('Total Saldo'));
+    await t.tap(find.textContaining('Total saldo'));
     await t.pumpAndSettle();
     expect(find.text('Saldo per sumber'), findsOneWidget);
     expect(find.byType(SaldoGraph), findsOneWidget);
@@ -91,7 +91,7 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('BRI'), findsOneWidget); // hanya baris di daftar; BRI tidak lagi ditawarkan di katalog
     // nama sendiri yang sama dengan sumber yang ada (beda huruf) ditolak
-    await t.enterText(find.byType(TextField).first, 'bri');
+    await t.enterText(find.byType(TextField).at(1), 'bri');
     await t.pump();
     await t.tap(find.widgetWithText(FilledButton, 'Tambah').last);
     await t.pump();

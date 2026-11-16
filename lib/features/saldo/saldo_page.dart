@@ -14,8 +14,13 @@ import 'saldo_graph.dart';
 
 /// Contoh sumber yang umum di Indonesia, dipilih dengan satu ketukan. Tanpa logo resmi: hanya ikon jenisnya.
 const kWalletCatalog = <String, List<String>>{
-  'bank': ['BRI', 'BCA', 'Mandiri', 'BNI', 'Sinarmas', 'BTN', 'BSI', 'CIMB Niaga', 'Permata', 'Danamon', 'Maybank', 'OCBC', 'Panin', 'Jago', 'SeaBank', 'Jenius', 'blu'],
-  'ewallet': ['DANA', 'ShopeePay', 'GoPay', 'OVO', 'LinkAja', 'i.saku', 'Sakuku'],
+  'bank': [
+    'BRI', 'BCA', 'Mandiri', 'BNI', 'BTN', 'BSI', 'CIMB Niaga', 'Permata', 'Danamon', 'Maybank', 'OCBC', 'Panin',
+    'Sinarmas', 'Mega', 'Muamalat', 'BTPN', 'UOB', 'HSBC', 'Citibank', 'Standard Chartered', 'Nobu', 'Mayapada',
+    'Bank DKI', 'BJB', 'Bank Jateng', 'Bank Jatim', 'Bank Sumut', 'Bank Nagari', 'Bank Aceh Syariah', 'KB Bukopin',
+    'Jago', 'SeaBank', 'Jenius', 'blu', 'Allo Bank', 'Neo Commerce', 'Bank Raya', 'Superbank', 'Line Bank', 'Krom', 'Hibank',
+  ],
+  'ewallet': ['DANA', 'ShopeePay', 'GoPay', 'OVO', 'LinkAja', 'i.saku', 'Sakuku', 'DOKU', 'AstraPay', 'PayPal', 'Wise', 'Payoneer'],
   'cash': ['Tunai', 'Celengan'],
 };
 
@@ -488,7 +493,9 @@ class _AddWalletSheet extends StatefulWidget {
 class _AddWalletSheetState extends State<_AddWalletSheet> {
   final _name = TextEditingController();
   final _balance = TextEditingController();
+  final _search = TextEditingController();
   String? _preset;
+  String _q = '';
   String _type = 'bank';
   String? _error;
 
@@ -496,6 +503,7 @@ class _AddWalletSheetState extends State<_AddWalletSheet> {
   void dispose() {
     _name.dispose();
     _balance.dispose();
+    _search.dispose();
     super.dispose();
   }
 
@@ -525,7 +533,7 @@ class _AddWalletSheetState extends State<_AddWalletSheet> {
   @override
   Widget build(BuildContext context) {
     final have = widget.store.wallets.map((w) => w.name.toLowerCase()).toSet();
-    List<String> left(String t) => [for (final n in kWalletCatalog[t]!) if (!have.contains(n.toLowerCase())) n];
+    List<String> left(String t) => [for (final n in kWalletCatalog[t]!) if (!have.contains(n.toLowerCase()) && (_q.isEmpty || n.toLowerCase().contains(_q))) n];
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
     final groups = [
       ('bank', tr('Bank utama')),
@@ -543,6 +551,11 @@ class _AddWalletSheetState extends State<_AddWalletSheet> {
               Flexible(
                 child: SingleChildScrollView(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    _DarkField(
+                      controller: _search,
+                      hint: tr('Cari bank atau e-wallet'),
+                      onChanged: (v) => setState(() => _q = v.trim().toLowerCase()),
+                    ),
                     for (final (t, label) in groups)
                       if (left(t).isNotEmpty) ...[
                         _SheetLabel(label),
@@ -559,6 +572,11 @@ class _AddWalletSheetState extends State<_AddWalletSheet> {
                             ),
                         ]),
                       ],
+                    if (_q.isNotEmpty && [for (final (t, _) in groups) ...left(t)].isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 14),
+                        child: Text(tr('Tidak ketemu. Buat sendiri di bawah.'), style: const TextStyle(fontSize: 12.5, color: Color(0xB3FFFFFF))),
+                      ),
                     _SheetLabel(tr('Atau buat sendiri, pilih jenisnya')),
                     Wrap(spacing: 8, children: [
                       for (final t in kWalletTypes) _DarkChip(label: walletTypeLabel(t), selected: _type == t, onTap: () => setState(() => _type = t)),

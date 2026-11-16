@@ -144,8 +144,8 @@ void main() {
     await tester.pump();
     await tester.tap(find.text('Lewati dulu'));
     await tester.pump(const Duration(milliseconds: 800));
-    expect(find.text('Transaksi Terbaru'), findsOneWidget);
-    expect(find.text('Belum ada transaksi'), findsOneWidget);
+    expect(find.text('Transaksi Terbaru', skipOffstage: false), findsOneWidget);
+    expect(find.text('Belum ada transaksi', skipOffstage: false), findsOneWidget);
   });
 
   group('Mode Produktif', () {
@@ -184,7 +184,7 @@ void main() {
     expect(find.text('Tambah Cepat'), findsOneWidget);
     store.setMode('finance');
     await tester.pump(const Duration(milliseconds: 800));
-    expect(find.text('Transaksi Terbaru'), findsOneWidget);
+    expect(find.text('Transaksi Terbaru', skipOffstage: false), findsOneWidget);
   });
 
   testWidgets('halaman Produktif & Profil tampil tanpa error', (tester) async {

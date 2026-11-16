@@ -33,12 +33,13 @@ class ProdHomePage extends StatelessWidget {
       wideHeader: PageTitle(tr('Hari ini')),
       header: Row(children: [
         const Expanded(child: Align(alignment: Alignment.centerLeft, child: ModeSwitch())),
-        const ThemeToggle(),
-        const SizedBox(width: 8),
+        const ThemeToggle(size: 34),
+        const SizedBox(width: 2),
         RoundIconButton(
           icon: Icons.person_outline_rounded,
           tooltip: tr('Buka profil'),
           filled: true,
+          size: 34,
           onTap: () => pushPage(context, const ProfilePage()),
         ),
       ]),

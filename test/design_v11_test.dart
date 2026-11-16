@@ -167,7 +167,7 @@ void main() {
       final spark = find.bySemanticsLabel('Saldo 12 hari terakhir');
       expect(spark, findsOneWidget);
       expect(find.textContaining(' · Rp'), findsNothing);
-      final g = await t.startGesture(t.getTopLeft(spark) + const Offset(82, 24)); // ujung kanan = hari ini
+      final g = await t.startGesture(t.getTopRight(spark) + const Offset(-8, 60)); // ujung kanan = hari ini
       await t.pump(const Duration(milliseconds: 150)); // jeda tekan standar sebelum "tap down"
       expect(find.textContaining(' · Rp 5.000.000'), findsOneWidget);
       await g.up();
