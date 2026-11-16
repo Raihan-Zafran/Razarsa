@@ -366,7 +366,7 @@ class AboutPage extends StatelessWidget {
       body: PageScroll(withDock: false, children: [
         PageTitle(tr('Tentang'), onBack: () => Navigator.of(context).pop()),
         const SizedBox(height: 16),
-        Center(child: Image.asset('assets/images/logo.png', width: 84)),
+        const Center(child: AppLogo(size: 84)),
         const SizedBox(height: 10),
         const Center(child: Text('Razarsa', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800))),
         Center(child: Text(trf('Versi {0}', [kAppVersion]), style: TextStyle(fontSize: 13, color: z.muted2))),

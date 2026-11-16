@@ -433,43 +433,25 @@ class TxnRow extends StatelessWidget {
   }
 }
 
-/// Logo Razarsa (huruf R hijau).
+/// Logo Razarsa (kepala dinosaurus menyamping).
 class AppLogo extends StatelessWidget {
-  const AppLogo({super.key, this.size = 28});
+  const AppLogo({super.key, this.size = 28, this.color});
 
   final double size;
 
-  @override
-  Widget build(BuildContext context) =>
-      Image.asset('assets/images/logo.png', width: size, height: size, filterQuality: FilterQuality.medium);
-}
-
-/// Bintang logo Razarsa.
-class StarLogo extends StatelessWidget {
-  const StarLogo({super.key, this.size = 26});
-
-  final double size;
+  /// Warna siluet. Kosong = warna aksen tema, supaya terbaca di mode terang maupun gelap.
+  final Color? color;
 
   @override
-  Widget build(BuildContext context) => CustomPaint(size: Size.square(size), painter: _StarPainter());
-}
-
-class _StarPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final s = size.width / 24;
-    final p = Path()
-      ..moveTo(12 * s, 1 * s)
-      ..cubicTo(13 * s, 8 * s, 16 * s, 11 * s, 23 * s, 12 * s)
-      ..cubicTo(16 * s, 13 * s, 13 * s, 16 * s, 12 * s, 23 * s)
-      ..cubicTo(11 * s, 16 * s, 8 * s, 13 * s, 1 * s, 12 * s)
-      ..cubicTo(8 * s, 11 * s, 11 * s, 8 * s, 12 * s, 1 * s)
-      ..close();
-    canvas.drawPath(p, Paint()..color = const Color(0xFF4ADE80));
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  Widget build(BuildContext context) => Image.asset(
+        'assets/images/logo.png',
+        width: size,
+        height: size,
+        color: color ?? ZColors.of(context).accentText,
+        colorBlendMode: BlendMode.srcIn,
+        filterQuality: FilterQuality.medium,
+        semanticLabel: 'Razarsa',
+      );
 }
 
 /// Snackbar yang muncul di atas dock.

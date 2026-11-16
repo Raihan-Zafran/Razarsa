@@ -57,7 +57,7 @@ class SettingsPage extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Row(children: [
-              ProfileAvatar(avatarId: store.avatar, frameId: store.effectiveFrame, size: 50),
+              ProfileAvatar(size: 50),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

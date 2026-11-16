@@ -13,7 +13,6 @@ import 'package:razarsa/data/profile_items.dart';
 import 'package:razarsa/data/store.dart';
 import 'package:razarsa/features/settings/profile_page.dart';
 import 'package:razarsa/features/settings/profile_share.dart';
-import 'package:razarsa/features/settings/profile_style_sheet.dart';
 import 'package:razarsa/widgets/profile_widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -40,56 +39,11 @@ void main() {
   });
   setUp(() => L.lang = 'id');
 
-  group('Aset profil', () {
-    test('semua berkas yang dirujuk ada, valid WebP, dan ringan', () {
-      final files = <String>[
-        for (final a in kAvatars) a.asset,
-        for (final f in kFrames) f.asset,
-        for (final b in kBadges) b.asset,
-        for (final c in kCovers.where((c) => c.id == 'desert')) ...[c.dayAsset, c.nightAsset],
-      ];
-      var total = 0;
-      for (final path in files) {
-        final f = File(path);
-        expect(f.existsSync(), isTrue, reason: 'hilang: $path');
-        final bytes = f.readAsBytesSync();
-        total += bytes.length;
-        expect(String.fromCharCodes(bytes.sublist(0, 4)), 'RIFF', reason: path);
-        expect(String.fromCharCodes(bytes.sublist(8, 12)), 'WEBP', reason: path);
-        expect(bytes.length, lessThan(120 * 1024), reason: 'terlalu besar: $path (${bytes.length} B)');
-      }
-      expect(total, lessThan(1024 * 1024), reason: 'aset profil membengkak: ${total ~/ 1024} KB');
-    });
-
-    test('tidak ada berkas aset yatim (semua berkas di folder profil terpakai)', () {
-      final used = {
-        for (final a in kAvatars) a.asset,
-        for (final f in kFrames) f.asset,
-        for (final b in kBadges) b.asset,
-        for (final c in kCovers) c.dayAsset,
-        for (final c in kCovers) c.nightAsset,
-      };
-      for (final dir in ['avatars', 'frames', 'badges', 'covers']) {
-        for (final e in Directory('assets/profile/$dir').listSync().whereType<File>()) {
-          expect(used, contains(e.path.replaceAll('\\', '/')), reason: 'tidak dipakai: ${e.path}');
-        }
-      }
-    });
-
-    test('id unik dan semua terdaftar di pubspec', () {
-      expect({for (final a in kAvatars) a.id}.length, kAvatars.length);
-      expect({for (final f in kFrames) f.id}.length, kFrames.length);
+  group('Lencana (data)', () {
+    test('id lencana unik dan tidak ada lagi aset gambar profil', () {
       expect({for (final b in kBadges) b.id}.length, kBadges.length);
-      final pubspec = File('pubspec.yaml').readAsStringSync();
-      for (final dir in ['avatars', 'frames', 'badges', 'covers']) {
-        expect(pubspec, contains('assets/profile/$dir/'));
-      }
-    });
-
-    test('ukuran lubang bingkai masuk akal (avatar tidak lebih besar dari bingkai)', () {
-      for (final f in kFrames) {
-        expect(f.hole, inInclusiveRange(0.6, 0.9), reason: f.id);
-      }
+      expect(Directory('assets/profile').existsSync(), isFalse, reason: 'aset profil sudah dihapus');
+      expect(File('pubspec.yaml').readAsStringSync(), isNot(contains('assets/profile')));
     });
 
     test('setiap lencana punya petunjuk cara membukanya', () {
@@ -97,101 +51,15 @@ void main() {
         expect(kBadgeHints[b.id], isNotNull, reason: b.id);
       }
     });
-  });
 
-  group('Pilihan avatar, bingkai, cover', () {
-    test('nilai awal: avatar bawaan, tanpa bingkai, cover gurun', () async {
-      final s = await newStore();
-      expect((s.avatar, s.frame, s.cover), (kDefaultAvatar, kNoFrame, kDefaultCover));
-    });
-
-    test('setAvatar menerima id valid dan menolak yang tidak dikenal', () async {
-      final s = await newStore();
-      expect(s.setAvatar('a5'), isTrue);
-      expect(s.avatar, 'a5');
-      expect(s.setAvatar('../../etc/passwd'), isFalse);
-      expect(s.setAvatar(''), isFalse);
-      expect(s.avatar, 'a5');
-    });
-
-    test('bingkai terbuka bertahap menurut level', () async {
-      final s = await newStore();
-      expect(s.level, 1);
-      expect(s.frameUnlocked('f1'), isTrue);
-      expect(s.frameUnlocked('f2'), isFalse);
-      expect(s.setFrame('f2'), isFalse, reason: 'belum terbuka di level 1');
-      expect(s.frame, kNoFrame);
-      giveLevel(s, 3);
-      expect(s.setFrame('f3'), isTrue);
-      expect(s.frame, 'f3');
-      expect(s.setFrame('f4'), isFalse, reason: 'f4 butuh level 5');
-      expect(s.setFrame(kNoFrame), isTrue);
-      expect(s.setFrame('tidak-ada'), isFalse);
-    });
-
-    test('bingkai yang belum terbuka tidak tampil walau pilihan tersimpan (level turun)', () async {
-      final s = await newStore();
-      giveLevel(s, 3);
-      s.setFrame('f3');
-      expect(s.effectiveFrame, 'f3');
-      await s.clearAll(); // XP kembali ke awal
-      s.frame = 'f3'; // pilihan lama masih ada
-      expect(s.level, 1);
-      expect(s.effectiveFrame, kNoFrame);
-    });
-
-    test('setCover memeriksa id', () async {
-      final s = await newStore();
-      expect(s.setCover('mountain'), isTrue);
-      expect(s.setCover('lava'), isFalse);
-      expect(s.cover, 'mountain');
-    });
-
-    test('pilihan tersimpan permanen', () async {
-      final s = await newStore();
-      giveLevel(s, 2);
-      s.setAvatar('a3');
-      s.setFrame('f2');
-      s.setCover('mountain');
-      await s.flush();
-      final b = AppStore(await SharedPreferences.getInstance(), vault: testVault);
-      expect((b.avatar, b.frame, b.cover), ('a3', 'f2', 'mountain'));
-    });
-
-    test('data tersimpan yang rusak/tidak dikenal jatuh ke bawaan, tanpa crash', () async {
-      SharedPreferences.setMockInitialValues({'avatar': 'hacked', 'frame': 5, 'cover': '<script>'});
-      final s = AppStore(await SharedPreferences.getInstance(), vault: testVault);
-      expect((s.avatar, s.frame, s.cover), (kDefaultAvatar, kNoFrame, kDefaultCover));
-    });
-
-    test('hapus semua data mengembalikan tampilan profil ke bawaan', () async {
-      final s = await newStore();
-      giveLevel(s, 2);
-      s.setAvatar('a7');
-      s.setFrame('f2');
-      s.setCover('mountain');
-      await s.clearAll();
-      expect((s.avatar, s.frame, s.cover), (kDefaultAvatar, kNoFrame, kDefaultCover));
-    });
-
-    test('ikut backup, dan nilai di file backup diperiksa saat dipulihkan', () async {
+    test('backup lama yang masih berisi avatar/bingkai/cover tetap bisa dipulihkan', () async {
       final a = await newStore();
-      giveLevel(a, 2);
-      a.setAvatar('a6');
-      a.setFrame('f2');
-      a.setCover('mountain');
-      final file = a.exportJson();
+      final file = jsonDecode(a.exportJson()) as Map<String, dynamic>;
+      (file['profile'] as Map)['avatar'] = 'a6';
+      (file['profile'] as Map)['frame'] = 'f2';
+      (file['profile'] as Map)['cover'] = 'mountain';
       final b = await newStore();
-      expect(await b.importBackup(file), BackupResult.ok);
-      expect((b.avatar, b.frame, b.cover), ('a6', 'f2', 'mountain'));
-
-      final bad = jsonDecode(file) as Map<String, dynamic>;
-      (bad['profile'] as Map)['avatar'] = '../x';
-      (bad['profile'] as Map)['frame'] = 'f999';
-      (bad['profile'] as Map)['cover'] = 7;
-      final c = await newStore();
-      expect(await c.importBackup(jsonEncode(bad)), BackupResult.ok);
-      expect((c.avatar, c.frame, c.cover), (kDefaultAvatar, kNoFrame, kDefaultCover));
+      expect(await b.importBackup(jsonEncode(file)), BackupResult.ok);
     });
   });
 
@@ -282,39 +150,14 @@ void main() {
       await t.pump(const Duration(milliseconds: 800));
     }
 
-    testWidgets('halaman profil memakai avatar pilihan dan 12 lencana tanpa placeholder', (t) async {
+    testWidgets('halaman profil memakai avatar polos dan 12 lencana tanpa placeholder', (t) async {
       final s = await newStore();
-      s.setAvatar('a4');
       await pumpProfile(t, s);
       expect(find.byType(ProfileAvatar), findsOneWidget);
-      expect(find.byType(BadgeImage), findsNWidgets(kBadges.length));
+      expect(find.byType(BadgeIcon), findsNWidgets(kBadges.length));
       expect(find.textContaining('segera hadir'), findsNothing);
       expect(find.text('Tampilan'), findsOneWidget);
       expect(find.text('Bagikan'), findsOneWidget);
-    });
-
-    testWidgets('lembar tampilan: pilih avatar dan cover; bingkai terkunci memberi petunjuk level', (t) async {
-      final s = await newStore();
-      await pumpProfile(t, s, home: const Scaffold(body: ProfileStyleSheet()));
-      await t.tap(find.byKey(const ValueKey('avatar-a5')));
-      await t.pump();
-      expect(s.avatar, 'a5');
-      await t.tap(find.byKey(const ValueKey('cover-mountain')));
-      await t.pump();
-      expect(s.cover, 'mountain');
-      await t.ensureVisible(find.byKey(const ValueKey('frame-f4')));
-      await t.tap(find.byKey(const ValueKey('frame-f4')));
-      await t.pump();
-      await t.pump(const Duration(milliseconds: 400));
-      expect(s.frame, kNoFrame, reason: 'f4 masih terkunci');
-      expect(find.byKey(const ValueKey('frame-hint')), findsOneWidget); // di dalam lembar, bukan toast yang tertutup lembar
-      expect(find.textContaining('terbuka di Level 5'), findsOneWidget);
-      await t.tap(find.byKey(const ValueKey('frame-f1')));
-      await t.pump();
-      expect(s.frame, 'f1');
-      await t.tap(find.byKey(const ValueKey('frame-none')));
-      await t.pump();
-      expect(s.frame, kNoFrame);
     });
 
     testWidgets('mengetuk avatar di profil membuka lembar tampilan', (t) async {
@@ -329,7 +172,6 @@ void main() {
     testWidgets('tema gelap: halaman profil dan lembar tampil tanpa error', (t) async {
       final s = await newStore();
       giveLevel(s, 5);
-      s.setFrame('f4');
       await pumpProfile(t, s, dark: true);
       expect(t.takeException(), isNull);
       await t.tap(find.byType(ProfileAvatar));

@@ -71,10 +71,6 @@ flutter:
   assets:
     - assets/images/
     - assets/dusk/
-    - assets/profile/avatars/
-    - assets/profile/frames/
-    - assets/profile/badges/
-    - assets/profile/covers/
 
   fonts:
     - family: PlusJakartaSans

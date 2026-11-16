@@ -51,12 +51,12 @@ class ProfileShareCard extends StatelessWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),
             child: Stack(children: [
-              Positioned(top: 0, left: 0, right: 0, height: 130, child: ProfileCover(coverId: store.cover, dark: dark, photoPath: store.coverPhotoPath)),
+              Positioned(top: 0, left: 0, right: 0, height: 130, child: ProfileCover(photoPath: store.coverPhotoPath)),
               Positioned(
                 top: 70,
                 left: 0,
                 right: 0,
-                child: Center(child: ProfileAvatar(avatarId: store.avatar, frameId: store.effectiveFrame, size: 120)),
+                child: Center(child: ProfileAvatar(size: 120)),
               ),
               Positioned(
                 top: 196,
@@ -95,7 +95,7 @@ class ProfileShareCard extends StatelessWidget {
                         ? Center(child: Text(tr('Baru mulai petualangan'), style: TextStyle(fontSize: 12, color: muted)))
                         : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                             for (final b in unlocked)
-                              Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: BadgeImage(asset: b.asset, size: 44)),
+                              Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: BadgeIcon(def: b, size: 44)),
                           ]),
                   ),
                 ]),
@@ -105,7 +105,7 @@ class ProfileShareCard extends StatelessWidget {
                 left: 0,
                 right: 0,
                 child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Image.asset(Assets.logo, width: 18, height: 18),
+                  AppLogo(size: 18, color: ink),
                   const SizedBox(width: 6),
                   Text('razarsa', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, letterSpacing: -0.3, color: ink)),
                 ]),
@@ -119,17 +119,7 @@ class ProfileShareCard extends StatelessWidget {
 }
 
 /// Aset gambar yang dipakai kartu (dimuat dulu supaya tidak kosong saat difoto).
-List<String> shareCardAssets(AppStore store) {
-  final cover = kCovers.firstWhere((c) => c.id == store.cover, orElse: () => kCovers.first);
-  return [
-    cover.dayAsset,
-    cover.nightAsset,
-    kAvatars.firstWhere((a) => a.id == store.avatar, orElse: () => kAvatars.first).asset,
-    if (frameById(store.effectiveFrame) != null) frameById(store.effectiveFrame)!.asset,
-    for (final b in kBadges.where((b) => b.check(store)).take(5)) b.asset,
-    Assets.logo,
-  ];
-}
+List<String> shareCardAssets(AppStore store) => [Assets.logo];
 
 /// Memotret kartu menjadi PNG (3x) lewat overlay di luar layar.
 Future<Uint8List?> renderProfileCard(BuildContext context, AppStore store, {required bool dark}) async {

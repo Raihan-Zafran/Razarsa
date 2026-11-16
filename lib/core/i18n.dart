@@ -58,6 +58,7 @@ const _en = <String, String>{
   'Samakan dengan saldo sebenarnya di {0}.': 'Match it to the real balance in {0}.',
   'Sumber saldo': 'Balance sources',
   'Sumber saldo baru': 'New balance source',
+  'Foto profil': 'Profile photo',
   'Cari bank atau e-wallet': 'Search bank or e-wallet',
   'Tidak ketemu. Buat sendiri di bawah.': 'Not found. Create your own below.',
   'Masuk dan keluar': 'Income and expenses',

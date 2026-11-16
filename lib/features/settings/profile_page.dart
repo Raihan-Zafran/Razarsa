@@ -48,7 +48,7 @@ class ProfilePage extends StatelessWidget {
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             SizedBox(
               height: 128,
-              child: ProfileCover(coverId: store.cover, dark: dark),
+              child: ProfileCover(),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
@@ -62,7 +62,7 @@ class ProfilePage extends StatelessWidget {
                       child: GestureDetector(
                         onTap: () => showProfileStyleSheet(context),
                         child: Stack(clipBehavior: Clip.none, children: [
-                          ProfileAvatar(avatarId: store.avatar, frameId: store.effectiveFrame, size: 104),
+                          ProfileAvatar(size: 104),
                           Positioned(
                             right: 0,
                             bottom: 4,
@@ -290,7 +290,7 @@ class _Badge extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
           child: Column(children: [
             Stack(alignment: Alignment.center, children: [
-              BadgeImage(asset: def.asset, size: 52, unlocked: on),
+              BadgeIcon(def: def, size: 52, unlocked: on),
               if (!on) Icon(Icons.lock_rounded, size: 18, color: z.muted),
             ]),
             const SizedBox(height: 6),

@@ -14,7 +14,6 @@ import 'backup.dart';
 import 'models.dart';
 import 'photo_service.dart';
 import 'productive_models.dart';
-import 'profile_items.dart';
 
 /// Hasil memeriksa PIN.
 enum PinResult { ok, wrong, locked }
@@ -106,12 +105,7 @@ class AppStore extends ChangeNotifier {
   String bio = '';
   String joinedAt = '';
 
-  /// Tampilan profil: avatar bawaan, bingkai ('none' = tanpa), cover.
-  String avatar = kDefaultAvatar;
-  String frame = kNoFrame;
-  String cover = kDefaultCover;
-
-  /// Foto sendiri (jalur berkas di HP ini). Kosong = pakai avatar/sampul bawaan. Tidak ikut backup.
+  /// Foto sendiri (jalur berkas di HP ini). Kosong = ikon orang polos / sampul polos. Tidak ikut backup.
   String photoPath = '';
   String coverPhotoPath = '';
 
@@ -232,12 +226,6 @@ class AppStore extends ChangeNotifier {
     quickItems = _rawString('quickItems') == null ? _defaultQuickItems() : _readList('quickItems', QuickEntry.fromJson);
     bio = _get('bio', '');
     joinedAt = _get('joinedAt', '');
-    final av = _get('avatar', kDefaultAvatar);
-    final fr = _get('frame', kNoFrame);
-    final cv = _get('cover', kDefaultCover);
-    avatar = isValidAvatar(av) ? av : kDefaultAvatar;
-    frame = isValidFrame(fr) ? fr : kNoFrame;
-    cover = isValidCover(cv) ? cv : kDefaultCover;
     photoPath = _get<Object?>('photoPath', '') is String ? _get<String>('photoPath', '') : '';
     coverPhotoPath = _get<Object?>('coverPhotoPath', '') is String ? _get<String>('coverPhotoPath', '') : '';
     activeDays = _getStrings('activeDays');
@@ -508,9 +496,6 @@ class AppStore extends ChangeNotifier {
     await _put('quickItems', list(quickItems, (e) => e.toJson()));
     await _put('bio', bio);
     await _put('joinedAt', joinedAt);
-    await _put('avatar', avatar);
-    await _put('frame', frame);
-    await _put('cover', cover);
     await _put('photoPath', photoPath);
     await _put('coverPhotoPath', coverPhotoPath);
     await _put('activeDays', activeDays);
@@ -816,9 +801,6 @@ class AppStore extends ChangeNotifier {
           'bio': bio,
           'joinedAt': joinedAt,
           'activeDays': activeDays,
-          'avatar': avatar,
-          'frame': frame,
-          'cover': cover,
           // Nama dan email hanya di backup berkata sandi / salinan di HP, tidak di backup polos.
           if (mode != _Export.withoutLocked) ...{'name': userName, 'email': email},
         },
@@ -1012,9 +994,6 @@ class AppStore extends ChangeNotifier {
       final newPalette = st['palette'] is int ? clampPalette(st['palette']) : palette;
       final newBio = pf['bio'] is String && (pf['bio'] as String).length <= 1000 ? pf['bio'] as String : bio;
       final newJoined = pf['joinedAt'] is String && dayRe.hasMatch(pf['joinedAt'] as String) ? pf['joinedAt'] as String : joinedAt;
-      final newAvatar = pf['avatar'] is String && isValidAvatar(pf['avatar'] as String) ? pf['avatar'] as String : avatar;
-      final newFrame = pf['frame'] is String && isValidFrame(pf['frame'] as String) ? pf['frame'] as String : frame;
-      final newCover = pf['cover'] is String && isValidCover(pf['cover'] as String) ? pf['cover'] as String : cover;
       final newDays = pf['activeDays'] is List
           ? (pf['activeDays'] as List).whereType<String>().where(dayRe.hasMatch).toSet().take(400).toList()
           : activeDays;
@@ -1052,9 +1031,6 @@ class AppStore extends ChangeNotifier {
       userName = newName;
       email = newEmail;
       bio = newBio;
-      avatar = newAvatar;
-      frame = newFrame;
-      cover = newCover;
       joinedAt = newJoined;
       activeDays = newDays;
       _markActive();
@@ -1140,9 +1116,6 @@ class AppStore extends ChangeNotifier {
     PhotoService.delete(coverPhotoPath);
     photoPath = '';
     coverPhotoPath = '';
-    avatar = kDefaultAvatar;
-    frame = kNoFrame;
-    cover = kDefaultCover;
     joinedAt = '';
     activeDays = [];
     lastBackup = '';
@@ -1628,29 +1601,7 @@ class AppStore extends ChangeNotifier {
     _changed();
   }
 
-  /// Bingkai yang benar-benar tampil: bingkai yang belum terbuka (mis. level turun setelah data
-  /// dihapus) dianggap tanpa bingkai, pilihan tetap tersimpan.
-  String get effectiveFrame {
-    final f = frameById(frame);
-    return f != null && level >= f.unlockLevel ? frame : kNoFrame;
-  }
-
-  bool frameUnlocked(String id) {
-    if (id == kNoFrame) return true;
-    final f = frameById(id);
-    return f != null && level >= f.unlockLevel;
-  }
-
-  /// false kalau id tidak dikenal.
-  bool setAvatar(String id) {
-    if (!isValidAvatar(id)) return false;
-    avatar = id;
-    _dropPhoto(cover: false);
-    _changed();
-    return true;
-  }
-
-  /// Memakai foto sendiri sebagai avatar (berkas lama dihapus). Kosong = kembali ke avatar bawaan.
+  /// Memakai foto sendiri sebagai avatar (berkas lama dihapus). Kosong = kembali ke ikon polos.
   void setPhotoPath(String path) {
     if (path == photoPath) return;
     PhotoService.delete(photoPath);
@@ -1663,32 +1614,6 @@ class AppStore extends ChangeNotifier {
     PhotoService.delete(coverPhotoPath);
     coverPhotoPath = path;
     _changed();
-  }
-
-  void _dropPhoto({required bool cover}) {
-    if (cover) {
-      PhotoService.delete(coverPhotoPath);
-      coverPhotoPath = '';
-    } else {
-      PhotoService.delete(photoPath);
-      photoPath = '';
-    }
-  }
-
-  /// false kalau id tidak dikenal atau bingkai belum terbuka di level sekarang.
-  bool setFrame(String id) {
-    if (!isValidFrame(id) || !frameUnlocked(id)) return false;
-    frame = id;
-    _changed();
-    return true;
-  }
-
-  bool setCover(String id) {
-    if (!isValidCover(id)) return false;
-    cover = id;
-    _dropPhoto(cover: true);
-    _changed();
-    return true;
   }
 
   void setBio(String v) {

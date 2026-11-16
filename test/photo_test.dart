@@ -69,24 +69,6 @@ void main() {
       expect(s.exportJson().contains('/data/foto.png'), isFalse, reason: 'jalur berkas HP ini tidak boleh bocor ke backup');
     });
 
-    test('memilih avatar atau sampul bawaan menghapus foto dan berkasnya', () async {
-      final dir = Directory.systemTemp.createTempSync('razarsa_foto');
-      addTearDown(() => dir.deleteSync(recursive: true));
-      final f1 = File('${dir.path}/a.png')..writeAsBytesSync([1]);
-      final f2 = File('${dir.path}/c.png')..writeAsBytesSync([1]);
-      final s = await newStore();
-      s.setPhotoPath(f1.path);
-      s.setCoverPhotoPath(f2.path);
-      expect(s.setAvatar('a2'), isTrue);
-      expect(s.photoPath, '');
-      expect(s.coverPhotoPath, f2.path, reason: 'avatar tidak menyentuh sampul');
-      expect(s.setCover('mountain'), isTrue);
-      expect(s.coverPhotoPath, '');
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-      expect(f1.existsSync(), isFalse);
-      expect(f2.existsSync(), isFalse);
-    });
-
     test('mengganti foto menghapus berkas lama', () async {
       final dir = Directory.systemTemp.createTempSync('razarsa_foto');
       addTearDown(() => dir.deleteSync(recursive: true));
@@ -116,7 +98,7 @@ void main() {
     testWidgets('berkas foto yang hilang: avatar kembali ke bawaan tanpa galat', (t) async {
       final s = await newStore();
       s.setPhotoPath('/tidak/ada.png');
-      await pump(t, s, const Scaffold(body: Center(child: ProfileAvatar(avatarId: 'a1', size: 96))));
+      await pump(t, s, const Scaffold(body: Center(child: ProfileAvatar(size: 96))));
       await t.pump(const Duration(milliseconds: 300));
       expect(t.takeException(), isNull);
       expect(find.byType(Image), findsWidgets);
@@ -125,7 +107,7 @@ void main() {
     testWidgets('lembar tampilan: tombol Unggah foto selalu ada, Hapus foto hanya saat ada foto', (t) async {
       final s = await newStore();
       await pump(t, s, const Scaffold(body: ProfileStyleSheet()));
-      expect(find.text('Unggah foto'), findsNWidgets(2)); // avatar dan cover
+      expect(find.text('Unggah foto'), findsNWidgets(2)); // foto profil dan cover
       expect(find.text('Hapus foto'), findsNothing);
       s.setPhotoPath('/x/a.png');
       await t.pump();
@@ -149,7 +131,7 @@ void main() {
       await t.runAsync(() async => f = File('${dir.path}/c.png')..writeAsBytesSync(await solidPng(20, 10, Colors.red)));
       final s = await newStore();
       s.setCoverPhotoPath(f.path);
-      await pump(t, s, const Scaffold(body: SizedBox(height: 100, child: ProfileCover(coverId: 'desert', dark: false))));
+      await pump(t, s, const Scaffold(body: SizedBox(height: 100, child: ProfileCover())));
       await t.pump(const Duration(milliseconds: 200));
       final img = t.widget<Image>(find.byType(Image).first);
       expect(img.image, isA<FileImage>());

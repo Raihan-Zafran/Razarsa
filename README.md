@@ -29,7 +29,7 @@ Aplikasi Flutter dengan dua mode: **Keuangan** dan **Produktif**. Semua data ter
 - Foto profil dan sampul dari galeri/berkas sendiri
 - Kunci PIN dan sidik jari (Windows Hello di Windows)
 - Backup berkata sandi, pulihkan, ekspor CSV
-- Profil dengan level, avatar, bingkai, dan lencana
+- Profil dengan level, foto profil dan sampul dari galeri, dan lencana
 
 ## Platform
 

@@ -285,7 +285,7 @@ class _Sidebar extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.all(6),
               child: Row(mainAxisAlignment: rail ? MainAxisAlignment.center : MainAxisAlignment.start, children: [
-                ProfileAvatar(avatarId: store.avatar, frameId: store.effectiveFrame, size: 40),
+                ProfileAvatar(size: 40),
                 if (!rail) ...[
                   const SizedBox(width: 10),
                   Expanded(

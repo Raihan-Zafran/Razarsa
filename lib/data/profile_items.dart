@@ -1,95 +1,19 @@
+import 'package:flutter/material.dart' show IconData, Icons;
+
 import '../core/i18n.dart';
-import '../widgets/common.dart' show Assets;
 import 'store.dart';
-
-/// Avatar bawaan (maskot naga). Semua boleh dipakai.
-class AvatarItem {
-  const AvatarItem(this.id, this._label);
-
-  final String id;
-  final String _label;
-  String get label => tr(_label);
-  String get asset => 'assets/profile/avatars/$id.webp';
-}
-
-const kAvatars = <AvatarItem>[
-  AvatarItem('a1', 'Naga ceria'),
-  AvatarItem('a2', 'Naga daun'),
-  AvatarItem('a3', 'Naga kacamata'),
-  AvatarItem('a4', 'Naga penyihir'),
-  AvatarItem('a5', 'Naga koin'),
-  AvatarItem('a6', 'Naga mengantuk'),
-  AvatarItem('a7', 'Naga kaget'),
-  AvatarItem('a8', 'Naga kedip'),
-];
-
-const kDefaultAvatar = 'a1';
-
-/// Bingkai avatar. Terbuka bertahap menurut level; 'none' = tanpa bingkai (selalu boleh).
-class FrameItem {
-  const FrameItem(this.id, this._label, this.unlockLevel, this.hole);
-
-  final String id;
-  final String _label;
-  final int unlockLevel;
-
-  /// Diameter lubang bingkai dibanding lebar gambar (dipakai untuk menempatkan avatar di dalamnya).
-  final double hole;
-  String get label => tr(_label);
-  String get asset => 'assets/profile/frames/$id.webp';
-}
-
-const kNoFrame = 'none';
-
-const kFrames = <FrameItem>[
-  FrameItem('f1', 'Sulur', 1, 0.74),
-  FrameItem('f2', 'Emas', 2, 0.795),
-  FrameItem('f3', 'Api', 3, 0.717),
-  FrameItem('f4', 'Ungu', 5, 0.693),
-];
-
-FrameItem? frameById(String id) {
-  for (final f in kFrames) {
-    if (f.id == id) return f;
-  }
-  return null;
-}
-
-/// Cover kepala profil: tiap cover punya versi siang dan malam (mengikuti tema).
-class CoverItem {
-  const CoverItem(this.id, this._label, this.dayAsset, this.nightAsset);
-
-  final String id;
-  final String _label;
-  final String dayAsset;
-  final String nightAsset;
-  String get label => tr(_label);
-}
-
-const kCovers = <CoverItem>[
-  CoverItem('desert', 'Gurun', 'assets/profile/covers/desert_day.webp', 'assets/profile/covers/desert_night.webp'),
-  CoverItem('mountain', 'Gunung', Assets.sceneDay, Assets.sceneNight),
-];
-
-const kDefaultCover = 'desert';
-
-bool isValidAvatar(String id) => kAvatars.any((a) => a.id == id);
-
-bool isValidFrame(String id) => id == kNoFrame || frameById(id) != null;
-
-bool isValidCover(String id) => kCovers.any((c) => c.id == id);
 
 /// Satu lencana pencapaian beserta aturan terbukanya.
 class BadgeDef {
-  const BadgeDef(this.id, this._label, this._tag, this.check);
+  const BadgeDef(this.id, this._label, this._tag, this.icon, this.check);
 
   final String id;
   final String _label;
   final String _tag;
+  final IconData icon;
   final bool Function(AppStore) check;
   String get label => tr(_label);
   String get tag => tr(_tag);
-  String get asset => 'assets/profile/badges/$id.webp';
 }
 
 /// Pengeluaran periode lalu ada dan tidak melebihi anggaran.
@@ -102,18 +26,18 @@ bool savedLastPeriod(AppStore s) {
 }
 
 final kBadges = <BadgeDef>[
-  BadgeDef('b01', 'Langkah pertama', 'Semua mode', (s) => s.totalActivity > 0),
-  BadgeDef('b02', '7 hari beruntun', 'Semua mode', (s) => s.streak >= 7),
-  BadgeDef('b03', 'Hemat sebulan', 'Keuangan', savedLastPeriod),
-  BadgeDef('b04', '10 tugas tuntas', 'Produktif', (s) => s.todos.where((t) => t.done).length >= 10),
-  BadgeDef('b05', 'Pencatat rajin', 'Keuangan', (s) => s.txns.length >= 50),
-  BadgeDef('b06', 'Target tercapai', 'Keuangan', (s) => s.goals.any((g) => g.target > 0 && g.saved >= g.target)),
-  BadgeDef('b07', 'Penulis catatan', 'Produktif', (s) => s.notes.length >= 10),
-  BadgeDef('b08', 'Perencana', 'Produktif', (s) => s.agenda.length >= 10),
-  BadgeDef('b09', '30 hari aktif', 'Semua mode', (s) => s.activeDays.length >= 30),
-  BadgeDef('b10', 'Level 3', 'Semua mode', (s) => s.level >= 3),
-  BadgeDef('b11', 'Level 5', 'Semua mode', (s) => s.level >= 5),
-  BadgeDef('b12', '100 aktivitas', 'Semua mode', (s) => s.totalActivity >= 100),
+  BadgeDef('b01', 'Langkah pertama', 'Semua mode', Icons.flag_rounded, (s) => s.totalActivity > 0),
+  BadgeDef('b02', '7 hari beruntun', 'Semua mode', Icons.local_fire_department_rounded, (s) => s.streak >= 7),
+  BadgeDef('b03', 'Hemat sebulan', 'Keuangan', Icons.savings_rounded, savedLastPeriod),
+  BadgeDef('b04', '10 tugas tuntas', 'Produktif', Icons.task_alt_rounded, (s) => s.todos.where((t) => t.done).length >= 10),
+  BadgeDef('b05', 'Pencatat rajin', 'Keuangan', Icons.edit_note_rounded, (s) => s.txns.length >= 50),
+  BadgeDef('b06', 'Target tercapai', 'Keuangan', Icons.emoji_events_rounded, (s) => s.goals.any((g) => g.target > 0 && g.saved >= g.target)),
+  BadgeDef('b07', 'Penulis catatan', 'Produktif', Icons.sticky_note_2_rounded, (s) => s.notes.length >= 10),
+  BadgeDef('b08', 'Perencana', 'Produktif', Icons.event_available_rounded, (s) => s.agenda.length >= 10),
+  BadgeDef('b09', '30 hari aktif', 'Semua mode', Icons.calendar_month_rounded, (s) => s.activeDays.length >= 30),
+  BadgeDef('b10', 'Level 3', 'Semua mode', Icons.military_tech_rounded, (s) => s.level >= 3),
+  BadgeDef('b11', 'Level 5', 'Semua mode', Icons.workspace_premium_rounded, (s) => s.level >= 5),
+  BadgeDef('b12', '100 aktivitas', 'Semua mode', Icons.bolt_rounded, (s) => s.totalActivity >= 100),
 ];
 
 /// Syarat terbuka dalam kalimat, untuk petunjuk pada lencana yang masih terkunci.

@@ -93,7 +93,7 @@ class _LockGateState extends State<LockGate> with WidgetsBindingObserver {
               triesLeft: () => AppStore.pinFreeTries - store.pinFails,
               useBiometric: store.switches['bio'] == true,
               scene: scene,
-              profile: ProfileAvatar(avatarId: store.avatar, frameId: store.effectiveFrame, size: 76),
+              profile: ProfileAvatar(size: 76),
               greetingText: greeting(),
               nameText: store.userName.isEmpty ? 'Razarsa' : store.userName,
               onForgot: () => _forgot(context),
