@@ -199,7 +199,8 @@ class StaggerItem extends StatefulWidget {
   final int index;
   final Widget child;
 
-  /// Jumlah elemen pertama yang dianimasikan; sisanya langsung tampil.
+  /// Urutan penundaan dibatasi di sini: elemen ke-8 dan seterusnya muncul bersamaan dengan yang ke-8,
+  /// jadi SEMUA elemen halaman tetap ikut bergerak tanpa membuat halaman panjang terasa lambat.
   static const maxItems = 7;
   static const delay = Duration(milliseconds: 60);
   static const duration = Duration(milliseconds: 450);
@@ -216,7 +217,7 @@ class _StaggerItemState extends State<StaggerItem> with SingleTickerProviderStat
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_c != null || MediaQuery.disableAnimationsOf(context)) return;
-    final lead = StaggerItem.delay * widget.index;
+    final lead = StaggerItem.delay * math.min(widget.index, StaggerItem.maxItems);
     final total = lead + StaggerItem.duration;
     final c = AnimationController(vsync: this, duration: total);
     _a = CurvedAnimation(
@@ -247,12 +248,12 @@ class _StaggerItemState extends State<StaggerItem> with SingleTickerProviderStat
   }
 }
 
-/// Membungkus [children] dengan [StaggerItem] (7 pertama) kalau berada di halaman tab.
+/// Membungkus semua [children] dengan [StaggerItem] kalau berada di halaman tab.
 List<Widget> staggered(BuildContext context, List<Widget> children, {int start = 0}) {
   if (!PageStagger.active(context)) return children;
   return [
     for (var i = 0; i < children.length; i++)
-      i + start < StaggerItem.maxItems ? StaggerItem(index: i + start, child: children[i]) : children[i],
+      StaggerItem(index: i + start, child: children[i]),
   ];
 }
 

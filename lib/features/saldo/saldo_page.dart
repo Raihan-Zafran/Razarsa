@@ -9,6 +9,11 @@ import '../../core/theme.dart';
 import '../../data/models.dart';
 import '../../data/store.dart';
 import '../../widgets/common.dart';
+import '../../shell/app_shell.dart' show pushPage;
+import '../../shell/desktop_page.dart';
+import '../../shell/layout.dart';
+import '../finance/add_transaction_page.dart';
+import 'flow_view.dart';
 import 'graph_engine.dart';
 import 'saldo_graph.dart';
 
@@ -59,6 +64,8 @@ class _SaldoPageState extends State<SaldoPage> {
   GraphData? _data;
   int _dataRev = -1, _dataQ = 0;
   String _dataDay = '';
+  bool _flow = true; // desktop: true = diagram aliran, false = graf Obsidian
+  int _flowDays = 0; // 7, 14, atau 0 = bulan anggaran ini
 
   GraphData _graph(AppStore store) {
     final now = DateTime.now();
@@ -101,6 +108,7 @@ class _SaldoPageState extends State<SaldoPage> {
     final hidden = store.hideBalance;
     String money(int v) => hidden ? rpHidden : rpNeg(v);
     final total = store.balance;
+    if (widget.embedded && isWide(context)) return _desktop(context, store, d, reduce, hidden);
 
     final list = ListView(
         padding: EdgeInsets.only(top: pad.top + 12, bottom: pad.bottom + 40),
@@ -209,6 +217,134 @@ class _SaldoPageState extends State<SaldoPage> {
     return Scaffold(
       backgroundColor: z.bg,
       body: widget.embedded ? Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 560), child: list)) : list,
+    );
+  }
+
+  // ---------- Tampilan desktop ----------
+  Widget _desktop(BuildContext context, AppStore store, GraphData d, bool reduce, bool hidden) {
+    final z = ZColors.of(context);
+    final today = dayOnly(DateTime.now());
+    final (from, to) = _flowDays == 0 ? store.periodRange() : (today.subtract(Duration(days: _flowDays - 1)), today.add(const Duration(days: 1)));
+    final inPeriod = store.txns.where((t) {
+      final x = dayOnly(t.at);
+      return !x.isBefore(from) && x.isBefore(to);
+    }).toList();
+    String money(int v) => hidden ? rpHidden : rpNeg(v);
+    final view = Segmented<bool>(
+      height: 40,
+      items: [(true, tr('Aliran')), (false, tr('Graf (Obsidian)'))],
+      value: _flow,
+      onChanged: (v) => setState(() {
+        _flow = v;
+        _sel = null;
+      }),
+    );
+    final period = _flow
+        ? Segmented<int>(
+            height: 38,
+            items: [(7, tr('7 hari')), (14, tr('14 hari')), (0, tr('Bulan ini'))],
+            value: _flowDays,
+            onChanged: (v) => setState(() => _flowDays = v),
+          )
+        : Row(children: [
+            IconButton(tooltip: tr('Kuartal sebelumnya'), onPressed: d.canPrev ? () => _nav(d, -1) : null, icon: const Icon(Icons.chevron_left_rounded, size: 26)),
+            Text(_period(d), style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
+            IconButton(tooltip: tr('Kuartal berikutnya'), onPressed: d.canNext ? () => _nav(d, 1) : null, icon: const Icon(Icons.chevron_right_rounded, size: 26)),
+            const Spacer(),
+            Text(_q < 0 ? trf('Arsip · {0}/200', [d.count]) : '${d.count}/200', style: TextStyle(fontSize: 11.5, color: z.muted)),
+          ]);
+    final main = DCard(
+      padding: const EdgeInsets.fromLTRB(24, 22, 24, 22),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(tr('Saldo per sumber'), style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 3),
+              Text(trf('{0} transaksi pada periode ini.', [_flow ? inPeriod.length : d.count]), style: TextStyle(fontSize: 12.5, color: z.muted)),
+            ]),
+          ),
+          SizedBox(width: 280, child: view),
+        ]),
+        const SizedBox(height: 14),
+        Align(alignment: Alignment.centerLeft, child: SizedBox(width: _flow ? 270 : null, child: period)),
+        const SizedBox(height: 18),
+        if (_flow)
+          SaldoFlow(store: store, from: from, to: to)
+        else
+          ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: Stack(children: [
+              SaldoGraph(
+                key: ValueKey(_q),
+                data: d,
+                reduceMotion: reduce,
+                emptyText: tr('Belum ada transaksi di periode ini'),
+                fontFamily: Theme.of(context).textTheme.bodyMedium?.fontFamily,
+                onSelected: (n) => setState(() => _sel = n),
+                onManageWallet: (w) => _manage(context, store, w),
+                onAddWallet: () => _add(context, store),
+              ),
+              if (_sel != null) Positioned(left: 14, right: 14, bottom: 8, child: _InfoCard(node: _sel!, store: store, hidden: hidden)),
+            ]),
+          ),
+      ]),
+    );
+    final side = DCard(
+      title: tr('Sumber saldo'),
+      trailing: IconButton(tooltip: tr('Tambah'), visualDensity: VisualDensity.compact, onPressed: () => _add(context, store), icon: const Icon(Icons.add_rounded, size: 20)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        for (final w in store.wallets)
+          InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: () => _manage(context, store, w),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 2),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Padding(padding: const EdgeInsets.only(top: 2, right: 14), child: Icon(walletIcon(w.type), size: 20, color: z.text2)),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      Expanded(child: Text(w.name, style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800))),
+                      Text(money(store.walletBalance(w.id)), style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, fontFeatures: [FontFeature.tabularFigures()])),
+                    ]),
+                    const SizedBox(height: 2),
+                    Text('${walletTypeLabel(w.type)} · ${trf('{0} transaksi', [store.walletTxnCount(w.id)])}', style: TextStyle(fontSize: 12, color: z.muted2)),
+                    Text(
+                      trf('Masuk {0} · Keluar {1}', [
+                        hidden ? rpHidden : rpShort(inPeriod.where((t) => t.wallet == w.id && !t.isExpense).fold(0, (a, t) => a + t.amount)),
+                        hidden ? rpHidden : rpShort(inPeriod.where((t) => t.wallet == w.id && t.isExpense).fold(0, (a, t) => a - t.amount)),
+                      ]),
+                      style: TextStyle(fontSize: 12, color: z.muted2),
+                    ),
+                  ]),
+                ),
+              ]),
+            ),
+          ),
+        const SizedBox(height: 10),
+        Text(tr('Klik satu titik di peta untuk melihat rinciannya dan menyorot garisnya.'), style: TextStyle(fontSize: 12.5, height: 1.45, color: z.muted)),
+      ]),
+    );
+    return DesktopPage(
+      title: tr('Saldo per sumber'),
+      subtitle: tr('Ke mana tiap sumber dipakai'),
+      action: FilledButton.icon(
+        onPressed: () => pushPage(context, const AddTransactionPage(income: false)),
+        icon: const Icon(Icons.add_rounded, size: 20),
+        label: Text(tr('Tambah transaksi'), style: const TextStyle(fontWeight: FontWeight.w800)),
+        style: FilledButton.styleFrom(minimumSize: const Size(0, 44), padding: const EdgeInsets.symmetric(horizontal: 20)),
+      ),
+      children: [
+        LayoutBuilder(builder: (context, box) {
+          if (box.maxWidth < 900) return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [main, const SizedBox(height: 20), side]);
+          return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(flex: 7, child: main),
+            const SizedBox(width: 20),
+            Expanded(flex: 3, child: side),
+          ]);
+        }),
+      ],
     );
   }
 

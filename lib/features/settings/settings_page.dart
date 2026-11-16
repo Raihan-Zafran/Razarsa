@@ -12,6 +12,8 @@ import '../../core/theme.dart';
 import '../../data/backup.dart';
 import '../../data/store.dart';
 import '../../shell/app_shell.dart';
+import '../../shell/desktop_page.dart';
+import '../../shell/layout.dart';
 import '../../widgets/common.dart';
 import '../../widgets/profile_widgets.dart';
 import '../finance/report_page.dart' show editBudget;
@@ -37,7 +39,7 @@ class SettingsPage extends StatelessWidget {
       ThemeMode.system => tr('Ikuti HP'),
     };
 
-    return PageScroll(children: [
+    final children = <Widget>[
       PageTitle(tr('Pengaturan')),
       // Ruang kosong supaya latar (gurun / kelas) terlihat; polos kalau "Pakai latar" mati.
       Builder(builder: (context) {
@@ -177,7 +179,9 @@ class SettingsPage extends StatelessWidget {
       ]),
       const SizedBox(height: 14),
       Text(trf('Razarsa versi {0}', [kAppVersion]), textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: z.muted2)),
-    ]);
+    ];
+    if (isWide(context)) return _DeskSettings(groups: children.whereType<_Group>().toList(), store: store, onTheme: () => _pickTheme(context, store));
+    return PageScroll(children: children);
   }
 
 
@@ -494,19 +498,7 @@ class SettingsPage extends StatelessWidget {
     }
   }
 
-  Future<void> _exportCsv(BuildContext context, AppStore store) async {
-    try {
-      final uri = await FilePicker.saveFile(
-        fileName: 'razarsa-transaksi-${_stamp()}.csv',
-        bytes: utf8.encode('\uFEFF${store.exportCsv()}'),
-        mimeType: 'text/csv',
-      );
-      if (uri != null && context.mounted) showZToast(context, tr('File CSV tersimpan'));
-    } catch (e) {
-      debugPrint('Razarsa: operasi file gagal: $e');
-      if (context.mounted) showZToast(context, tr('Gagal menyimpan file'));
-    }
-  }
+  Future<void> _exportCsv(BuildContext context, AppStore store) => exportCsvFile(context, store);
 
   /// Pulihkan dari file: buka dulu (minta kata sandi bila terenkripsi), tampilkan isinya, baru
   /// minta persetujuan mengganti data di HP ini.
@@ -782,6 +774,169 @@ class _Switch extends StatelessWidget {
             onChanged: setV,
           ),
         ]),
+      ),
+    );
+  }
+}
+
+/// Simpan semua transaksi sebagai berkas CSV (dibuka di Excel). Dipakai Pengaturan dan halaman Transaksi desktop.
+Future<void> exportCsvFile(BuildContext context, AppStore store) async {
+  try {
+    final uri = await FilePicker.saveFile(
+      fileName: 'razarsa-transaksi-${DateTime.now().toIso8601String().substring(0, 10)}.csv',
+      bytes: utf8.encode('\uFEFF${store.exportCsv()}'),
+      mimeType: 'text/csv',
+    );
+    if (uri != null && context.mounted) showZToast(context, tr('File CSV tersimpan'));
+  } catch (e) {
+    debugPrint('Razarsa: operasi file gagal: $e');
+    if (context.mounted) showZToast(context, tr('Gagal menyimpan file'));
+  }
+}
+
+/// Pengaturan untuk jendela lebar: daftar bagian di kiri, isi bagian terpilih di kanan.
+class _DeskSettings extends StatefulWidget {
+  const _DeskSettings({required this.groups, required this.store, required this.onTheme});
+
+  final List<_Group> groups;
+  final AppStore store;
+  final VoidCallback onTheme;
+
+  @override
+  State<_DeskSettings> createState() => _DeskSettingsState();
+}
+
+class _DeskSettingsState extends State<_DeskSettings> {
+  int _sec = 0;
+
+  /// Bagian di kiri → judul grup (_Group.title) yang ditampilkan.
+  List<(String, IconData, List<String>)> get _sections => [
+        (tr('Umum'), Icons.tune_rounded, [tr('Tampilan'), tr('Umum'), tr('Profil')]),
+        (tr('Keuangan'), Icons.account_balance_wallet_outlined, [tr('Keuangan')]),
+        (tr('Produktif'), Icons.checklist_rounded, [tr('Produktif')]),
+        (tr('Notifikasi'), Icons.notifications_none_rounded, [tr('Notifikasi')]),
+        (tr('Keamanan'), Icons.shield_outlined, [tr('Keamanan & Privasi')]),
+        (tr('Data dan cadangan'), Icons.storage_outlined, [tr('Data dan cadangan')]),
+        (tr('Tentang'), Icons.info_outline_rounded, [tr('Tentang')]),
+      ];
+
+  @override
+  Widget build(BuildContext context) {
+    final z = ZColors.of(context);
+    final store = widget.store;
+    // Bagian tanpa isi (mis. Notifikasi di Windows) disembunyikan.
+    final secs = [for (final e in _sections) if (widget.groups.any((g) => e.$3.contains(g.title))) e];
+    final i = _sec.clamp(0, secs.length - 1);
+    final cur = secs[i];
+    final shown = [for (final g in widget.groups) if (cur.$3.contains(g.title)) g];
+    final nav = DCard(
+      padding: const EdgeInsets.all(10),
+      child: Column(children: [
+        for (var k = 0; k < secs.length; k++)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Material(
+              color: k == i ? z.toneBg('amber') : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => setState(() => _sec = k),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                  child: Row(children: [
+                    Icon(secs[k].$2, size: 21, color: k == i ? z.accentText : z.text2),
+                    const SizedBox(width: 14),
+                    Expanded(child: Text(secs[k].$1, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: k == i ? z.accentText : z.text))),
+                  ]),
+                ),
+              ),
+            ),
+          ),
+      ]),
+    );
+    final content = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      if (i == 0) ...[
+        DCard(
+          title: tr('Tema'),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: SizedBox(
+              width: 360,
+              child: Segmented<ThemeMode>(
+                height: 42,
+                items: [
+                  (ThemeMode.light, tr('Terang')),
+                  (ThemeMode.dark, tr('Gelap')),
+                  (ThemeMode.system, defaultTargetPlatform == TargetPlatform.windows ? tr('Ikuti Windows') : tr('Ikuti HP')),
+                ],
+                value: store.themeMode,
+                onChanged: store.setThemeMode,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        DCard(
+          title: tr('Palet warna'),
+          child: Column(children: [
+            for (var p = 0; p < kPalettes.length; p++) _PaletteCard(index: p, selected: store.palette == p, onTap: () => store.setPalette(p)),
+          ]),
+        ),
+      ],
+      for (final g in shown) g,
+    ]);
+    return DesktopPage(
+      title: tr('Pengaturan'),
+      subtitle: tr('Tampilan, keamanan, dan data'),
+      children: [
+        LayoutBuilder(builder: (context, box) {
+          if (box.maxWidth < 760) {
+            return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [nav, const SizedBox(height: 20), content]);
+          }
+          return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            SizedBox(width: 250, child: nav),
+            const SizedBox(width: 24),
+            Expanded(child: content),
+          ]);
+        }),
+      ],
+    );
+  }
+}
+
+class _PaletteCard extends StatelessWidget {
+  const _PaletteCard({required this.index, required this.selected, required this.onTap});
+
+  final int index;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final z = ZColors.of(context);
+    final p = kPalettes[index];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: selected ? z.toneBg('amber') : Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: selected ? z.primary : z.chipBorder, width: selected ? 2 : 1.4)),
+            child: Row(children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Row(children: [for (final c in p.swatches) Container(width: 28, height: 44, color: c)]),
+              ),
+              const SizedBox(width: 16),
+              Expanded(child: Text(tr(p.name), style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800))),
+              if (selected) Icon(Icons.check_circle_rounded, color: z.primary),
+            ]),
+          ),
+        ),
       ),
     );
   }

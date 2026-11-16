@@ -166,13 +166,13 @@ void main() {
       await show(t, s, const ModeShell(mode: 'finance'));
       final spark = find.bySemanticsLabel('Saldo 12 hari terakhir');
       expect(spark, findsOneWidget);
-      expect(find.textContaining(' · Rp'), findsNothing);
+      expect(t.getSemantics(spark).value, isEmpty);
       final g = await t.startGesture(t.getTopRight(spark) + const Offset(-8, 60)); // ujung kanan = hari ini
       await t.pump(const Duration(milliseconds: 150)); // jeda tekan standar sebelum "tap down"
-      expect(find.textContaining(' · Rp 5.000.000'), findsOneWidget);
+      expect(t.getSemantics(find.bySemanticsLabel('Saldo 12 hari terakhir')).value, contains(' · Rp 5.000.000'));
       await g.up();
       await t.pump();
-      expect(find.textContaining(' · Rp'), findsNothing);
+      expect(t.getSemantics(spark).value, isEmpty);
       await t.pumpWidget(const SizedBox());
       await t.pump(const Duration(seconds: 3));
       handle.dispose();
@@ -251,7 +251,7 @@ void main() {
       expect(find.text('x'), findsOneWidget);
     });
 
-    testWidgets('hanya 7 elemen pertama yang dianimasikan', (t) async {
+    testWidgets('semua elemen dianimasikan (penundaan dibatasi 7 langkah)', (t) async {
       late BuildContext ctx;
       await t.pumpWidget(MaterialApp(
         home: PageStagger(child: Builder(builder: (c) {
@@ -260,7 +260,7 @@ void main() {
         })),
       ));
       final items = staggered(ctx, [for (var i = 0; i < 10; i++) Text('t$i')]);
-      expect(items.whereType<StaggerItem>().length, StaggerItem.maxItems);
+      expect(items.whereType<StaggerItem>().length, 10, reason: 'semua elemen dianimasikan; hanya penundaannya yang dibatasi');
       expect(items.length, 10);
     });
   });

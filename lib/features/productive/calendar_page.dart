@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../../data/store.dart';
 import '../../shell/layout.dart';
 import '../../widgets/common.dart';
+import 'desktop_prod.dart';
 import 'prod_common.dart';
 
 /// Kalender + pengingat dalam satu halaman.
@@ -35,6 +36,7 @@ class _CalendarPageState extends State<CalendarPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (isWide(context)) return const DesktopCalendar();
     final store = StoreScope.of(context);
     final z = ZColors.of(context);
     final today = dayOnly(DateTime.now());

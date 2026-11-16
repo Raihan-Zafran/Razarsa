@@ -1264,6 +1264,24 @@ class AppStore extends ChangeNotifier {
     _changed();
   }
 
+  /// Mengubah transaksi yang sudah ada (id tetap). false kalau transaksinya tidak ada lagi.
+  bool updateTxn(String id, {required String name, required String cat, required int amount, required DateTime at, required String wallet}) {
+    final i = txns.indexWhere((t) => t.id == id);
+    if (i < 0) return false;
+    final w = walletById(wallet) ?? defaultWallet;
+    txns[i] = Txn(
+      id: id,
+      name: name.length > 200 ? name.substring(0, 200) : name,
+      cat: cat,
+      amount: amount.clamp(-maxAmount, maxAmount).toInt(),
+      at: at,
+      wallet: w.id,
+    );
+    _sortTxns();
+    _changed();
+    return true;
+  }
+
   /// Total saldo = jumlah saldo semua sumber.
   int get balance => wallets.fold(0, (s, w) => s + w.opening) + txns.fold(0, (s, t) => s + t.amount);
 

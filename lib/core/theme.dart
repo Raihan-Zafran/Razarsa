@@ -261,6 +261,11 @@ ThemeData buildTheme(Brightness brightness, {int palette = kDefaultPalette, bool
     extensions: [z],
   );
   return base.copyWith(
+    // Sorot kursor dan tekan: tipis dan searah warna tema, tidak pernah menggelap.
+    hoverColor: z.primary.withValues(alpha: 0.06),
+    highlightColor: z.primary.withValues(alpha: 0.05),
+    splashColor: z.primary.withValues(alpha: 0.08),
+    focusColor: z.primary.withValues(alpha: 0.10),
     textTheme: base.textTheme.apply(bodyColor: z.text, displayColor: z.text),
     // Saklar seperti prototipe: 52x32, tombol kecil abu saat mati, tombol besar krem saat hidup.
     switchTheme: SwitchThemeData(

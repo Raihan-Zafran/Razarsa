@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/format.dart';
 import '../../core/theme.dart';
+import '../../data/models.dart';
 import '../../data/store.dart';
 import '../../shell/app_shell.dart';
 import '../../widgets/common.dart';
@@ -11,24 +12,38 @@ import '../saldo/saldo_page.dart' show walletIcon;
 import '../../core/i18n.dart';
 
 class AddTransactionPage extends StatefulWidget {
-  const AddTransactionPage({super.key, required this.income});
+  const AddTransactionPage({super.key, required this.income, this.edit});
 
   final bool income;
+
+  /// Kalau diisi: mengubah transaksi ini, bukan membuat yang baru.
+  final Txn? edit;
 
   @override
   State<AddTransactionPage> createState() => _AddTransactionPageState();
 }
 
 class _AddTransactionPageState extends State<AddTransactionPage> {
-  late bool _income = widget.income;
-  final _amount = TextEditingController();
-  final _note = TextEditingController();
+  late bool _income = widget.edit != null ? !widget.edit!.isExpense : widget.income;
+  late final _amount = TextEditingController(text: widget.edit == null ? '' : dots(widget.edit!.amount.abs()));
+  late final _note = TextEditingController();
   final _newCat = TextEditingController();
-  String? _cat;
+  late String? _cat = widget.edit?.cat;
   bool _expanded = false;
   bool _showNewCat = false;
-  DateTime _date = DateTime.now();
-  String? _wallet;
+  late DateTime _date = widget.edit?.at ?? DateTime.now();
+  late String? _wallet = widget.edit?.wallet;
+
+  @override
+  void initState() {
+    super.initState();
+    final e = widget.edit;
+    if (e != null) {
+      // Nama yang sama dengan nama kategori berarti catatan kosong.
+      final cat = StoreScope.read(context).category(e.cat).label;
+      _note.text = e.name == cat ? '' : e.name;
+    }
+  }
 
   int get _value => int.tryParse(_amount.text.replaceAll(RegExp(r'\D'), '')) ?? 0;
   bool get _canSave => _value > 0 && _cat != null;
@@ -44,8 +59,23 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
   void _save(AppStore store) {
     if (!_canSave) return;
     final now = DateTime.now();
-    final at = DateTime(_date.year, _date.month, _date.day, now.hour, now.minute, now.second);
+    final edit = widget.edit;
+    final clock = edit?.at ?? now;
+    final at = DateTime(_date.year, _date.month, _date.day, clock.hour, clock.minute, clock.second);
     final note = _note.text.trim();
+    if (edit != null) {
+      final ok = store.updateTxn(
+        edit.id,
+        name: note.isEmpty ? store.category(_cat!).label : note,
+        cat: _cat!,
+        amount: _income ? _value : -_value,
+        at: at,
+        wallet: _wallet ?? edit.wallet,
+      );
+      showZToast(context, ok ? tr('Transaksi diubah') : tr('Transaksi tidak ditemukan'));
+      Navigator.of(context).pop();
+      return;
+    }
     final t = store.addTxn(
       name: note.isEmpty ? store.category(_cat!).label : note,
       cat: _cat!,
@@ -80,7 +110,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
     return Scaffold(
       backgroundColor: z.bg,
       body: PageScroll(withDock: false, children: [
-        PageTitle(tr('Tambah Transaksi'), onBack: () => Navigator.of(context).pop(), backIcon: Icons.close_rounded),
+        PageTitle(widget.edit != null ? tr('Ubah transaksi') : tr('Tambah Transaksi'), onBack: () => Navigator.of(context).pop(), backIcon: Icons.close_rounded),
         const SizedBox(height: 6),
         Segmented<bool>(
           items: [(false, tr('Pengeluaran')), (true, tr('Pemasukan'))],
@@ -248,7 +278,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
               disabledForegroundColor: z['disabledFg'],
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            child: Text(_canSave ? trf('Simpan {0}', [rp(_value)]) : tr('Simpan Transaksi'),
+            child: Text(widget.edit != null ? tr('Simpan perubahan') : (_canSave ? trf('Simpan {0}', [rp(_value)]) : tr('Simpan Transaksi')),
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
           ),
         ),

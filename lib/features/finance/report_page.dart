@@ -8,6 +8,8 @@ import '../../core/format.dart';
 import '../../core/theme.dart';
 import '../../data/store.dart';
 import '../../shell/app_shell.dart';
+import '../../shell/layout.dart';
+import 'desktop_report.dart';
 import '../../widgets/common.dart';
 import '../../widgets/count_up.dart';
 import '../../core/i18n.dart';
@@ -39,6 +41,7 @@ class _ReportPageState extends State<ReportPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (isWide(context)) return const DesktopReport();
     final store = StoreScope.of(context);
     final z = ZColors.of(context);
     final spentMonth = store.monthExpense();
@@ -129,7 +132,7 @@ class _ReportPageState extends State<ReportPage> {
         ]),
       ),
       const SizedBox(height: 14),
-      _FlowChartCard(flow: flow),
+      FlowChartCard(flow: flow),
       const SizedBox(height: 12),
       _CompositionCard(
         key: ValueKey(_period),
@@ -195,19 +198,29 @@ double _niceTop(num maxV) {
 
 /// Kartu "Masuk dan keluar": batang pengeluaran (oranye) dan pemasukan (hijau) 14 hari terakhir,
 /// garis putus-putus rata-rata pengeluaran, dan tooltip saat disentuh.
-class _FlowChartCard extends StatefulWidget {
-  const _FlowChartCard({required this.flow});
+class FlowChartCard extends StatefulWidget {
+  const FlowChartCard({super.key, required this.flow, this.desktop = false});
 
   final List<({int exp, int inc, int n})> flow;
 
+  /// Windows: judul "Masuk dan keluar per hari", legenda di kanan judul, grafik lebih tinggi, tiap hari berlabel.
+  final bool desktop;
+
   @override
-  State<_FlowChartCard> createState() => _FlowChartCardState();
+  State<FlowChartCard> createState() => _FlowChartCardState();
 }
 
-class _FlowChartCardState extends State<_FlowChartCard> {
+class _FlowChartCardState extends State<FlowChartCard> {
   int? _hover;
 
-  void _touch(double dx, double w) {
+  final _area = GlobalKey();
+
+  /// Lebar area grafik saat ini (0 sebelum tata letak pertama). Dibaca hanya dari penanganan sentuhan.
+  double get _plotW => math.max(0, ((_area.currentContext?.size?.width) ?? 0) - 46);
+
+  void _touch(double dx, double _) {
+    final w = _plotW;
+    if (w <= 0) return;
     final n = widget.flow.length;
     final k = (dx / w * n).floor().clamp(0, n - 1);
     if (k != _hover) setState(() => _hover = k);
@@ -229,8 +242,22 @@ class _FlowChartCardState extends State<_FlowChartCard> {
       container: true,
       label: tr('Masuk dan keluar'),
       child: ZCard(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+        padding: widget.desktop ? const EdgeInsets.fromLTRB(22, 20, 22, 16) : const EdgeInsets.fromLTRB(16, 16, 16, 12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (widget.desktop)
+            Row(children: [
+              Expanded(child: Text(tr('Masuk dan keluar per hari'), style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800))),
+              Wrap(spacing: 14, children: [
+                _Legend(color: z.chart('orange'), label: tr('Keluar')),
+                _Legend(color: z.chart('green'), label: tr('Masuk')),
+                Row(mainAxisSize: MainAxisSize.min, children: [
+                  SizedBox(width: 14, height: 2, child: CustomPaint(painter: _DashPainter(z.muted, width: 1.5, dash: 3, gap: 2))),
+                  const SizedBox(width: 5),
+                  Text(tr('Rata-rata keluar'), style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: z.muted)),
+                ]),
+              ]),
+            ])
+          else
           Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
             Text(tr('Masuk dan keluar'), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: -0.15)),
             const SizedBox(width: 8),
@@ -248,20 +275,20 @@ class _FlowChartCardState extends State<_FlowChartCard> {
               ),
             ),
           ]),
-          const SizedBox(height: 26),
-          LayoutBuilder(builder: (context, box) {
-            final plotW = box.maxWidth - axisW;
-            const h = 170.0;
+          SizedBox(height: widget.desktop ? 14 : 26),
+          Builder(builder: (context) {
+            final h = widget.desktop ? 300.0 : 170.0;
             return GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTapDown: (d) => _touch(d.localPosition.dx - axisW, plotW),
+              onTapDown: (d) => _touch(d.localPosition.dx - axisW, 0),
               onTapUp: (_) => setState(() => _hover = null),
               onTapCancel: () => setState(() => _hover = null),
-              onPanStart: (d) => _touch(d.localPosition.dx - axisW, plotW),
-              onPanUpdate: (d) => _touch(d.localPosition.dx - axisW, plotW),
+              onPanStart: (d) => _touch(d.localPosition.dx - axisW, 0),
+              onPanUpdate: (d) => _touch(d.localPosition.dx - axisW, 0),
               onPanEnd: (_) => setState(() => _hover = null),
               onPanCancel: () => setState(() => _hover = null),
               child: SizedBox(
+                key: _area,
                 height: h,
                 child: Stack(clipBehavior: Clip.none, children: [
                   for (var i = 0; i < 5; i++)
@@ -286,6 +313,12 @@ class _FlowChartCardState extends State<_FlowChartCard> {
                     bottom: (avg / top * h).clamp(0, h).toDouble(),
                     child: Opacity(opacity: 0.6, child: SizedBox(height: 2, child: CustomPaint(painter: _DashPainter(z.muted, width: 1.5, dash: 4, gap: 3)))),
                   ),
+                  if (widget.desktop)
+                    Positioned(
+                      right: 4,
+                      bottom: (avg / top * h).clamp(0, h).toDouble() + 6,
+                      child: Text(trf('Rata-rata {0}', [rpShort(avg)]), style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: z.muted)),
+                    ),
                   Positioned(
                     left: axisW,
                     right: 0,
@@ -311,9 +344,13 @@ class _FlowChartCardState extends State<_FlowChartCard> {
                   ),
                   if (hv != null)
                     Positioned(
-                      left: (axisW + (hv + 0.5) / n * plotW - 62).clamp(0.0, box.maxWidth - 124),
+                      left: axisW,
+                      right: 0,
                       top: -8,
-                      child: FractionalTranslation(
+                      // Align menjaga kotak tetap di dalam area grafik, jadi tidak perlu tahu lebarnya.
+                      child: Align(
+                        alignment: Alignment(n <= 1 ? 0 : -1 + 2 * (hv + 0.5) / n, 0),
+                        child: FractionalTranslation(
                         translation: const Offset(0, -1),
                         child: Container(
                           width: 124,
@@ -333,6 +370,7 @@ class _FlowChartCardState extends State<_FlowChartCard> {
                             ]),
                           ),
                         ),
+                        ),
                       ),
                     ),
                 ]),
@@ -346,7 +384,7 @@ class _FlowChartCardState extends State<_FlowChartCard> {
               for (var i = 0; i < n; i++)
                 Expanded(
                   child: Text(
-                    (i % 2 == 1 || i == n - 1) ? '${dayAt(i).day}' : '',
+                    (widget.desktop ? (n <= 16 || i % 2 == 1 || i == n - 1) : (i % 2 == 1 || i == n - 1)) ? '${dayAt(i).day}' : '',
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     softWrap: false,
@@ -355,7 +393,8 @@ class _FlowChartCardState extends State<_FlowChartCard> {
                 ),
             ]),
           ),
-          const SizedBox(height: 10),
+          if (!widget.desktop) const SizedBox(height: 10),
+          if (!widget.desktop)
           Wrap(alignment: WrapAlignment.center, spacing: 14, runSpacing: 4, children: [
             _Legend(color: z.chart('orange'), label: tr('Keluar')),
             _Legend(color: z.chart('green'), label: tr('Masuk')),
@@ -455,7 +494,7 @@ class _CompositionCard extends StatelessWidget {
             duration: const Duration(milliseconds: 900),
             curve: Curves.easeOutCubic,
             builder: (_, v, _) => CustomPaint(
-              painter: _DonutPainter(parts: [for (final p in parts) (p.$2.toDouble(), p.$3)], empty: z.track, progress: v),
+              painter: DonutPainter(parts: [for (final p in parts) (p.$2.toDouble(), p.$3)], empty: z.track, progress: v),
               child: Center(
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
                   Text(rpShort(total), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
@@ -493,8 +532,8 @@ class _CompositionCard extends StatelessWidget {
   }
 }
 
-class _DonutPainter extends CustomPainter {
-  _DonutPainter({required this.parts, required this.empty, required this.progress});
+class DonutPainter extends CustomPainter {
+  DonutPainter({required this.parts, required this.empty, required this.progress});
 
   final List<(double, Color)> parts;
   final Color empty;
@@ -521,7 +560,7 @@ class _DonutPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _DonutPainter old) => old.progress != progress || old.parts != parts || old.empty != empty;
+  bool shouldRepaint(covariant DonutPainter old) => old.progress != progress || old.parts != parts || old.empty != empty;
 }
 
 /// Dialog untuk mengubah anggaran bulanan.

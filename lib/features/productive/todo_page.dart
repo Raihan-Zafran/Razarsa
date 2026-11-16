@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../core/i18n.dart';
 import '../../data/store.dart';
 import '../../widgets/common.dart';
+import '../../shell/layout.dart';
+import 'desktop_prod.dart';
 import 'prod_common.dart';
 
 class TodoPage extends StatefulWidget {
@@ -17,6 +19,7 @@ class _TodoPageState extends State<TodoPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (isWide(context)) return const DesktopTodos();
     final store = StoreScope.of(context);
     final all = store.sortedTodos;
     final list = all.where((t) => _filter == 'all' || (_filter == 'done' ? t.done : !t.done)).toList();

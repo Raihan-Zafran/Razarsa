@@ -61,7 +61,7 @@ void main() {
       for (final label in ['Beranda', 'Transaksi', 'Saldo', 'Laporan', 'Target', 'Hari ini', 'Tugas', 'Kalender', 'Catatan', 'Kunci', 'Pengaturan', 'Buat baru']) {
         expect(find.text(label), findsWidgets, reason: 'sidebar tanpa "$label"');
       }
-      expect(find.text('Halo, Budi'), findsOneWidget);
+      expect(find.text('Ringkasan uang dan kegiatanmu hari ini'), findsOneWidget);
       await close(t);
       await openApp(t, s, size: const Size(390, 844));
       expect(find.text('Buat baru'), findsNothing);
@@ -77,10 +77,10 @@ void main() {
       expect(s.mode, 'finance');
       await ctrl(t, LogicalKeyboardKey.digit7);
       expect(s.mode, 'productive');
-      expect(find.text('Belum').evaluate().isNotEmpty || find.text('Semua').evaluate().isNotEmpty, isTrue);
+      expect(find.text('Daftar tugas dan pengingat'), findsOneWidget);
       await ctrl(t, LogicalKeyboardKey.digit1);
       expect(s.mode, 'finance');
-      expect(find.text('Halo, Budi'), findsOneWidget);
+      expect(find.text('Ringkasan uang dan kegiatanmu hari ini'), findsOneWidget);
       await ctrl(t, LogicalKeyboardKey.comma);
       expect(find.text('Pakai latar'), findsOneWidget);
       await close(t);
@@ -130,15 +130,15 @@ void main() {
       await openApp(t, s);
       await ctrl(t, LogicalKeyboardKey.keyK);
       expect(find.text('Esc'), findsOneWidget);
-      expect(find.text('Catat pengeluaran'), findsOneWidget);
+      expect(find.text('Catat pengeluaran'), findsWidgets); // juga ada sebagai tombol di Beranda
       await t.enterText(find.byType(TextField).last, 'lapor');
       await t.pump(const Duration(milliseconds: 200));
       expect(find.text('Laporan'), findsWidgets);
-      expect(find.text('Catat pengeluaran'), findsNothing);
+      expect(find.text('Catat pengeluaran'), findsOneWidget); // hanya tombol di Beranda; barisnya di palet tersaring
       await t.testTextInput.receiveAction(TextInputAction.done); // Enter di kolom cari
       await frames(t);
       expect(find.text('Esc'), findsNothing); // palet tertutup
-      expect(find.text('Anggaran bulan ini'), findsWidgets); // halaman Laporan terbuka
+      expect(find.text('Ringkasan pemasukan dan pengeluaran'), findsWidgets); // halaman Laporan terbuka
       await close(t);
     });
 

@@ -9,6 +9,8 @@ import '../../shell/app_shell.dart';
 import '../../widgets/common.dart';
 import '../../widgets/mode_widgets.dart';
 import '../settings/profile_page.dart';
+import '../../shell/layout.dart';
+import 'desktop_prod.dart';
 import 'notes_page.dart';
 import 'prod_common.dart';
 
@@ -19,6 +21,7 @@ class ProdHomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (isWide(context)) return DesktopProdHome(goTo: goTo);
     final store = StoreScope.of(context);
     final z = ZColors.of(context);
     final today = store.todayTodos;

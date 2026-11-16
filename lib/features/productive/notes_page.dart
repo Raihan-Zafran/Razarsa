@@ -8,6 +8,8 @@ import '../../data/store.dart';
 import '../../shell/app_shell.dart';
 import '../../widgets/common.dart';
 import '../security/lock.dart';
+import '../../shell/desktop_page.dart';
+import '../../shell/layout.dart';
 import 'prod_common.dart';
 
 /// Catatan terkunci yang sudah dibuka dengan PIN. Terkunci lagi saat keluar dari tab Catatan.
@@ -135,13 +137,7 @@ class _NotesPageState extends State<NotesPage> {
             // Isi catatan terkunci tidak ikut dicari selama masih terkunci.
             .where((n) => q.isEmpty || n.title.toLowerCase().contains(q) || (NoteLock.isOpen(n) && n.body.toLowerCase().contains(q)))
             .toList();
-        final left = [for (var i = 0; i < list.length; i += 2) list[i]];
-        final right = [for (var i = 1; i < list.length; i += 2) list[i]];
-
-        return ProdScroll(
-          header: ProdTitle(tr('Catatan'), onAdd: _new, addLabel: tr('Catatan baru')),
-          children: [
-            TextField(
+        final Widget search = TextField(
               onChanged: (v) => setState(() => _q = v),
               decoration: InputDecoration(
                 hintText: tr('Cari catatan'),
@@ -153,9 +149,8 @@ class _NotesPageState extends State<NotesPage> {
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: z.border)),
                 enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: z.border)),
               ),
-            ),
-            const SizedBox(height: 12),
-            SingleChildScrollView(
+            );
+        final Widget chips = SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(children: [
                 ZChip(label: tr('Semua'), selected: !_pinnedOnly && _folder.isEmpty, onTap: () => setState(() {
@@ -199,20 +194,54 @@ class _NotesPageState extends State<NotesPage> {
                   ),
                 ),
               ]),
+            );
+        Widget grid(int cols) => Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              for (var c = 0; c < cols; c++) ...[
+                if (c > 0) const SizedBox(width: 12),
+                Expanded(
+                  child: Column(children: [
+                    for (var i = c; i < list.length; i += cols) Padding(padding: const EdgeInsets.only(bottom: 12), child: NoteCard(note: list[i], maxLines: 8)),
+                  ]),
+                ),
+              ],
+            ]);
+        final Widget empty = EmptyState(
+          icon: Icons.sticky_note_2_outlined,
+          title: store.notes.isEmpty ? tr('Belum ada catatan') : tr('Catatan tidak ditemukan'),
+          message: store.notes.isEmpty ? tr('Tekan + untuk menulis catatan pertamamu.') : tr('Coba kata kunci lain.'),
+        );
+        if (isWide(context)) {
+          return DesktopPage(
+            title: tr('Catatan'),
+            subtitle: tr('Catatan cepat, tersimpan otomatis'),
+            action: FilledButton.icon(
+              onPressed: _new,
+              icon: const Icon(Icons.add_rounded, size: 20),
+              label: Text(tr('Catatan baru'), style: const TextStyle(fontWeight: FontWeight.w800)),
+              style: FilledButton.styleFrom(minimumSize: const Size(0, 44), padding: const EdgeInsets.symmetric(horizontal: 20)),
             ),
-            const SizedBox(height: 12),
-            if (list.isEmpty)
-              EmptyState(
-                icon: Icons.sticky_note_2_outlined,
-                title: store.notes.isEmpty ? tr('Belum ada catatan') : tr('Catatan tidak ditemukan'),
-                message: store.notes.isEmpty ? tr('Tekan + untuk menulis catatan pertamamu.') : tr('Coba kata kunci lain.'),
-              )
-            else
-              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Expanded(child: Column(children: [for (final n in left) Padding(padding: const EdgeInsets.only(bottom: 10), child: NoteCard(note: n))])),
-                const SizedBox(width: 10),
-                Expanded(child: Column(children: [for (final n in right) Padding(padding: const EdgeInsets.only(bottom: 10), child: NoteCard(note: n))])),
+            children: [
+              Row(children: [
+                Expanded(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 420), child: search)),
               ]),
+              const SizedBox(height: 14),
+              chips,
+              const SizedBox(height: 18),
+              if (list.isEmpty)
+                empty
+              else
+                LayoutBuilder(builder: (context, box) => grid((box.maxWidth / 280).floor().clamp(2, 5))),
+            ],
+          );
+        }
+        return ProdScroll(
+          header: ProdTitle(tr('Catatan'), onAdd: _new, addLabel: tr('Catatan baru')),
+          children: [
+            search,
+            const SizedBox(height: 12),
+            chips,
+            const SizedBox(height: 12),
+            if (list.isEmpty) empty else grid(2),
           ],
         );
       },

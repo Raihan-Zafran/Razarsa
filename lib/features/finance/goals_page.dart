@@ -8,6 +8,7 @@ import '../../core/theme.dart';
 import '../../data/models.dart';
 import '../../data/store.dart';
 import '../../shell/app_shell.dart';
+import '../../shell/desktop_page.dart';
 import '../../shell/layout.dart';
 import '../../widgets/common.dart';
 import '../../widgets/count_up.dart';
@@ -35,6 +36,7 @@ class GoalsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
     final z = ZColors.of(context);
+    if (isWide(context)) return _desktop(context, store, z);
 
     return PageScroll(children: [
       PageTitle(tr('Target Keuangan'), actions: [
@@ -73,6 +75,74 @@ class GoalsPage extends StatelessWidget {
         Text(tr('Tap target untuk menambah atau mengurangi tabungan, tekan lama untuk mengubah atau menghapus.'),
             textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: z.muted2)),
     ]);
+  }
+
+  // ---------- Tampilan desktop ----------
+  Widget _desktop(BuildContext context, AppStore store, ZColors z) {
+    final goals = store.goals;
+    final saved = goals.fold<int>(0, (t, g) => t + g.saved);
+    final target = goals.fold<int>(0, (t, g) => t + g.target);
+    final counted = goals.fold<int>(0, (t, g) => t + math.min(g.saved, g.target));
+    final progress = target <= 0 ? 0.0 : (counted / target).clamp(0.0, 1.0);
+    final done = goals.where((g) => g.saved >= g.target).length;
+    final newBtn = FilledButton.icon(
+      onPressed: () => _addGoal(context, store),
+      icon: const Icon(Icons.add_rounded, size: 20),
+      label: Text(tr('Target baru'), style: const TextStyle(fontWeight: FontWeight.w800)),
+      style: FilledButton.styleFrom(backgroundColor: z.hi, foregroundColor: const Color(0xFF241A05), minimumSize: const Size(0, 44), padding: const EdgeInsets.symmetric(horizontal: 20)),
+    );
+    final hero = GlassPane(
+      hero: true,
+      color: z.hero,
+      color2: z.hero2,
+      radius: 20,
+      border: Border.all(color: z.heroBorder),
+      padding: const EdgeInsets.fromLTRB(32, 26, 32, 26),
+      child: LayoutBuilder(builder: (context, box) {
+        final narrow = box.maxWidth < 700;
+        final text = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(tr('Terkumpul dari semua target'), style: TextStyle(fontSize: 14, color: z.heroMuted)),
+          const SizedBox(height: 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: CountUp(value: saved, format: rp, style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -1.2)),
+          ),
+          const SizedBox(height: 2),
+          Text('${trf('dari {0}', [rp(target)])} · ${trf('{0} dari {1} tercapai', [done, goals.length])}', style: TextStyle(fontSize: 13, color: z.heroMuted)),
+        ]);
+        final pct = Column(crossAxisAlignment: narrow ? CrossAxisAlignment.start : CrossAxisAlignment.end, mainAxisSize: MainAxisSize.min, children: [
+          Text('${(progress * 100).round()}%', style: const TextStyle(fontSize: 54, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -1.5, height: 1)),
+          Text(tr('tercapai'), style: TextStyle(fontSize: 13, color: z.heroMuted)),
+          const SizedBox(height: 14),
+          newBtn,
+        ]);
+        final jar = WaterJar(progress: progress, width: 104, back: const Color(0x1FFFFFFF), water: z.hi, outline: const Color(0xBFFFFFFF));
+        if (narrow) {
+          return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(children: [jar, const SizedBox(width: 20), Expanded(child: text)]), const SizedBox(height: 16), pct]);
+        }
+        return Row(children: [jar, const SizedBox(width: 36), Expanded(child: text), const SizedBox(width: 24), pct]);
+      }),
+    );
+    return DesktopPage(
+      title: tr('Target tabungan'),
+      subtitle: tr('Tabung sedikit demi sedikit'),
+      children: [
+        hero,
+        const SizedBox(height: 20),
+        if (goals.isEmpty)
+          DCard(
+            child: EmptyState(
+              icon: Icons.flag_rounded,
+              title: tr('Belum ada target'),
+              message: tr('Contoh: dana darurat, liburan, laptop baru, atau DP rumah.'),
+              action: FilledButton.icon(onPressed: () => _addGoal(context, store), icon: const Icon(Icons.add_rounded), label: Text(tr('Buat target'))),
+            ),
+          )
+        else
+          DCols(minChild: 300, children: [for (final g in goals) _DeskGoalCard(goal: g, icon: iconFor(g.name))]),
+      ],
+    );
   }
 
   Future<void> _addGoal(BuildContext context, AppStore store) async {
@@ -347,4 +417,75 @@ class _GoalCard extends StatelessWidget {
         title: tr('Hapus target?'),
         message: trf('Target "{0}" akan dihapus.', [goal.name]),
       );
+}
+
+/// Kartu target desktop: wadah air di kiri; nama, jumlah, persen, dan tombol Setor / hapus di kanan.
+class _DeskGoalCard extends StatelessWidget {
+  const _DeskGoalCard({required this.goal, required this.icon});
+
+  final Goal goal;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final store = StoreScope.read(context);
+    final z = ZColors.of(context);
+    final c = _GoalCard(goal: goal, icon: icon);
+    final done = goal.saved >= goal.target;
+    return DCard(
+      padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+        WaterJar(progress: goal.progress, width: 84, back: z.track, water: z.primary, outline: z['chipBorder']),
+        const SizedBox(width: 20),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            InkWell(
+              borderRadius: BorderRadius.circular(6),
+              onTap: () => c._more(context, store),
+              child: Row(children: [
+                Icon(icon, size: 19, color: z.text2),
+                const SizedBox(width: 8),
+                Expanded(child: Text(goal.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800))),
+              ]),
+            ),
+            const SizedBox(height: 4),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(rp(goal.saved), style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w800, letterSpacing: -0.6)),
+            ),
+            Text(trf('dari {0}', [rp(goal.target)]), style: TextStyle(fontSize: 12, color: z.muted2)),
+            const SizedBox(height: 6),
+            Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 10, children: [
+              Text(_pct(goal.progress), style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: z.accentText)),
+              Text(done ? tr('Tercapai') : trf('Kurang {0}', [rp(goal.target - goal.saved)]), style: TextStyle(fontSize: 12.5, color: z.muted)),
+            ]),
+            const SizedBox(height: 10),
+            Row(children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => c._addSaving(context, store),
+                  style: OutlinedButton.styleFrom(minimumSize: const Size(0, 40), side: BorderSide(color: z.primary, width: 1.6), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  child: Text(tr('Setor'), style: TextStyle(fontWeight: FontWeight.w800, color: z.accentText)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Tooltip(
+                message: tr('Hapus'),
+                child: Material(
+                  color: z.track,
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => c._delete(context, store),
+                    child: SizedBox(width: 46, height: 40, child: Icon(Icons.delete_outline_rounded, size: 20, color: z.text2)),
+                  ),
+                ),
+              ),
+            ]),
+          ]),
+        ),
+      ]),
+    );
+  }
 }

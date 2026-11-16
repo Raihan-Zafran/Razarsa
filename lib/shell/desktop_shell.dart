@@ -90,7 +90,7 @@ class _DesktopShellState extends State<DesktopShell> {
       case _kSettings:
         return const SettingsPage();
       default:
-        return HomePage(onSeeAll: () => _go(1));
+        return HomePage(onSeeAll: () => _go(1), onGo: _go);
     }
   }
 
@@ -128,26 +128,30 @@ class _DesktopShellState extends State<DesktopShell> {
         autofocus: true,
         child: Scaffold(
           backgroundColor: z.bg,
-          body: Row(children: [
-            _Sidebar(index: _index, rail: _rail, onGo: _go, onToggleRail: () => setState(() => _rail = !_rail), onPalette: _openPalette, onLock: _lock),
-            Expanded(
-              child: Column(children: [
-                _TopBar(onPalette: _openPalette),
-                Expanded(
-                  child: PageStagger(
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 260),
-                      transitionBuilder: (child, a) => FadeTransition(
-                        opacity: a,
-                        child: SlideTransition(position: Tween(begin: const Offset(0, 0.015), end: Offset.zero).animate(a), child: child),
+          // Lebar jendela menyesuaikan: di bawah 1000 px sidebar otomatis ciut jadi rel ikon.
+          body: LayoutBuilder(builder: (context, box) {
+            final rail = _rail || box.maxWidth < 1000;
+            return Column(children: [
+              _TopBar(onPalette: _openPalette, rail: rail),
+              Expanded(
+                child: Row(children: [
+                  _Sidebar(index: _index, rail: rail, onGo: _go, onToggleRail: () => setState(() => _rail = !_rail), onPalette: _openPalette, onLock: _lock),
+                  Expanded(
+                    child: PageStagger(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 260),
+                        transitionBuilder: (child, a) => FadeTransition(
+                          opacity: a,
+                          child: SlideTransition(position: Tween(begin: const Offset(0, 0.015), end: Offset.zero).animate(a), child: child),
+                        ),
+                        child: KeyedSubtree(key: ValueKey(_index), child: _page()),
                       ),
-                      child: KeyedSubtree(key: ValueKey(_index), child: _page()),
                     ),
                   ),
-                ),
-              ]),
-            ),
-          ]),
+                ]),
+              ),
+            ]);
+          }),
         ),
       ),
     );
@@ -155,23 +159,40 @@ class _DesktopShellState extends State<DesktopShell> {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onPalette});
+  const _TopBar({required this.onPalette, required this.rail});
 
   final VoidCallback onPalette;
+  final bool rail;
 
   @override
   Widget build(BuildContext context) {
     final z = ZColors.of(context);
     return SizedBox(
-      height: 64,
+      height: 56,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 28),
+        padding: const EdgeInsets.only(right: 24),
         child: Row(children: [
+          // Merek di atas sidebar: lebarnya sama dengan sidebar supaya sejajar.
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            width: rail ? 76 : 252,
+            padding: const EdgeInsets.only(left: 20),
+            child: ClipRect(
+              child: Row(children: [
+                const AppLogo(size: 24),
+                if (!rail) ...[
+                  const SizedBox(width: 10),
+                  const Flexible(child: Text('Razarsa', maxLines: 1, overflow: TextOverflow.clip, softWrap: false, style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800))),
+                ],
+              ]),
+            ),
+          ),
           Expanded(
             child: Align(
               alignment: Alignment.centerLeft,
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 460),
+                constraints: const BoxConstraints(maxWidth: 520),
                 child: Semantics(
                   button: true,
                   label: tr('Cari halaman atau jalankan perintah'),

@@ -13,13 +13,17 @@ import '../../widgets/count_up.dart';
 import '../settings/profile_page.dart';
 import '../saldo/saldo_page.dart';
 import 'add_transaction_page.dart';
+import 'desktop_home.dart';
 import '../../widgets/mode_widgets.dart';
 import '../../core/i18n.dart';
 
 class HomePage extends StatelessWidget {
-  const HomePage({super.key, required this.onSeeAll});
+  const HomePage({super.key, required this.onSeeAll, this.onGo});
 
   final VoidCallback onSeeAll;
+
+  /// Di jendela lebar: pindah ke halaman lain (nomor tujuan sidebar). Kosong = hanya "Transaksi".
+  final void Function(int index)? onGo;
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +32,7 @@ class HomePage extends StatelessWidget {
     final recent = store.txns.take(4).toList();
 
     final wide = isWide(context);
+    if (wide) return DesktopHome(onGo: onGo ?? (_) => onSeeAll());
 
     final greet = <Widget>[
       // Header: tombol mode, tema, profil (di desktop sudah ada di bilah atas)
@@ -78,7 +83,7 @@ class HomePage extends StatelessWidget {
         ),
       ]),
       const SizedBox(height: 14),
-      _BalanceChartCard(series: store.balanceSeries(12), hidden: store.hideBalance),
+      BalanceChartCard(series: store.balanceSeries(12), hidden: store.hideBalance),
       const SizedBox(height: 22),
       SectionTitle(tr('Catat Cepat'),
           trailing: Text(tr('Sekali tap langsung tercatat'), style: TextStyle(fontSize: 12, color: z.muted2))),
@@ -90,7 +95,7 @@ class HomePage extends StatelessWidget {
           clipBehavior: wide ? Clip.hardEdge : Clip.none,
           itemCount: store.quickItems.length,
           separatorBuilder: (_, _) => const SizedBox(width: 8),
-          itemBuilder: (context, i) => _QuickChip(item: store.quickItems[i]),
+          itemBuilder: (context, i) => QuickChip(item: store.quickItems[i]),
         ),
       ),
     ];
@@ -127,17 +132,6 @@ class HomePage extends StatelessWidget {
         ),
     ];
 
-    // Jendela lebar: saldo dan Catat Cepat di kiri, transaksi terbaru di kanan.
-    if (wide) {
-      return PageScroll(maxWidth: 1120, children: [
-        ...greet,
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Expanded(flex: 11, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: main)),
-          const SizedBox(width: 28),
-          Expanded(flex: 9, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: latest)),
-        ]),
-      ]);
-    }
     return PageScroll(children: [
       ...greet,
       ...main,
@@ -239,19 +233,23 @@ class _MiniStat extends StatelessWidget {
 
 /// Kartu "Saldo 12 hari terakhir": grafik garis dengan sumbu, bidang berwarna, dan titik akhir.
 /// Isinya data nyata (saldo akhir tiap hari). Sentuh atau geser untuk melihat saldo per hari.
-class _BalanceChartCard extends StatefulWidget {
-  const _BalanceChartCard({required this.series, required this.hidden});
+class BalanceChartCard extends StatefulWidget {
+  const BalanceChartCard({super.key, required this.series, required this.hidden, this.desktop = false, this.badge});
 
   final List<int> series;
   final bool hidden;
 
+  /// Tampilan Windows: judul "Saldo N hari terakhir", lencana di kanan, grafik lebih tinggi, label "Rp ..." dan "N hari lalu".
+  final bool desktop;
+  final Widget? badge;
+
   @override
-  State<_BalanceChartCard> createState() => _BalanceChartCardState();
+  State<BalanceChartCard> createState() => _BalanceChartCardState();
 }
 
-class _BalanceChartCardState extends State<_BalanceChartCard> with SingleTickerProviderStateMixin {
-  static const _h = 160.0;
-  static const _padL = 38.0, _padR = 6.0, _padT = 8.0, _padB = 22.0;
+class _BalanceChartCardState extends State<BalanceChartCard> with SingleTickerProviderStateMixin {
+  static const _padR = 6.0, _padT = 8.0, _padB = 22.0;
+  double get _padL => widget.desktop ? 58.0 : 38.0;
   late final AnimationController _draw = AnimationController(vsync: this, duration: const Duration(milliseconds: 1300));
   bool _started = false;
   int? _hover;
@@ -274,7 +272,13 @@ class _BalanceChartCardState extends State<_BalanceChartCard> with SingleTickerP
     super.dispose();
   }
 
+  final _area = GlobalKey();
+
+  /// Lebar area grafik yang sedang tampil (0 sebelum tata letak pertama).
+  double get _areaW => (_area.currentContext?.size?.width) ?? 0;
+
   void _touch(Offset local, double w) {
+    if (w <= 0) return;
     final n = widget.series.length;
     final k = ((local.dx - _padL) / (w - _padL - _padR)).clamp(0.0, 1.0);
     final i = (k * (n - 1)).round();
@@ -288,38 +292,51 @@ class _BalanceChartCardState extends State<_BalanceChartCard> with SingleTickerP
     final n = v.length;
     final today = dayOnly(DateTime.now());
     DateTime dayAt(int i) => DateTime(today.year, today.month, today.day - (n - 1 - i));
-    String dl(int i) => i == n - 1 ? tr('Hari ini') : '${dayAt(i).day} ${monthShort(dayAt(i))}';
+    final desk = widget.desktop;
+    final h = desk ? 190.0 : 160.0;
+    final title = trf(desk ? 'Saldo {0} hari terakhir' : 'Saldo {0} hari terakhir', [n]);
+    String dl(int i) => i == n - 1
+        ? tr('Hari ini')
+        : desk
+            ? trf('{0} hari lalu', [n - 1 - i])
+            : '${dayAt(i).day} ${monthShort(dayAt(i))}';
+    final midI = desk ? (n - 1) ~/ 2 : n ~/ 2 - (n.isEven ? 1 : 0);
     final hv = _hover;
     return ZCard(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+        padding: desk ? const EdgeInsets.fromLTRB(22, 20, 22, 14) : const EdgeInsets.fromLTRB(16, 14, 16, 10),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            Expanded(child: Text(tr('Saldo 12 hari terakhir'), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800))),
-            Text(tr('Sentuh grafik'), style: TextStyle(fontSize: 12, color: z.muted2)),
+            Expanded(child: Text(title, style: TextStyle(fontSize: desk ? 15.5 : 15, fontWeight: FontWeight.w800))),
+            if (widget.badge != null) widget.badge! else if (!desk) Text(tr('Sentuh grafik'), style: TextStyle(fontSize: 12, color: z.muted2)),
           ]),
-          const SizedBox(height: 6),
-          LayoutBuilder(builder: (context, box) {
-            final w = box.maxWidth;
+          SizedBox(height: desk ? 14 : 6),
+          Builder(builder: (context) {
+            final tipText = _hover == null ? null : '${dayAt(_hover!).day} ${monthShort(dayAt(_hover!))} · ${widget.hidden ? rpHidden : rp(v[_hover!])}';
             return Semantics(
               container: true,
-              label: tr('Saldo 12 hari terakhir'),
-              child: GestureDetector(
+              label: title,
+              value: tipText,
+              child: MouseRegion(
+                onHover: (e) => _touch(e.localPosition, _areaW),
+                onExit: (_) => setState(() => _hover = null),
+                child: GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTapDown: (d) => _touch(d.localPosition, w),
+              onTapDown: (d) => _touch(d.localPosition, _areaW),
               onTapUp: (_) => setState(() => _hover = null),
               onTapCancel: () => setState(() => _hover = null),
-              onPanStart: (d) => _touch(d.localPosition, w),
-              onPanUpdate: (d) => _touch(d.localPosition, w),
+              onPanStart: (d) => _touch(d.localPosition, _areaW),
+              onPanUpdate: (d) => _touch(d.localPosition, _areaW),
               onPanEnd: (_) => setState(() => _hover = null),
               onPanCancel: () => setState(() => _hover = null),
               child: SizedBox(
-                width: w,
-                height: _h,
+                key: _area,
+                width: double.infinity,
+                height: h,
                 child: Stack(clipBehavior: Clip.none, children: [
                   AnimatedBuilder(
                     animation: _draw,
                     builder: (_, _) => CustomPaint(
-                      size: Size(w, _h),
+                      size: Size(double.infinity, h),
                       painter: _ChartPainter(
                         values: v,
                         draw: const Cubic(0.4, 0.1, 0.2, 1).transform(_draw.value),
@@ -330,33 +347,18 @@ class _BalanceChartCardState extends State<_BalanceChartCard> with SingleTickerP
                         label: z.muted2,
                         bg: z.card,
                         firstLabel: dl(0),
-                        midLabel: dl(n ~/ 2 - (n.isEven ? 1 : 0)),
+                        midLabel: dl(midI),
                         lastLabel: dl(n - 1),
+                        yPrefix: desk ? '$currencySymbol ' : '',
+                        midIndex: midI,
+                        padL: _padL,
+                        tip: hv == null ? null : '${dayAt(hv).day} ${monthShort(dayAt(hv))} · ${widget.hidden ? rpHidden : rp(v[hv])}',
+                        tipColor: z.hero,
                       ),
                     ),
                   ),
-                  if (hv != null)
-                    Builder(builder: (context) {
-                      final plotW = w - _padL - _padR;
-                      final x = _padL + hv / (n - 1) * plotW;
-                      final text = '${dayAt(hv).day} ${monthShort(dayAt(hv))} · ${widget.hidden ? rpHidden : rp(v[hv])}';
-                      return Positioned(
-                        left: (x - 70).clamp(0.0, w - 140),
-                        top: -6,
-                        child: Container(
-                          width: 140,
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: z.hero,
-                            borderRadius: BorderRadius.circular(99),
-                            boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 8, offset: Offset(0, 2))],
-                          ),
-                          child: Text(text, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: Colors.white)),
-                        ),
-                      );
-                    }),
                 ]),
+              ),
               ),
               ),
             );
@@ -391,6 +393,11 @@ class _ChartPainter extends CustomPainter {
     required this.firstLabel,
     required this.midLabel,
     required this.lastLabel,
+    this.yPrefix = '',
+    this.midIndex = -1,
+    this.padL = 38,
+    this.tip,
+    this.tipColor = Colors.black,
   });
 
   final List<int> values;
@@ -399,6 +406,11 @@ class _ChartPainter extends CustomPainter {
   final bool hidden;
   final Color line, grid, label, bg;
   final String firstLabel, midLabel, lastLabel;
+  final String yPrefix;
+  final int midIndex;
+  final double padL;
+  final String? tip;
+  final Color tipColor;
 
   void _text(Canvas c, String t, Offset at, {TextAlign align = TextAlign.left}) {
     final tp = TextPainter(
@@ -411,7 +423,7 @@ class _ChartPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    const padL = _BalanceChartCardState._padL, padR = _BalanceChartCardState._padR;
+    const padR = _BalanceChartCardState._padR;
     const padT = _BalanceChartCardState._padT, padB = _BalanceChartCardState._padB;
     final plot = Rect.fromLTRB(padL, padT, size.width - padR, size.height - padB);
     final n = values.length;
@@ -431,7 +443,7 @@ class _ChartPainter extends CustomPainter {
       for (var x = plot.left; x < plot.right; x += 6) {
         canvas.drawLine(Offset(x, y), Offset(math.min(x + 3, plot.right), y), gridPaint);
       }
-      _text(canvas, hidden ? '••' : _jt(v), Offset(padL - 6, y), align: TextAlign.right);
+      _text(canvas, hidden ? '••' : '$yPrefix${_jt(v)}', Offset(padL - 6, y), align: TextAlign.right);
     }
 
     final pts = [for (var i = 0; i < n; i++) Offset(xOf(i), yOf(values[i]))];
@@ -477,15 +489,29 @@ class _ChartPainter extends CustomPainter {
       canvas.drawCircle(p, 5, Paint()..color = line..style = PaintingStyle.stroke..strokeWidth = 2.2);
     }
 
+    // Tooltip: pil gelap di atas titik yang disentuh.
+    if (tip != null && hover != null) {
+      final tp = TextPainter(
+        text: TextSpan(text: tip, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: Colors.white, fontFamily: kFont)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      final bw = tp.width + 20, bh = tp.height + 10;
+      final cx = pts[hover!].dx.clamp(bw / 2, size.width - bw / 2);
+      final r = RRect.fromRectAndRadius(Rect.fromLTWH(cx - bw / 2, 0, bw, bh), const Radius.circular(99));
+      canvas.drawShadow(Path()..addRRect(r), const Color(0x66000000), 6, true);
+      canvas.drawRRect(r, Paint()..color = tipColor);
+      tp.paint(canvas, Offset(cx - tp.width / 2, 5));
+    }
+
     // Label sumbu x.
     _text(canvas, firstLabel, Offset(plot.left, size.height - 8));
-    _text(canvas, midLabel, Offset(xOf(n ~/ 2 - (n.isEven ? 1 : 0)), size.height - 8), align: TextAlign.center);
+    _text(canvas, midLabel, Offset(xOf(midIndex < 0 ? n ~/ 2 - (n.isEven ? 1 : 0) : midIndex), size.height - 8), align: TextAlign.center);
     _text(canvas, lastLabel, Offset(plot.right, size.height - 8), align: TextAlign.right);
   }
 
   @override
   bool shouldRepaint(covariant _ChartPainter old) =>
-      old.draw != draw || old.hover != hover || old.values != values || old.line != line || old.hidden != hidden || old.grid != grid;
+      old.draw != draw || old.hover != hover || old.tip != tip || old.values != values || old.line != line || old.hidden != hidden || old.grid != grid;
 }
 
 class _AddButton extends StatelessWidget {
@@ -527,10 +553,13 @@ class _AddButton extends StatelessWidget {
   }
 }
 
-class _QuickChip extends StatelessWidget {
-  const _QuickChip({required this.item});
+class QuickChip extends StatelessWidget {
+  const QuickChip({super.key, required this.item, this.compact = false});
 
   final QuickEntry item;
+
+  /// Desktop: chip lebih kecil tanpa penanda +.
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -539,9 +568,9 @@ class _QuickChip extends StatelessWidget {
     final cat = store.category(item.cat);
     return Material(
       color: z.card,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: z.cardBorder)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(compact ? 99 : 10), side: BorderSide(color: compact ? z.chipBorder : z.cardBorder)),
       child: InkWell(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(compact ? 99 : 10),
         onTap: () {
           final t = store.addTxn(name: item.name, cat: item.cat, amount: -item.amount);
           final where = store.wallets.length > 1 ? trf(' di {0}', [store.walletName(t.wallet)]) : '';
@@ -549,8 +578,16 @@ class _QuickChip extends StatelessWidget {
               actionLabel: tr('Batalkan'), onAction: () => store.removeTxn(t.id));
         },
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 6, 16, 6),
-          child: Row(children: [
+          padding: compact ? const EdgeInsets.symmetric(horizontal: 14, vertical: 9) : const EdgeInsets.fromLTRB(8, 6, 16, 6),
+          child: compact
+              ? Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(cat.icon, size: 17, color: z.text2),
+                  const SizedBox(width: 8),
+                  Text(tr(item.name), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
+                  const SizedBox(width: 6),
+                  Text(rpShort(item.amount), style: TextStyle(fontSize: 12, color: z.muted)),
+                ])
+              : Row(children: [
             CategoryTile(category: cat, size: 36),
             const SizedBox(width: 10),
             Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [

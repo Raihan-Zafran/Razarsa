@@ -6,7 +6,9 @@ import '../../data/models.dart';
 import '../../data/store.dart';
 import '../../shell/app_shell.dart';
 import '../../widgets/common.dart';
+import '../../shell/layout.dart';
 import 'add_transaction_page.dart';
+import 'desktop_transactions.dart';
 import '../../core/i18n.dart';
 
 enum TxnFilter { all, income, expense }
@@ -23,6 +25,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (isWide(context)) return const DesktopTransactions();
     final store = StoreScope.of(context);
     final z = ZColors.of(context);
     final shown = store.txns.where((t) {
