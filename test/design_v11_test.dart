@@ -56,6 +56,16 @@ void main() {
       expect(v.last, 1200); // 12 Nov
     });
 
+    test('balanceSeries ikut saldo awal sumber: titik terakhir = total saldo di kartu', () async {
+      final s = await newStore();
+      s.addWallet(name: 'BCA', type: 'bank', opening: 4000000);
+      s.txns.add(txn('a', -250000, DateTime.now().subtract(const Duration(days: 2))));
+      final v = s.balanceSeries(12);
+      expect(v.first, 4000000);
+      expect(v.last, s.balance);
+      expect(v.last, 3750000);
+    });
+
     test('balanceSeries kosong: semua nol', () async {
       final s = await newStore();
       expect(s.balanceSeries(12), List.filled(12, 0));

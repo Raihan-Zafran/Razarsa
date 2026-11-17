@@ -1387,7 +1387,8 @@ class AppStore extends ChangeNotifier {
     final today = dayOnly(now ?? DateTime.now());
     // Satu putaran lewat transaksi: jumlah per hari, lalu dijumlahkan dari awal.
     final perDay = List<int>.filled(days, 0);
-    var before = 0;
+    // Mulai dari saldo awal semua sumber, supaya titik terakhir grafik = total saldo di kartu.
+    var before = wallets.fold(0, (s, w) => s + w.opening);
     final first = DateTime(today.year, today.month, today.day - (days - 1));
     for (final t in txns) {
       final d = dayOnly(t.at);
