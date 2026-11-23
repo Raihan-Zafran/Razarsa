@@ -49,21 +49,55 @@ void main() {
       expect((bad.pri, bad.subs.length, bad.remind, bad.repeat), ('sedang', 1, 0, 'none'));
     });
 
-    test('tugas berulang yang diselesaikan membuat tugas berikutnya, sekali saja', () async {
+    test('tugas berulang: selesai membuat satu tugas berikutnya; batal-selesai menghapusnya lagi (tidak dobel)', () async {
       final s = await newStore();
+      final now = DateTime(2026, 1, 31, 12);
       final t = s.addTodo('Olahraga', cat: 'Sehat', tone: 'pink', due: DateTime(2026, 1, 31, 6), repeat: 'monthly');
       t.subs.add(SubTask('Pemanasan', done: true));
-      s.toggleTodo(t.id);
+      s.toggleTodo(t.id, now: now);
       expect(s.todos.length, 2);
       final next = s.todos.last;
       expect(next.due, DateTime(2026, 2, 28, 6), reason: '31 Januari + 1 bulan = akhir Februari');
-      expect(next.done, isFalse);
-      expect(next.subs.single.done, isFalse);
-      expect(next.repeat, 'monthly');
-      // Membatalkan lalu menyelesaikan lagi tugas lama tidak membuat salinan baru.
-      s.toggleTodo(t.id);
-      s.toggleTodo(t.id);
+      expect((next.done, next.subs.single.done, next.repeat, t.repeat), (false, false, 'monthly', 'monthly'));
+      // Batal-selesai: tugas berikutnya hilang lagi.
+      s.toggleTodo(t.id, now: now);
+      expect(s.todos.map((x) => x.id), [t.id]);
+      // Selesai lagi: tetap satu tugas berikutnya.
+      s.toggleTodo(t.id, now: now);
+      s.toggleTodo(t.id, now: now);
+      s.toggleTodo(t.id, now: now);
       expect(s.todos.length, 2);
+    });
+
+    test('tugas berulang tanpa tenggat tetap berulang; yang terlambat lanjut ke tanggal sesudah hari ini', () async {
+      final s = await newStore();
+      final now = DateTime(2026, 11, 20, 9);
+      final a = s.addTodo('Baca buku', cat: 'Pribadi', tone: 'teal', repeat: 'daily');
+      s.toggleTodo(a.id, now: now);
+      expect(s.todos.last.due, DateTime(2026, 11, 21), reason: 'tanpa tenggat: berikutnya besok');
+      final b = s.addTodo('Lapor', cat: 'Kerja', tone: 'orange', due: DateTime(2026, 11, 10), repeat: 'daily');
+      s.toggleTodo(b.id, now: now);
+      expect(s.todos.last.due, DateTime(2026, 11, 21), reason: 'terlambat 10 hari: tidak membuat tugas yang juga terlambat');
+      final c = s.addTodo('Rapat', cat: 'Kerja', tone: 'orange', due: DateTime(2026, 11, 20, 8), repeat: 'weekly');
+      s.toggleTodo(c.id, now: now);
+      expect(s.todos.last.due, DateTime(2026, 11, 27, 8));
+    });
+
+    test('pengulangan bulanan dihitung dari tanggal asli, tidak bergeser ke tanggal 28', () {
+      final a = DateTime(2026, 1, 31, 9);
+      expect([for (var k = 0; k < 4; k++) repeatOccurrence(a, 'monthly', k)],
+          [DateTime(2026, 1, 31, 9), DateTime(2026, 2, 28, 9), DateTime(2026, 3, 31, 9), DateTime(2026, 4, 30, 9)]);
+    });
+
+    test('nomor notifikasi tugas, agenda, dan tagihan tidak pernah bertabrakan', () {
+      final ids = ['1', '999999999', '1763290000123456', '1763290000999999', '1500000000000000'];
+      for (final id in ids) {
+        final t = Todo(id: id, title: 'x', cat: 'Kerja', tone: 'orange').notifId;
+        final a = Agenda(id: id, title: 'x', at: DateTime(2026)).notifId;
+        expect(t, inInclusiveRange(1500000000, 2099999999));
+        expect(a, inInclusiveRange(1000000000, 1499999999));
+        expect(t, lessThanOrEqualTo(2147483647));
+      }
     });
 
     test('hapus lalu urungkan mengembalikan tugas yang sama', () async {
@@ -144,6 +178,8 @@ void main() {
       expect(Notif.agendaFireAt(past, now), isNull);
       final weekly = Agenda(id: '3', title: 'x', at: DateTime(2026, 11, 5, 9), reminder: true, remindMin: 10, repeat: 'weekly');
       expect(Notif.agendaFireAt(weekly, now), tz.TZDateTime(loc, 2026, 11, 19, 8, 50));
+      final monthly = Agenda(id: '4', title: 'x', at: DateTime(2026, 1, 31, 8), reminder: true, repeat: 'monthly');
+      expect(Notif.agendaFireAt(monthly, tz.TZDateTime(loc, 2026, 3, 1)), tz.TZDateTime(loc, 2026, 3, 31, 8), reason: 'bukan 28 Maret');
     });
   });
 
@@ -194,6 +230,21 @@ void main() {
       expect(find.text('Terlambat & hari ini'), findsOneWidget);
       expect(find.text('Mendatang'), findsOneWidget);
       expect(find.text('Selesai'), findsWidgets);
+    });
+
+    testWidgets('menutup detail tugas saat catatan masih diketik: tersimpan, tanpa galat', (t) async {
+      await loadAppFonts();
+      final s = await newStore();
+      s.addTodo('Susun laporan', cat: 'Kerja', tone: 'orange', due: dayOnly(DateTime.now()).add(const Duration(days: 1)));
+      await show(t, s, const TodoPage());
+      await t.tap(find.text('Susun laporan'));
+      await t.pumpAndSettle();
+      await t.enterText(find.widgetWithText(TextField, 'Tambahkan catatan…'), 'kirim sebelum jam 5');
+      await t.pump();
+      await t.tap(find.byTooltip('Tutup'));
+      await t.pumpAndSettle();
+      expect(t.takeException(), isNull);
+      expect(s.todos.single.notes, 'kirim sebelum jam 5');
     });
 
     testWidgets('HP: Kalender tampilan Agenda dan saring warna', (t) async {

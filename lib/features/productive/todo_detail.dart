@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../../data/productive_models.dart';
 import '../../data/store.dart';
 import '../../widgets/common.dart';
+import 'prod_common.dart' show enableReminders;
 
 /// Pilihan tenggat cepat (kunci, label, tanggal). Tanggal tanpa jam (00.00).
 List<(String, String, DateTime?)> dueChoices(AppStore store, [DateTime? now]) {
@@ -94,14 +95,20 @@ class _TodoDetailState extends State<TodoDetail> {
   }
 
   /// Judul dan catatan disimpan saat isian ditinggalkan (bukan tiap ketikan, supaya ringan).
+  ///
+  /// Penyimpanan dijadwalkan sesudah bingkai berjalan (microtask): fungsi ini juga dipanggil dari
+  /// didUpdateWidget dan dispose, saat memberi tahu pendengar akan memicu galat "build terkunci".
   void _commitText([Todo? target]) {
     final x = target ?? t;
     final title = _title.text.trim();
     final notes = _notes.text.trim();
+    final store = _store;
     if ((title.isEmpty || title == x.title) && notes == x.notes) return;
-    if (title.isNotEmpty) x.title = title;
-    x.notes = notes;
-    _store.updateTodo(x);
+    Future.microtask(() {
+      if (title.isNotEmpty) x.title = title;
+      x.notes = notes;
+      store.updateTodo(x);
+    });
   }
 
   @override
@@ -276,7 +283,22 @@ class _TodoDetailState extends State<TodoDetail> {
       ]),
       cap(tr('Pengingat')),
       chips([
-        for (final (m, l) in kRemindOpts) ZChip(label: tr(l), selected: t.remind == m, onTap: () => _save(() => t.remind = m)),
+        for (final (m, l) in kRemindOpts)
+          ZChip(
+            label: tr(l),
+            selected: t.remind == m,
+            onTap: () async {
+              _save(() => t.remind = m);
+              if (m == 0 || t.due == null) return;
+              final messenger = ScaffoldMessenger.maybeOf(context);
+              final (allowed, turnedOn) = await enableReminders(_store);
+              if (!allowed) {
+                messenger?.showSnackBar(SnackBar(content: Text(tr('Pengingat tersimpan, tapi notifikasi diblokir. Aktifkan di pengaturan perangkat.'))));
+              } else if (turnedOn) {
+                messenger?.showSnackBar(SnackBar(content: Text(tr('Pengingat kalender dinyalakan'))));
+              }
+            },
+          ),
       ]),
       if (t.remind > 0 && t.due == null)
         Padding(

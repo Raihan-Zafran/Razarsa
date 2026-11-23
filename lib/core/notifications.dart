@@ -167,7 +167,7 @@ class Notif {
   }
 
   /// Dipanggil setelah pengeluaran dicatat: beri tahu sekali per periode kalau anggaran ≥ 90%.
-  /// Nomor notifikasi tetap per kategori: 100..899 (di bawah agenda >= 1000 dan tagihan >= 500000).
+  /// Nomor notifikasi tetap per kategori: 100..899 (tagihan 500.000+, agenda 1.000.000.000+, tugas 1.500.000.000+).
   /// Hash FNV sendiri karena String.hashCode tidak dijamin sama antar-proses.
   @visibleForTesting
   static int categoryNotifId(String id) {
@@ -220,16 +220,15 @@ class Notif {
   @visibleForTesting
   static tz.TZDateTime? agendaFireAt(Agenda a, tz.TZDateTime now) {
     final lead = Duration(minutes: a.remindMin);
-    var start = tz.TZDateTime(now.location, a.at.year, a.at.month, a.at.day, a.at.hour, a.at.minute);
-    var fire = start.subtract(lead);
-    if (a.repeat == 'none') return fire.isAfter(now) ? fire : null;
-    // Agenda berulang: maju ke kemunculan berikutnya yang pengingatnya belum lewat.
-    for (var i = 0; i < 800 && !fire.isAfter(now); i++) {
-      final n = nextRepeat(start, a.repeat);
-      start = tz.TZDateTime(now.location, n.year, n.month, n.day, n.hour, n.minute);
-      fire = start.subtract(lead);
+    tz.TZDateTime fireOf(DateTime d) => tz.TZDateTime(now.location, d.year, d.month, d.day, d.hour, d.minute).subtract(lead);
+    final first = fireOf(a.at);
+    if (a.repeat == 'none') return first.isAfter(now) ? first : null;
+    // Agenda berulang: kemunculan ke-k dihitung dari tanggal asli (bulanan tidak bergeser ke tgl 28).
+    for (var k = 0; k < 100000; k++) {
+      final fire = fireOf(repeatOccurrence(a.at, a.repeat, k));
+      if (fire.isAfter(now)) return fire;
     }
-    return fire.isAfter(now) ? fire : null;
+    return null;
   }
 
   /// Jadwalkan / batalkan notifikasi untuk satu agenda di kalender.
@@ -237,6 +236,7 @@ class Notif {
     await init();
     if (!_ready) return;
     await _p.cancel(id: a.notifId);
+    await _p.cancel(id: a.legacyNotifId); // jadwal dari versi lama
     if (removed || !enabled || !a.reminder || !a.on) return;
     final at = agendaFireAt(a, tz.TZDateTime.now(tz.local));
     if (at == null) return;
@@ -251,7 +251,8 @@ class Notif {
         matchDateTimeComponents: switch (a.repeat) {
           'daily' => DateTimeComponents.time,
           'weekly' => DateTimeComponents.dayOfWeekAndTime,
-          'monthly' => DateTimeComponents.dayOfMonthAndTime,
+          // Tanggal 29–31 tidak ada di semua bulan: jadwal sekali saja, dipasang ulang tiap aplikasi dibuka.
+        'monthly' => a.at.day > 28 ? null : DateTimeComponents.dayOfMonthAndTime,
           _ => null,
         },
       );
@@ -277,6 +278,7 @@ class Notif {
     await init();
     if (!_ready) return;
     await _p.cancel(id: t.notifId);
+    await _p.cancel(id: t.legacyNotifId); // jadwal dari versi lama
     final at = t.remindAt;
     if (removed || !enabled || t.done || at == null || !at.isAfter(DateTime.now())) return;
     try {

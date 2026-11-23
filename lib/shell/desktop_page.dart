@@ -134,7 +134,8 @@ class _TypingTitleState extends State<TypingTitle> with SingleTickerProviderStat
     final text = widget.text;
     final c = _c;
     final typing = c != null && c.status != AnimationStatus.completed;
-    final shown = _shown < 0 || _shown > text.length ? text.length : _shown;
+    // Di luar animasi selalu teks penuh, juga kalau judulnya berubah (mis. ganti bahasa).
+    final shown = !typing || _shown < 0 || _shown > text.length ? text.length : _shown;
     final size = widget.style.fontSize ?? 28;
     return Semantics(
       label: text,

@@ -31,19 +31,33 @@ const kRepeatOpts = <(String, String)>[('none', 'Tidak'), ('daily', 'Harian'), (
 
 String _repeatOf(Object? v) => const ['daily', 'weekly', 'monthly'].contains(v) ? v as String : 'none';
 
-/// Tanggal berikutnya untuk pengulangan [repeat] dari [d] (bulanan: tanggal yang sama, dipotong ke akhir bulan).
-DateTime nextRepeat(DateTime d, String repeat) {
+/// Kemunculan ke-[k] (k = 0 adalah [anchor] sendiri) untuk pengulangan [repeat]. Bulanan selalu dihitung
+/// dari tanggal asli [anchor] (31 Jan → 28 Feb → 31 Mar), tidak bergeser ke tanggal yang sudah dipotong.
+DateTime repeatOccurrence(DateTime anchor, String repeat, int k) {
   switch (repeat) {
     case 'daily':
-      return DateTime(d.year, d.month, d.day + 1, d.hour, d.minute);
+      return DateTime(anchor.year, anchor.month, anchor.day + k, anchor.hour, anchor.minute);
     case 'weekly':
-      return DateTime(d.year, d.month, d.day + 7, d.hour, d.minute);
+      return DateTime(anchor.year, anchor.month, anchor.day + 7 * k, anchor.hour, anchor.minute);
     case 'monthly':
-      final last = DateTime(d.year, d.month + 2, 0).day;
-      return DateTime(d.year, d.month + 1, d.day > last ? last : d.day, d.hour, d.minute);
+      final last = DateTime(anchor.year, anchor.month + k + 1, 0).day;
+      return DateTime(anchor.year, anchor.month + k, anchor.day > last ? last : anchor.day, anchor.hour, anchor.minute);
   }
-  return d;
+  return anchor;
 }
+
+/// Kemunculan pertama sesudah [after] (paling cepat kemunculan ke-1). Null kalau [repeat] = 'none'.
+DateTime? repeatAfter(DateTime anchor, String repeat, DateTime after) {
+  if (repeat == 'none') return null;
+  for (var k = 1; k < 100000; k++) {
+    final d = repeatOccurrence(anchor, repeat, k);
+    if (d.isAfter(after)) return d;
+  }
+  return null;
+}
+
+/// Tanggal berikutnya untuk pengulangan [repeat] dari [d] (bulanan: tanggal yang sama, dipotong ke akhir bulan).
+DateTime nextRepeat(DateTime d, String repeat) => repeatOccurrence(d, repeat, 1);
 
 class Todo {
   Todo({
@@ -59,6 +73,7 @@ class Todo {
     List<SubTask>? subs,
     this.remind = 0,
     this.repeat = 'none',
+    this.nextId,
   }) : subs = subs ?? [];
 
   final String id;
@@ -80,6 +95,10 @@ class Todo {
   /// 'none' | 'daily' | 'weekly' | 'monthly'. Saat ditandai selesai, tugas berikutnya dibuat otomatis.
   String repeat;
 
+  /// Id tugas berikutnya yang dibuat saat tugas berulang ini diselesaikan (supaya batal-selesai bisa
+  /// menghapusnya lagi dan tidak dibuat dobel).
+  String? nextId;
+
   bool get hasTime => due != null && (due!.hour != 0 || due!.minute != 0);
 
   /// Waktu pengingat: tenggat (jam 09.00 kalau tanpa jam) dikurangi [remind]. Null kalau tidak ada.
@@ -91,7 +110,12 @@ class Todo {
   }
 
   /// Nomor notifikasi tetap untuk tugas ini (rentang terpisah dari agenda).
-  int get notifId => 500000000 + (int.tryParse(id.length > 8 ? id.substring(id.length - 8) : id) ?? id.hashCode).abs() % 400000000;
+  /// Rentang sendiri: 1.500.000.000 ke atas (agenda 1.000.000.000–1.499.999.999, tagihan 500.000–899.999,
+  /// anggaran 100–899), jadi pengingat tugas tidak pernah menimpa pengingat lain.
+  int get notifId => 1500000000 + (int.tryParse(id.length > 9 ? id.substring(id.length - 9) : id) ?? id.hashCode).abs() % 600000000;
+
+  /// Nomor lama (v2.2.0–v2.2.2), hanya untuk membatalkan jadwal lama.
+  int get legacyNotifId => 500000000 + (int.tryParse(id.length > 8 ? id.substring(id.length - 8) : id) ?? id.hashCode).abs() % 400000000;
 
   /// Tugas tanpa jam (tersimpan 00:00, mis. dari Tambah Cepat) baru terlambat setelah harinya
   /// lewat; tugas dengan jam terlambat begitu jamnya lewat.
@@ -134,6 +158,7 @@ class Todo {
         'subs': [for (final x in subs) x.toJson()],
         'remind': remind,
         'repeat': repeat,
+        if (nextId != null) 'nextId': nextId,
       };
 
   factory Todo.fromJson(Map<String, dynamic> j) => Todo(
@@ -149,6 +174,7 @@ class Todo {
         subs: j['subs'] is List ? [for (final x in j['subs'] as List) ?SubTask.fromJson(x)] : null,
         remind: j['remind'] is int && (j['remind'] as int) > 0 ? j['remind'] as int : 0,
         repeat: _repeatOf(j['repeat']),
+        nextId: j['nextId'] is String ? j['nextId'] as String : null,
       );
 }
 
@@ -214,7 +240,11 @@ class Agenda {
   int get minuteOfDay => at.hour * 60 + at.minute;
 
   /// Nomor notifikasi tetap untuk agenda ini.
-  int get notifId => 1000 + (int.tryParse(id.length > 9 ? id.substring(id.length - 9) : id) ?? id.hashCode).abs() % 2000000000;
+  /// Rentang 1.000.000.000–1.499.999.999 (tugas 1.500.000.000 ke atas, tagihan 500.000–899.999).
+  int get notifId => 1000000000 + (int.tryParse(id.length > 9 ? id.substring(id.length - 9) : id) ?? id.hashCode).abs() % 500000000;
+
+  /// Nomor lama (sampai v2.2.2), hanya untuk membatalkan jadwal lama.
+  int get legacyNotifId => 1000 + (int.tryParse(id.length > 9 ? id.substring(id.length - 9) : id) ?? id.hashCode).abs() % 2000000000;
 
   Map<String, dynamic> toJson() => {
         'id': id,

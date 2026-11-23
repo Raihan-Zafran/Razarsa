@@ -194,6 +194,17 @@ class TodoRow extends StatelessWidget {
   }
 }
 
+/// Pengingat agenda dan tugas hanya dikirim kalau saklar "Pengingat kalender" menyala (bawaannya mati).
+/// Saat pengguna memilih pengingat, saklar itu dinyalakan sekalian (setelah izin notifikasi diberikan),
+/// supaya pengingatnya tidak diam-diam tidak terkirim. Hasil: (izin ada, saklar baru dinyalakan).
+Future<(bool, bool)> enableReminders(AppStore store) async {
+  if (!await Notif.requestPermission()) return (false, false);
+  if (store.switches['agenda'] == true) return (true, false);
+  store.setSwitch('agenda', true);
+  await Notif.syncProductive(store);
+  return (true, true);
+}
+
 String repeatLabel(String r) => tr(kRepeatOpts.firstWhere((o) => o.$1 == r, orElse: () => kRepeatOpts.first).$2);
 
 String remindLabel(Agenda a) {
@@ -304,7 +315,9 @@ Future<void> showAgendaSheet(BuildContext context, Agenda a) {
               title: Text(tr('Pengingat'), style: const TextStyle(fontWeight: FontWeight.w700)),
               subtitle: Text(remindLabel(a)),
               value: a.reminder && a.on,
-              onChanged: (v) {
+              onChanged: (v) async {
+                // Menyalakan pengingat juga memastikan izin notifikasi dan saklar "Pengingat kalender".
+                final (allowed, turnedOn) = v ? await enableReminders(store) : (true, false);
                 set(() {
                   if (!a.reminder) {
                     a.reminder = true;
@@ -314,6 +327,12 @@ Future<void> showAgendaSheet(BuildContext context, Agenda a) {
                   }
                 });
                 store.updateAgenda(a);
+                if (!ctx.mounted) return;
+                if (!allowed) {
+                  showZToast(ctx, tr('Pengingat tersimpan, tapi notifikasi diblokir. Aktifkan di Pengaturan HP → Aplikasi → Razarsa → Notifikasi.'));
+                } else if (turnedOn) {
+                  showZToast(ctx, tr('Pengingat kalender dinyalakan'));
+                }
               },
             ),
             ListTile(
@@ -453,12 +472,15 @@ Future<void> showAddTodo(BuildContext context, {String initial = ''}) {
         }
         final d = dueDay();
         final due = d == null ? null : (time == null ? d : DateTime(d.year, d.month, d.day, time!.hour, time!.minute));
-        final wantsNotif = remind > 0 && due != null && store.switches['agenda'] == true;
-        final allowed = !wantsNotif || await Notif.requestPermission();
+        final (allowed, turnedOn) = remind > 0 && due != null ? await enableReminders(store) : (true, false);
         store.addTodo(title, cat: kTodoCats[cat].$1, tone: kTodoCats[cat].$2, due: due, pri: pri, notes: notes.text, remind: due == null ? 0 : remind);
         if (ctx.mounted) Navigator.pop(ctx);
         if (context.mounted) {
-          showZToast(context, allowed ? tr('Tugas ditambahkan') : tr('Tugas tersimpan, tapi notifikasi diblokir. Aktifkan di pengaturan perangkat.'));
+          showZToast(
+              context,
+              !allowed
+                  ? tr('Tugas tersimpan, tapi notifikasi diblokir. Aktifkan di pengaturan perangkat.')
+                  : (turnedOn ? tr('Tugas ditambahkan. Pengingat kalender dinyalakan.') : tr('Tugas ditambahkan')));
         }
       });
     }),
@@ -545,7 +567,7 @@ Future<void> showAddAgenda(BuildContext context, DateTime day) {
         }
         final at = DateTime(day.year, day.month, day.day, time.hour, time.minute);
         final reminder = remind >= 0;
-        final allowed = !(reminder && store.switches['agenda'] == true) || await Notif.requestPermission();
+        final (allowed, turnedOn) = reminder ? await enableReminders(store) : (true, false);
         store.addAgenda(title, at, reminder: reminder, repeat: repeat, tone: tone, loc: loc.text, durMin: dur, remindMin: reminder ? remind : 0);
         if (ctx.mounted) Navigator.pop(ctx);
         if (context.mounted) {
@@ -553,7 +575,7 @@ Future<void> showAddAgenda(BuildContext context, DateTime day) {
               context,
               !allowed
                   ? tr('Pengingat tersimpan, tapi notifikasi diblokir. Aktifkan di Pengaturan HP → Aplikasi → Razarsa → Notifikasi.')
-                  : tr('Agenda ditambahkan'));
+                  : (turnedOn ? tr('Agenda ditambahkan. Pengingat kalender dinyalakan.') : tr('Agenda ditambahkan')));
         }
       });
     }),

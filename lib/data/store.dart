@@ -1707,34 +1707,49 @@ class AppStore extends ChangeNotifier {
   }
 
   /// Tandai selesai / belum. Tugas berulang yang diselesaikan langsung membuat tugas berikutnya
-  /// (tenggat digeser sesuai pengulangan, sub-tugas dikosongkan centangnya).
-  void toggleTodo(String id) {
+  /// (tenggat pertama sesudah hari ini, sub-tugas dikosongkan centangnya). Tugas berulang tanpa tenggat
+  /// mendapat tenggat dari hari ini. Batal-selesai menghapus tugas berikutnya itu lagi (kalau belum
+  /// dikerjakan), jadi tidak pernah dobel.
+  void toggleTodo(String id, {DateTime? now}) {
     final i = todos.indexWhere((t) => t.id == id);
     if (i < 0) return;
     final t = todos[i];
+    final n = now ?? DateTime.now();
     t.done = !t.done;
-    t.doneAt = t.done ? DateTime.now() : null;
+    t.doneAt = t.done ? n : null;
     Todo? next;
-    if (t.done && t.repeat != 'none' && t.due != null) {
-      next = Todo(
-        id: newId(),
-        title: t.title,
-        cat: t.cat,
-        tone: t.tone,
-        due: nextRepeat(t.due!, t.repeat),
-        pri: t.pri,
-        notes: t.notes,
-        subs: [for (final x in t.subs) SubTask(x.t)],
-        remind: t.remind,
-        repeat: t.repeat,
-      );
-      // Pengulangan pindah ke tugas baru supaya tugas yang selesai tidak membuat salinan lagi.
-      t.repeat = 'none';
-      todos.add(next);
+    Todo? removed;
+    if (t.done && t.repeat != 'none' && t.nextId == null) {
+      final today = DateTime(n.year, n.month, n.day);
+      final anchor = t.due ?? today;
+      // Tanpa jam: berikutnya paling cepat besok. Dengan jam: sesudah saat ini.
+      final after = t.hasTime ? n : today;
+      final due = repeatAfter(anchor, t.repeat, after);
+      if (due != null) {
+        next = Todo(
+          id: newId(),
+          title: t.title,
+          cat: t.cat,
+          tone: t.tone,
+          due: due,
+          pri: t.pri,
+          notes: t.notes,
+          subs: [for (final x in t.subs) SubTask(x.t)],
+          remind: t.remind,
+          repeat: t.repeat,
+        );
+        t.nextId = next.id;
+        todos.add(next);
+      }
+    } else if (!t.done && t.nextId != null) {
+      final j = todos.indexWhere((x) => x.id == t.nextId);
+      if (j >= 0 && !todos[j].done) removed = todos.removeAt(j);
+      t.nextId = null;
     }
     _changed();
     onTodoChanged?.call(t);
     if (next != null) onTodoChanged?.call(next);
+    if (removed != null) onTodoChanged?.call(removed, removed: true);
   }
 
   void removeTodo(String id) {

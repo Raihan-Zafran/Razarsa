@@ -183,7 +183,8 @@ Future<void> _print(BuildContext context, AppStore store, DateTime from, DateTim
     List<MapEntry<String, int>> byCat, Map<String, int> countBy) async {
   try {
     final html = reportHtml(store, from, to, income, expense, byCat, countBy);
-    final f = File('${Directory.systemTemp.path}${Platform.pathSeparator}razarsa-laporan-${DateTime.now().millisecondsSinceEpoch}.html');
+    // Satu berkas tetap yang selalu ditimpa: salinan data keuangan tidak menumpuk di folder Temp.
+    final f = File('${Directory.systemTemp.path}${Platform.pathSeparator}razarsa-laporan.html');
     await f.writeAsString(html);
     await Process.start('explorer.exe', [f.path]);
     if (context.mounted) showZToast(context, tr('Pilih printer atau “Simpan sebagai PDF”'));
